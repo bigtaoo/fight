@@ -43,7 +43,10 @@ export async function loadRig(dir: string): Promise<TaoAsset | null> {
     const res = await fetch(`art/${dir}/skeleton.json`);
     if (!res.ok) return null;
     const skeleton = (await res.json()) as TaoSkeleton;
-    return sliceAtlas(skeleton, await Assets.load<Texture>(`art/${dir}/atlas.png`));
+    // The atlas is drawn at about a third of its size; without mipmaps its thin pale lines
+    // alias into flickering specks.
+    const atlas = await Assets.load<Texture>({ src: `art/${dir}/atlas.png`, data: { autoGenerateMipmaps: true } });
+    return sliceAtlas(skeleton, atlas);
   } catch {
     return null;
   }

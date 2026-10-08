@@ -7,6 +7,7 @@ colour-to-alpha instead of a flood fill, so dry-brush edges keep their soft alph
 spec.json:
   {
     "source": "hero_apose.png",           # relative to the spec file
+    "pale_keep": 0.3,                     # optional: lightness kept of pale trim inside the figure
     "parts": [                            # listed back to front (the draw order)
       {"name": "arm_f_upper",
        "poly": [[x, y], ...],             # region of the painting that belongs to this part
@@ -66,6 +67,18 @@ def solid_inside(fg, max_hole=4000, rim=3):
     return cv2.erode(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * rim + 1,) * 2)) > 0
 
 
+def mute_pale(rgb, hsv, inside, keep):
+    """Pull the pale, unsaturated paint inside the figure (the white trim lines on the collar,
+    hems and cuffs) toward the ink, keeping `keep` of its lightness above it. At game size a
+    2-3 px white line shrinks below a pixel and flickers as specks; a dark grey one reads as a
+    fold. Saturated paint (the red sash and scarf) is left alone."""
+    ink = np.median(rgb[inside & (hsv[..., 2] < 40)], axis=0)
+    sel = inside & (hsv[..., 1] < 70) & (hsv[..., 2] > 50)
+    out = rgb.astype(np.float32)
+    out[sel] = ink + (out[sel] - ink) * keep
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def ink_colour(rgb, hsv, mask):
     """The deep ink of a region: the median of its darkest opaque pixels, not of its grey folds."""
     v = hsv[..., 2]
@@ -114,6 +127,9 @@ def split(spec_path, out_dir):
     inside = solid_inside(fg)
     rgb[inside], fg[inside] = np.asarray(src)[inside], 255
     hsv = cv2.cvtColor(np.array(src), cv2.COLOR_RGB2HSV)
+    keep = spec.get("pale_keep", 1)
+    if keep < 1:
+        rgb = mute_pale(rgb, hsv, inside, keep)
     owned = {p["name"]: region_mask(src.size, hsv, fg, p) for p in spec["parts"] if "image" not in p}
     os.makedirs(out_dir, exist_ok=True)
     meta, layers = [], []

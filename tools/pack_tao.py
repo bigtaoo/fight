@@ -33,7 +33,7 @@ import zipfile
 
 from PIL import Image
 
-PAD = 2  # transparent gap between atlas frames, so linear filtering never bleeds
+PAD = 8  # transparent gap between atlas frames, so linear filtering and mipmaps never bleed
 ATLAS_W = 1024
 CHANNELS = {"rotate": 1, "translate": 2, "scale": 2}
 

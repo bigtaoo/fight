@@ -1,5 +1,6 @@
 {
  "source": "hero_apose.png",
+ "pale_keep": 0.3,
  "parts": [
   {
    "name": "arm_b_upper",
