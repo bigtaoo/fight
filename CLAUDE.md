@@ -1,7 +1,7 @@
 # dnf（暂名）— 会话规则
 
 DNF 式 2.5D 横版动作页游，PixiJS v8，目标平台网页 + 微信小游戏。水墨美术，AI 出图。
-整体方案见 [`design/README.md`](design/README.md)，当前阶段（最小化验证）见 [`design/MVP.md`](design/MVP.md)。
+整体方案见 [`design/README.md`](design/README.md)，当前阶段（M2 内容竖切）见 [`design/M2.md`](design/M2.md)，M1 最小化验证见 [`design/MVP.md`](design/MVP.md)。
 
 ## 语言
 

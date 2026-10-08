@@ -1,4 +1,4 @@
-import { BODIES, DUNGEONS, type DungeonId, type Kind } from './content';
+import { BODIES, DUNGEONS, type DungeonId, type Kind, type ShotKind } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -78,6 +78,27 @@ export interface Entity {
   cd: number[];
 }
 
+/** A projectile in flight (its definition is SHOTS[kind]). */
+export interface Projectile {
+  id: number;
+  kind: ShotKind;
+  team: number;
+  /** The entity that fired it (it may be dead by now). */
+  owner: number;
+  x: number;
+  y: number;
+  z: number;
+  px: number;
+  py: number;
+  pz: number;
+  /** Speed along x, FP per tick; its sign is the direction of flight. */
+  vx: number;
+  /** Ticks to live, and hits left before it is spent. */
+  life: number;
+  pierce: number;
+  hitList: number[];
+}
+
 /** Per-player input bookkeeping: the engine derives presses, double taps and the buffer. */
 export interface PlayerSlot {
   owner: number;
@@ -102,10 +123,14 @@ export interface SimState {
   tick: number;
   nextId: number;
   rng: Rng;
+  /** The room the heroes are in, by index into the dungeon's rooms. */
   room: number;
   roomWidth: number;
   roomCleared: boolean;
+  /** Rooms cleared so far, in the order they were; going back into one finds it empty. */
+  cleared: number[];
   entities: Entity[];
+  shots: Projectile[];
   players: PlayerSlot[];
   outcome: Outcome;
 }
@@ -117,9 +142,11 @@ export function createState(config: RunConfig): SimState {
     nextId: 1,
     rng: seedRng(config.seed),
     room: -1,
-    roomWidth: DUNGEONS[config.dungeon][0].width,
+    roomWidth: DUNGEONS[config.dungeon].rooms[0].width,
     roomCleared: false,
+    cleared: [],
     entities: [],
+    shots: [],
     players: [],
     outcome: 'playing',
   };

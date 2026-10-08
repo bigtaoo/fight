@@ -9,15 +9,16 @@ import { applyInput } from './systems/hero';
 import { separate } from './systems/mob';
 import { physicsSystem } from './systems/physics';
 import { cleanup, enterRoom, roomSystem } from './systems/room';
+import { fireSystem, shotsSystem } from './systems/shots';
 
 // The simulation: fixed 30 Hz steps over plain integer state, fed only by player commands.
 // The system order below is part of the determinism contract: changing it, or any rule inside
 // a system or any number in content.ts, changes every replay, so bump ENGINE_VERSION (and
 // record the new golden hash in Engine.test.ts on purpose).
 
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 3;
 
-export const STEP_ORDER = ['prologue', 'input', 'bodies', 'physics', 'separate', 'combat', 'cleanup', 'room'] as const;
+export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'cleanup', 'room'] as const;
 
 export class Engine {
   state: SimState;
@@ -52,9 +53,11 @@ export class Engine {
     prologue(s);
     applyInput(s, cmds);
     bodiesSystem(s, events);
+    fireSystem(s, events);
     physicsSystem(s, events);
     separate(s);
     combatSystem(s, events);
+    shotsSystem(s, events);
     cleanup(s);
     roomSystem(s, events);
     return events;

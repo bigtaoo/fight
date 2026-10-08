@@ -15,10 +15,11 @@ import { TaoActor, type TaoAsset } from './tao/TaoActor';
 const INK = {
   hero: { body: 0x17161a, band: 0xc8281e },
   bandit: { body: 0x6f7480, band: 0x34466b },
+  archer: { body: 0x6b6a58, band: 0x8a4a2a },
   dummy: { body: 0x9a8a68, band: 0x6a5c40 },
 } as const;
 
-const PREFIX = { hero: 'hero', bandit: 'mob', dummy: 'dummy' } as const;
+const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', dummy: 'dummy' } as const;
 
 /** Brush arc of each move in a right-facing frame: angles in radians from forward (negative is
  * up), centre height above the feet, radius as a share of the box reach. */
@@ -103,11 +104,13 @@ export class BodyView {
     const fx = this.fxg.clear();
     if (this.actor) {
       this.drawRig(this.actor, e, x, y, z, alpha, dt);
-    } else if (this.sprites) {
+    } else if (this.sprites && this.painted(e)) {
       this.drawSprite(e, z, frame, alpha);
     } else {
+      this.sprite.visible = false;
       this.drawBlocks(g, e, z, hw, h);
     }
+    if (e.kind === 'archer') this.drawBow(fx, e, z, alpha);
     if (e.state === 'act') this.strike(fx, e, z, alpha, debug);
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
@@ -192,6 +195,44 @@ export class BodyView {
     r.scale.set(e.facing * k, k);
     r.rotation = tumble * e.facing;
     r.filters = this.flash > 0 ? [WHITE] : [];
+  }
+
+  /** Whether this kind has paintings; one without (a monster not drawn yet) shows ink blocks. */
+  private painted(e: Entity): boolean {
+    return this.sprites!.has(e.kind === 'dummy' ? 'dummy' : `${PREFIX[e.kind]}_idle`);
+  }
+
+  /** The archer's bow, drawn in code: held low at rest, raised and drawn back through the draw,
+   * a red glint on the arrowhead in the last moments before the release, and its lane marked
+   * on the floor while it aims down it. */
+  private drawBow(g: Graphics, e: Entity, z: number, alpha: number): void {
+    if (e.state === 'down' || e.state === 'dead' || e.state === 'air') return;
+    const f = e.facing;
+    const fire = e.state === 'act' ? MOVES[e.move].fire : undefined;
+    const t = e.held ? e.st : e.st - 1 + alpha;
+    const drawing = fire !== undefined && t < fire.at;
+    // 0 at rest, 1 fully drawn
+    const pull = fire ? (drawing ? Math.min(1, t / (fire.at - 4)) : Math.max(0, 1 - (t - fire.at) / 2)) : 0;
+    const raised = fire ? 1 : 0;
+    const bx = f * (34 + 14 * raised);
+    const by = -z - (raised ? fromFp(fire!.z) : 110);
+    const half = 62;
+    const ink = 0x2b2620;
+    // the limbs: a shallow curve bowing forward
+    g.moveTo(bx, by - half).quadraticCurveTo(bx + f * 26, by, bx, by + half).stroke({ width: 5, color: ink });
+    const nock = bx - f * (6 + 46 * pull);
+    g.moveTo(bx, by - half).lineTo(nock, by).lineTo(bx, by + half).stroke({ width: 1.5, color: ink, alpha: 0.8 });
+    if (!drawing) return;
+    // the nocked arrow
+    g.moveTo(nock, by).lineTo(bx + f * 40, by).stroke({ width: 3, color: ink });
+    const left = fire!.at - t;
+    if (left <= 7) {
+      const k = 1 - left / 7;
+      g.circle(bx + f * 42, by, 6 + 10 * k).fill({ color: 0xc8281e, alpha: 0.25 + 0.5 * k });
+    }
+    // the lane, a thin dry line on the floor ahead
+    const lane = Math.min(1, t / fire!.at);
+    g.rect(f > 0 ? 40 : -40 - 700 * lane, -2, 700 * lane, 4).fill({ color: 0xc8281e, alpha: 0.18 * lane });
   }
 
   private drawSprite(e: Entity, z: number, frame: number, alpha: number): void {
@@ -319,6 +360,7 @@ export class BodyView {
   private strike(g: Graphics, e: Entity, z: number, alpha: number, debug: boolean): void {
     const m = MOVES[e.move];
     const box = m.box;
+    if (!box) return;
     const x0 = fromFp(box.x0);
     const x1 = fromFp(box.x1);
     const active = e.st >= m.active[0] && e.st <= m.active[1];

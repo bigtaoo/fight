@@ -76,8 +76,9 @@ export class Hud {
         g.rect(x, y, 100, 100).stroke({ width: 3, color: 0x141317 });
       });
     }
-    const rooms = DUNGEONS[s.config.dungeon].length;
-    this.room.text = s.config.dungeon === 'training' ? '训练场' : `房间 ${s.room + 1} / ${rooms}${s.roomCleared && s.room < rooms - 1 ? '   → 前进' : ''}`;
+    const dungeon = DUNGEONS[s.config.dungeon];
+    const open = s.roomCleared && s.room !== dungeon.boss ? '   → 前进' : '';
+    this.room.text = s.config.dungeon === 'training' ? '训练场' : `房间 ${s.room + 1} / ${dungeon.rooms.length}${open}`;
     this.comboTime -= dt;
     if (this.comboTime <= 0) this.comboCount = 0;
     this.combo.text = this.comboCount >= 2 ? `${this.comboCount} 连击` : '';

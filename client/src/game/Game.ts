@@ -1,20 +1,22 @@
-import { MOVES, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
+import { DOOR_HALF, DUNGEONS, MOVES, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
 import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
 import { BodyView } from './bodyView';
+import { ShotView } from './shotView';
 import { Fx } from './fx';
 import { Hud } from './hud';
 import { Keyboard } from './keyboard';
 import { loadRig, loadSprites, type SpriteSet } from './sprites';
 import type { TaoAsset } from './tao/TaoActor';
-import { GROUND_TOP, VIEW_H, VIEW_W, cameraX } from './layout';
+import { GROUND_TOP, VIEW_H, VIEW_W, cameraX, floorY } from './layout';
 import { WsLink } from '../net/Link';
 import { OnlineSession } from '../net/OnlineSession';
 import { OfflineSession, type Session } from '../net/Session';
 
 /** The kinds drawn with a skeleton (client/public/art/<kind>/); ?poses shows paintings instead. */
 const RIGGED: readonly Kind[] = ['hero', 'bandit'];
+// (the archer has no art yet: it is drawn as an ink block whatever the switches)
 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation
@@ -24,7 +26,7 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit'];
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
 // skeleton), ?zoom=N (a close-up that follows the hero).
 /** Colour of the loose ink each kind of body throws. */
-const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, dummy: 0x6a5c40 } as const;
+const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, dummy: 0x6a5c40 } as const;
 
 export class Game {
   private readonly root = new Container();
@@ -33,6 +35,7 @@ export class Game {
   private readonly floor = new Graphics();
   private readonly bodies = new Container();
   private readonly views = new Map<number, BodyView>();
+  private readonly shotViews = new Map<number, ShotView>();
   private readonly fx = new Fx();
   private readonly hud = new Hud();
   private readonly keys = new Keyboard();
@@ -165,13 +168,21 @@ export class Game {
         const h = victim ? fromFp(victim.z) + 120 : 120;
         const x = fromFp(ev.x);
         const y = GROUND_TOP + fromFp(ev.y) - h;
-        this.fx.splash(x, y, attacker?.facing ?? 1, ev.stop >= 5);
+        this.fx.splash(x, y, ev.dir, ev.stop >= 5);
         this.fx.damage(x, y - 90, ev.dmg, victim?.team === 0);
         if (attacker?.team === 0) this.hud.heroHit();
         if (ev.stop >= 5 || ev.launch) this.shake = Math.max(this.shake, 0.14);
       } else if (ev.type === 'swing' || ev.type === 'jump' || ev.type === 'land' || ev.type === 'down' || ev.type === 'death') {
         const e = s.entities.find((b) => b.id === ev.id);
         if (e) this.ink(e, ev.type, ev.type === 'swing' ? ev.move : '');
+      } else if (ev.type === 'fire') {
+        const p = s.shots.find((q) => q.id === ev.id);
+        const owner = s.entities.find((b) => b.id === ev.owner);
+        if (p && owner) {
+          const floor = floorY(fromFp(p.y));
+          const dir = p.vx > 0 ? 0 : Math.PI;
+          this.fx.burst(fromFp(p.x), floor - fromFp(p.z), floor, { n: 4, dir, spread: 0.5, speed: [120, 300], r: [2, 4.5], color: DROP_INK[owner.kind] });
+        }
       } else if (ev.type === 'roomEnter') {
         for (const v of this.views.values()) v.root.destroy();
         this.views.clear();
@@ -251,6 +262,7 @@ export class Game {
       v.frame();
       v.draw(e, alpha, this.frame, dt, this.debug);
     }
+    for (const p of s.shots) this.shotViews.get(p.id)!.draw(p, alpha, this.debug);
     this.fx.update(dt);
     this.hud.update(s, dt, this.session!);
   }
@@ -269,9 +281,23 @@ export class Game {
       this.views.set(e.id, v);
       this.bodies.addChild(v.root);
     }
+    // projectiles sort into the bodies by depth, the same way
+    const flying = new Set(s.shots.map((p) => p.id));
+    for (const [id, v] of this.shotViews) {
+      if (!flying.has(id)) {
+        v.root.destroy();
+        this.shotViews.delete(id);
+      }
+    }
+    for (const p of s.shots) {
+      if (this.shotViews.has(p.id)) continue;
+      const v = new ShotView();
+      this.shotViews.set(p.id, v);
+      this.bodies.addChild(v.root);
+    }
   }
 
-  /** The floor band, its back edge drawn as one ink stroke, and the open door of a cleared room. */
+  /** The floor band, its back edge drawn as one ink stroke, and the open doors of a cleared room. */
   private drawFloor(s: SimState): void {
     const w = fromFp(s.roomWidth);
     const g = this.floor.clear();
@@ -280,8 +306,16 @@ export class Game {
     g.rect(0, GROUND_TOP - 30, 10, VIEW_H).fill({ color: 0x141317, alpha: 0.6 });
     g.rect(w - 10, GROUND_TOP - 30, 10, VIEW_H).fill({ color: 0x141317, alpha: 0.6 });
     if (s.roomCleared && s.outcome === 'playing') {
-      const pulse = 0.35 + 0.25 * Math.sin(this.frame / 8);
-      g.rect(w - 140, GROUND_TOP - 30, 130, VIEW_H - GROUND_TOP + 30).fill({ color: 0xc8281e, alpha: pulse * 0.5 });
+      const fill = { color: 0xc8281e, alpha: (0.35 + 0.25 * Math.sin(this.frame / 8)) * 0.5 };
+      const half = fromFp(DOOR_HALF);
+      const front = floorY(fromFp(WORLD.depth));
+      for (const d of DUNGEONS[s.config.dungeon].rooms[s.room].doors) {
+        const x = fromFp(d.x ?? 0);
+        if (d.side === 'right') g.rect(w - 140, GROUND_TOP - 30, 130, VIEW_H - GROUND_TOP + 30).fill(fill);
+        else if (d.side === 'left') g.rect(10, GROUND_TOP - 30, 130, VIEW_H - GROUND_TOP + 30).fill(fill);
+        else if (d.side === 'up') g.rect(x - half, GROUND_TOP - 30, half * 2, 54).fill(fill);
+        else g.rect(x - half, front - 24, half * 2, VIEW_H - front + 24).fill(fill);
+      }
     }
   }
 }

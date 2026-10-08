@@ -10,6 +10,10 @@ export function startMove(e: Entity, id: string, events: SimEvent[], turnTo = 0)
   setState(e, 'act');
   e.move = id;
   e.hitList = [];
+  if (m.hop) {
+    e.vx = -e.facing * m.hop.back;
+    e.vz = m.hop.up;
+  }
   const slot = SKILLS.indexOf(id as (typeof SKILLS)[number]);
   if (slot >= 0 && m.cooldown) e.cd[slot] = m.cooldown;
   events.push({ type: 'swing', id: e.id, move: id });
@@ -18,6 +22,7 @@ export function startMove(e: Entity, id: string, events: SimEvent[], turnTo = 0)
 /** Sets the body's speed for this tick of its move: a ground move only moves where it advances. */
 export function moveVelocity(e: Entity, m: Move): void {
   if (m.air) {
+    // airborne: the speed it took off with (or steers) carries on
     e.vy = 0;
     return;
   }
