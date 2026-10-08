@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  // The base lib is ES2020 without DOM, so a browser API in the sim fails to typecheck.
+  "include": ["."],
+  "exclude": ["node_modules", "vitest.config.ts"]
+}

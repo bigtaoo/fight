@@ -1,0 +1,15 @@
+{
+  "name": "@dnf/engine",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Deterministic simulation core: fixed 30 Hz integer state, shared as source by the client and the server",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}

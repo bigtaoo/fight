@@ -1,0 +1,26 @@
+{
+  "name": "dnf",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "2.5D side-scrolling action game in ink-wash style (PixiJS). See design/README.md",
+  "workspaces": [
+    "engine",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

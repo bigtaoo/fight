@@ -1,0 +1,17 @@
+{
+ "hero_idle": {"src": "../style_r1/d_pomo.jpg", "h": 235},
+ "hero_run": {"src": "hero_run.jpg", "h": 200, "erase": [[0.8, 0.35, 1, 1], [0, 0.86, 1, 1]]},
+ "hero_atk1": {"src": "hero_atk1.jpg", "h": 215},
+ "hero_atk2": {"src": "hero_atk2.jpg", "h": 220},
+ "hero_atk3": {"src": "hero_hurt_v1.jpg", "h": 215},
+ "hero_jump": {"src": "hero_jump.jpg", "h": 210},
+ "hero_jumpatk": {"src": "hero_jumpatk.jpg", "h": 220},
+ "hero_upper": {"src": "hero_upper_v1.jpg", "h": 235},
+ "hero_dash": {"src": "hero_dash.jpg", "h": 190},
+ "mob_idle": {"src": "mob_idle_v1.jpg", "h": 250, "erase": [[0, 0.93, 1, 1], [0, 0.78, 0.26, 1], [0.66, 0.78, 1, 1]]},
+ "mob_windup": {"src": "mob_windup_v1.jpg", "h": 255},
+ "mob_slash": {"src": "mob_hurt.jpg", "h": 235, "erase": [[0.9, 0.88, 1, 1]]},
+ "mob_down": {"src": "mob_down.jpg", "h": 80},
+ "dummy": {"src": "dummy.jpg", "h": 220},
+ "hero_down": {"src": "hero_down.jpg", "h": 95}
+}

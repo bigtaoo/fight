@@ -1,0 +1,4 @@
+# Shell scripts must stay LF, otherwise bash fails on Windows checkouts with core.autocrlf
+*.sh text eol=lf
+*.jpg binary
+*.png binary

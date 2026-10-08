@@ -1,0 +1,20 @@
+{
+  // Shared compiler settings; each package's tsconfig.json extends this.
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "lib": ["ES2020"],
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@dnf/engine": ["engine/index.ts"],
+      "@dnf/engine/*": ["engine/*"]
+    }
+  }
+}

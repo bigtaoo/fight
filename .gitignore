@@ -1,0 +1,21 @@
+# Dependencies / build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Real credentials never go in the repo (image keys live in ~/.vibe)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+
+# Tool run logs (art generation and the like)
+*.log
