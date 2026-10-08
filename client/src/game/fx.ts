@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 
-// Short-lived effects in world space: ink splashes where a hit lands, rising damage numbers, and
+// Short-lived effects in world space: ink splashes where a hit lands (sparks where a shield stops
+// it), rising damage numbers, and
 // loose ink drops flung by movement (run, jump, land, swing, dash, death). The drops replace the
 // specks the paintings came with: those were stuck to the sprite and moved with it, these fly,
 // fall, and leave a flattened stain on the floor that fades. Everything here is cosmetic and runs
@@ -12,6 +13,8 @@ interface Splash {
   life: number;
   drops: { dx: number; dy: number; r: number }[];
   heavy: boolean;
+  /** A widening ring instead of drops (a blocked blow). */
+  ring?: boolean;
 }
 
 interface Drop {
@@ -101,14 +104,26 @@ export class Fx {
     this.splashes.push({ g, age: 0, life: heavy ? 0.4 : 0.28, drops, heavy });
   }
 
-  damage(x: number, y: number, value: number, taken: boolean): void {
+  /** A blow stopped by a shield: pale sparks glancing back off it toward the attacker (`dir` is
+   * the way the blow went), and a ring where it struck. */
+  clang(x: number, y: number, floor: number, dir: number): void {
+    const back = dir > 0 ? Math.PI : 0;
+    this.burst(x - dir * 20, y, floor, { n: 9, dir: back, spread: 1.6, speed: [260, 620], r: [1.6, 3.6], g: 1600, life: 0.35, color: 0xd9c89a });
+    const g = new Graphics();
+    g.position.set(x - dir * 20, y);
+    this.layer.addChild(g);
+    this.splashes.push({ g, age: 0, life: 0.18, drops: [], heavy: false, ring: true });
+  }
+
+  /** A damage number; `blocked`: the sliver a shield let through, small and grey. */
+  damage(x: number, y: number, value: number, taken: boolean, blocked = false): void {
     const t = new Text({
       text: String(value),
       style: {
         fontFamily: 'Georgia, "Songti SC", "SimSun", serif',
-        fontSize: taken ? 46 : 52,
+        fontSize: blocked ? 32 : taken ? 46 : 52,
         fontWeight: 'bold',
-        fill: taken ? 0xc8281e : 0x141317,
+        fill: blocked ? 0x8a8478 : taken ? 0xc8281e : 0x141317,
         stroke: { color: 0xf3eee2, width: 6 },
       },
     });
@@ -148,6 +163,10 @@ export class Fx {
       }
       const ease = 1 - (1 - k) * (1 - k);
       s.g.clear();
+      if (s.ring) {
+        s.g.circle(0, 0, 14 + 46 * ease).stroke({ width: 5 * (1 - k), color: 0xd9c89a, alpha: 1 - k });
+        return true;
+      }
       s.g.circle(0, 0, (s.heavy ? 36 : 24) * (1 - k)).fill({ color: 0x111014, alpha: 0.8 * (1 - k) });
       for (const d of s.drops) s.g.circle(d.dx * ease, d.dy * ease + 80 * k * k, d.r * (1 - k * 0.6)).fill({ color: 0x111014, alpha: 1 - k });
       return true;

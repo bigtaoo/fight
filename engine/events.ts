@@ -3,8 +3,9 @@
 export type SimEvent =
   /** A move started (the view plays its swing sound and trail). */
   | { type: 'swing'; id: number; move: string }
-  /** `attacker` is the body that struck, or that fired the projectile; `dir` the way the hit went. */
-  | { type: 'hit'; attacker: number; target: number; dmg: number; x: number; y: number; z: number; dir: number; stop: number; launch: boolean }
+  /** `attacker` is the body that struck, or that fired the projectile; `dir` the way the hit went;
+   * `blocked`: it landed on a shield (chip damage, no stun). */
+  | { type: 'hit'; attacker: number; target: number; dmg: number; x: number; y: number; z: number; dir: number; stop: number; launch: boolean; blocked: boolean }
   /** A projectile was fired (`id` is the projectile's). */
   | { type: 'fire'; id: number; owner: number; shot: string }
   | { type: 'jump'; id: number }

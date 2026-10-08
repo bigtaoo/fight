@@ -1,4 +1,4 @@
-import { BODIES, MOVES, type HitBox, type HitData } from '../content';
+import { BODIES, MONSTERS, MOVES, type HitBox, type HitData } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randRange } from '../math/prng';
@@ -7,6 +7,8 @@ import { hittable, setState, type Entity, type SimState } from '../state';
 // Hit detection on the 2.5D floor and what a hit does. A hit lands when the attack box and the
 // target overlap in x, the two are within the box's depth in y, and their heights overlap in z.
 // Attackers are checked in array order, targets too, so every machine resolves a tick the same.
+// A shield bearer guarding takes a hit from the front as a block: a sliver of the damage, the
+// hitstop, no stun. It is not turned by hits, so a hero behind it stays behind it.
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
@@ -39,14 +41,33 @@ export function overlaps(a: { x: number; y: number; z: number }, facing: number,
   return a.z + b.z0 <= t.z + body.height && a.z + b.z1 >= t.z;
 }
 
+/** Whether `e` has its shield up: on its feet, standing, walking, or in its own attack up to the
+ * end of the strike (the recovery after it, and turning round, leave it open). */
+export function guarding(e: Entity): boolean {
+  if (e.kind === 'hero' || !MONSTERS[e.kind].guard || e.z > 0) return false;
+  if (e.state === 'idle' || e.state === 'walk') return true;
+  return e.state === 'act' && e.move === MONSTERS[e.kind].attack && e.st <= MOVES[e.move].active[1];
+}
+
 /** Hit `t` with `m`, struck by `a` (a body, or the one that fired a projectile) heading `facing`. */
 export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData): void {
   let dmg = m.damage;
   if (a.team === 0) dmg = Math.trunc((dmg * s.config.heroDamagePct) / 100);
   dmg = Math.max(1, Math.trunc((dmg * randRange(s.rng, 'combat', 90, 110)) / 100));
+  const guard = t.kind === 'hero' ? undefined : MONSTERS[t.kind].guard;
+  if (guard && !m.breaks && t.facing === -facing && guarding(t)) {
+    const chip = Math.max(1, Math.trunc((dmg * guard.pct) / 100));
+    // a block that would kill is a hit: the last blow goes through
+    if (chip < t.hp) {
+      t.hp -= chip;
+      t.stop = m.stop;
+      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true });
+      return;
+    }
+  }
   t.hp -= dmg;
   t.stop = m.stop;
-  t.facing = -facing;
+  if (!guard) t.facing = -facing;
 
   const airborne = t.z > 0 || t.state === 'air';
   const kill = t.hp <= 0;
@@ -65,6 +86,6 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     t.vx = facing * m.push;
     t.vy = 0;
   }
-  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air' });
+  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false });
   if (kill) events.push(t.team === 0 ? { type: 'heroDown', id: t.id } : { type: 'death', id: t.id });
 }

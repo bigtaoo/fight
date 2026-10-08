@@ -1,4 +1,4 @@
-import { BODIES, HERO, MOVES, TICK_RATE, WORLD, fromFp, type Entity } from '@dnf/engine';
+import { BODIES, HERO, MOVES, TICK_RATE, WORLD, fromFp, guarding, type Entity } from '@dnf/engine';
 import { ColorMatrixFilter, Container, Graphics, Sprite } from 'pixi.js';
 import { floorY, lerp } from './layout';
 import type { SpriteSet } from './sprites';
@@ -16,10 +16,11 @@ const INK = {
   hero: { body: 0x17161a, band: 0xc8281e },
   bandit: { body: 0x6f7480, band: 0x34466b },
   archer: { body: 0x6b6a58, band: 0x8a4a2a },
+  shield: { body: 0x55595f, band: 0x7a2e24 },
   dummy: { body: 0x9a8a68, band: 0x6a5c40 },
 } as const;
 
-const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', dummy: 'dummy' } as const;
+const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', shield: 'shield', dummy: 'dummy' } as const;
 
 /** Brush arc of each move in a right-facing frame: angles in radians from forward (negative is
  * up), centre height above the feet, radius as a share of the box reach. */
@@ -111,6 +112,7 @@ export class BodyView {
       this.drawBlocks(g, e, z, hw, h);
     }
     if (e.kind === 'archer') this.drawBow(fx, e, z, alpha);
+    if (e.kind === 'shield') this.drawShield(fx, e, z, hw, alpha);
     if (e.state === 'act') this.strike(fx, e, z, alpha, debug);
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
@@ -233,6 +235,35 @@ export class BodyView {
     // the lane, a thin dry line on the floor ahead
     const lane = Math.min(1, t / fire!.at);
     g.rect(f > 0 ? 40 : -40 - 700 * lane, -2, 700 * lane, 4).fill({ color: 0xc8281e, alpha: 0.18 * lane });
+  }
+
+  /** The shield bearer's shield, drawn in code: a tall board held square in front while it
+   * guards, rammed forward in the bash, and swung down to its side (pale: open) through the
+   * recovery, while it turns round and when it is knocked about. */
+  private drawShield(g: Graphics, e: Entity, z: number, hw: number, alpha: number): void {
+    if (e.state === 'down' || e.state === 'dead' || (e.state === 'air' && z < 30 && e.vz <= 0)) return;
+    const f = e.facing;
+    const ink = 0x2b2620;
+    const w = 22;
+    const h = 170;
+    if (guarding(e)) {
+      let dx = hw + 8;
+      if (e.state === 'act') {
+        // the bash: drawn back through the windup, rammed out on the strike
+        const m = MOVES[e.move];
+        const t = e.held ? e.st : e.st - 1 + alpha;
+        dx += t < m.active[0] ? -10 * Math.min(1, t / m.active[0]) : 36;
+      }
+      const x = f > 0 ? dx : -dx - w;
+      g.rect(x, -z - 40 - h, w, h).fill(ink);
+      g.rect(x + (f > 0 ? w - 5 : 0), -z - 40 - h, 5, h).fill(0x8a7a5a);
+      // the boss of the shield
+      g.circle(x + w / 2, -z - 40 - h / 2, 7).fill(0x8a7a5a);
+      return;
+    }
+    // open: lowered and turned edge-on at its side, too thin to stop anything
+    const x = f > 0 ? hw - 4 : -hw - 4;
+    g.rect(x, -z - 30 - h * 0.8, 8, h * 0.8).fill({ color: ink, alpha: 0.45 });
   }
 
   private drawSprite(e: Entity, z: number, frame: number, alpha: number): void {

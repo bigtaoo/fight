@@ -31,8 +31,9 @@ export interface Body {
 }
 
 /** What drives a monster: `melee` walks up, lines up in depth and swings; `ranged` keeps its
- * distance, lines up in depth and shoots, hopping back when the hero gets close; `still` stands there. */
-export type Brain = 'melee' | 'ranged' | 'still';
+ * distance, lines up in depth and shoots, hopping back when the hero gets close; `guard` walks up
+ * and swings like `melee` behind a shield, turning slowly to a hero behind it; `still` stands there. */
+export type Brain = 'melee' | 'ranged' | 'guard' | 'still';
 
 /** How a ranged monster keeps its distance. */
 export interface Ranged {
@@ -44,6 +45,14 @@ export interface Ranged {
   backstep: string;
   /** Ticks between two hops. */
   backstepCd: number;
+}
+
+/** A shield held forward: a hit from the front while guarding (see `guarding` in combat.ts)
+ * deals `pct` percent of its damage and no stun, unless the move `breaks` guards. */
+export interface Guard {
+  pct: number;
+  /** The move it turns around with when the hero gets behind it (it guards neither side meanwhile). */
+  turn: string;
 }
 
 export interface Monster {
@@ -63,9 +72,10 @@ export interface Monster {
   /** Heals back to full every tick (the training dummy). */
   immortal?: boolean;
   ranged?: Ranged;
+  guard?: Guard;
 }
 
-export type MonsterKind = 'bandit' | 'archer' | 'dummy';
+export type MonsterKind = 'bandit' | 'archer' | 'shield' | 'dummy';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -92,6 +102,18 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     firstCooldown: [ticks(1), ticks(2)],
     ranged: { keep: toFp(420), flee: toFp(230), fleeY: toFp(70), backstep: 'hop', backstepCd: ticks(2.5) },
   },
+  shield: {
+    body: { halfWidth: toFp(50), height: toFp(235), hp: 700 },
+    brain: 'guard',
+    walkX: toFp(2),
+    walkY: toFp(1.6),
+    range: toFp(140),
+    alignY: toFp(22),
+    attack: 'bash',
+    cooldown: [ticks(1.8), ticks(3)],
+    firstCooldown: [ticks(1), ticks(2)],
+    guard: { pct: 15, turn: 'turn' },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -109,6 +131,7 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   hero: { halfWidth: toFp(32), height: toFp(220), hp: 1000 },
   bandit: MONSTERS.bandit.body,
   archer: MONSTERS.archer.body,
+  shield: MONSTERS.shield.body,
   dummy: MONSTERS.dummy.body,
 };
 
@@ -155,6 +178,8 @@ export interface HitData {
   launch: number;
   /** Upward speed an airborne target is lifted to, before the juggle decay. */
   lift: number;
+  /** Goes through a shield (see Guard). */
+  breaks?: boolean;
 }
 
 export interface Move extends HitData {
@@ -180,6 +205,8 @@ export interface Move extends HitData {
   hop?: { back: number; up: number };
   /** Fires projectile `shot` on tick `at`, from `x` ahead of the body and `z` above its feet. */
   fire?: { at: number; shot: ShotKind; x: number; z: number };
+  /** The body turns around as the move ends. */
+  turn?: boolean;
 }
 
 function box(x0: number, x1: number, depth: number, z0: number, z1: number): HitBox {
@@ -210,7 +237,7 @@ const MOVE_LIST: Move[] = [
   {
     id: 'upper', total: 20, active: [4, 7], box: box(0, 150, 40, 0, 260),
     damage: 52, hitstun: 20, stop: 4, push: toFp(3), launch: toFp(30), lift: toFp(26),
-    cancel: 13, cooldown: ticks(2.5),
+    cancel: 13, cooldown: ticks(2.5), breaks: true,
   },
   {
     id: 'dash', total: 18, active: [3, 10], box: box(-20, 140, 45, 0, 220),
@@ -232,6 +259,18 @@ const MOVE_LIST: Move[] = [
     id: 'slash', total: 40, active: [17, 19], box: box(0, 170, 35, 20, 220),
     damage: 80, hitstun: 16, stop: 4, push: toFp(8), launch: 0, lift: toFp(8),
     cancel: 0, advance: { from: 15, to: 18, speed: toFp(4) },
+  },
+  // the shield bearer: a short step in behind the shield and a shove that throws the hero back;
+  // and turning round, slowly, which is when it is open from both sides
+  {
+    id: 'bash', total: 34, active: [15, 17], box: box(0, 150, 35, 20, 220),
+    damage: 65, hitstun: 18, stop: 5, push: toFp(20), launch: 0, lift: toFp(10),
+    cancel: 0, advance: { from: 12, to: 16, speed: toFp(7) },
+  },
+  {
+    id: 'turn', total: 16, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, turn: true,
   },
 ];
 
@@ -313,7 +352,8 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
   },
   training: { rooms: [room(2400, [['dummy', 900, 180], ['dummy', 1300, 120]], [], true)], boss: 0 },
   // Black Wind Fort (M2). The layout is final; bandits and archers in the first rooms as planned,
-  // the rest are placeholders until the shield bearer, the elite and the boss exist:
+  // shield bearers from the gate on; the side room and the hall are placeholders until the elite
+  // and the boss exist:
   //   0 mountain road > 1 mountain road > 2 gate > 3 inner fort > 5 hall (boss)
   //                                         v
   //                                    4 side room (elite, optional)
@@ -321,8 +361,8 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
     rooms: [
       room(2400, [['bandit', 1100, 140], ['archer', 1800, 240]], [['right', 1]]),
       room(2400, [['bandit', 1000, 100], ['bandit', 1200, 260], ['archer', 1800, 180], ['archer', 2000, 40]], [['left', 0], ['right', 2]]),
-      room(2600, [['bandit', 1000, 200], ['bandit', 1300, 80], ['archer', 2000, 280]], [['left', 1], ['right', 3], ['down', 4, 1300]]),
-      room(2400, [['bandit', 900, 120], ['bandit', 1100, 280], ['archer', 1700, 200], ['archer', 1900, 60]], [['left', 2], ['right', 5]]),
+      room(2600, [['bandit', 1000, 200], ['shield', 1400, 120], ['archer', 2000, 280]], [['left', 1], ['right', 3], ['down', 4, 1300]]),
+      room(2400, [['bandit', 900, 120], ['shield', 1200, 260], ['archer', 1700, 200], ['archer', 1900, 60]], [['left', 2], ['right', 5]]),
       room(1800, [['bandit', 1100, 180]], [['up', 2, 900]]),
       room(2000, [['bandit', 1200, 180], ['bandit', 1400, 100], ['bandit', 1400, 260]], [['left', 3]]),
     ],

@@ -1,4 +1,4 @@
-import { DOOR_HALF, DUNGEONS, MOVES, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
+import { BODIES, DOOR_HALF, DUNGEONS, MOVES, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
 import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
@@ -16,7 +16,7 @@ import { OfflineSession, type Session } from '../net/Session';
 
 /** The kinds drawn with a skeleton (client/public/art/<kind>/); ?poses shows paintings instead. */
 const RIGGED: readonly Kind[] = ['hero', 'bandit'];
-// (the archer has no art yet: it is drawn as an ink block whatever the switches)
+// (the archer and the shield bearer have no art yet: they are drawn as ink blocks whatever the switches)
 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation
@@ -26,7 +26,7 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit'];
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
 // skeleton), ?zoom=N (a close-up that follows the hero).
 /** Colour of the loose ink each kind of body throws. */
-const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, dummy: 0x6a5c40 } as const;
+const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, shield: 0x3d4148, dummy: 0x6a5c40 } as const;
 
 export class Game {
   private readonly root = new Container();
@@ -160,16 +160,22 @@ export class Game {
       if (ev.type === 'hit') {
         const target = this.views.get(ev.target);
         if (target) {
-          target.flash = 3;
-          target.shake = ev.stop;
+          // a blocked blow does not flash the body white: it rocks it behind its shield
+          target.flash = ev.blocked ? 0 : 3;
+          target.shake = ev.blocked ? Math.min(2, ev.stop) : ev.stop;
         }
         const attacker = s.entities.find((e) => e.id === ev.attacker);
         const victim = s.entities.find((e) => e.id === ev.target);
         const h = victim ? fromFp(victim.z) + 120 : 120;
         const x = fromFp(ev.x);
         const y = GROUND_TOP + fromFp(ev.y) - h;
-        this.fx.splash(x, y, ev.dir, ev.stop >= 5);
-        this.fx.damage(x, y - 90, ev.dmg, victim?.team === 0);
+        if (ev.blocked && victim) {
+          const front = x + ev.dir * -fromFp(BODIES[victim.kind].halfWidth);
+          this.fx.clang(front, y, GROUND_TOP + fromFp(ev.y), ev.dir);
+        } else {
+          this.fx.splash(x, y, ev.dir, ev.stop >= 5);
+        }
+        this.fx.damage(x, y - 90, ev.dmg, victim?.team === 0, ev.blocked);
         if (attacker?.team === 0) this.hud.heroHit();
         if (ev.stop >= 5 || ev.launch) this.shake = Math.max(this.shake, 0.14);
       } else if (ev.type === 'swing' || ev.type === 'jump' || ev.type === 'land' || ev.type === 'down' || ev.type === 'death') {
@@ -200,7 +206,8 @@ export class Game {
     const fwdUp = f > 0 ? -0.45 : -Math.PI + 0.45;
     switch (what) {
       case 'swing': {
-        const heavy = move === 'atk3' || move === 'upper' || move === 'slash';
+        if (MOVES[move].turn) break;
+        const heavy = move === 'atk3' || move === 'upper' || move === 'slash' || move === 'bash';
         const dir = move === 'upper' ? -Math.PI / 2 + f * 0.4 : move === 'dash' ? (f > 0 ? Math.PI : 0) : fwdUp;
         this.fx.burst(x + f * 50, feet - 130, floor, { n: heavy ? 8 : 5, dir, spread: 1, speed: [220, 520], r: [2.4, 7.2], color, jitter: [30, 40] });
         break;

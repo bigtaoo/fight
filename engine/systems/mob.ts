@@ -8,7 +8,9 @@ import { moveVelocity, startMove } from './moves';
 // nearest hero, lines up in depth and swings, then waits a rolled cooldown. A ranged one keeps
 // its distance and shoots down its lane once lined up; a hero closing in makes it hop back, or
 // back off on foot while the hop is not ready (not into a wall, though: cornered, it stands and
-// shoots). A still one stands.
+// shoots). A guard one fights like a melee one behind its shield, but does not just face the hero:
+// with the hero behind it, it plays its slow turn (open from both sides until it is round). A
+// still one stands.
 
 function nearestHero(s: SimState, m: Entity): Entity | undefined {
   let best: Entity | undefined;
@@ -35,7 +37,10 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   if (m.state === 'act') {
     const mv = MOVES[m.move];
     moveVelocity(m, mv);
-    if (m.st >= mv.total) setState(m, 'idle');
+    if (m.st >= mv.total) {
+      if (mv.turn) m.facing = -m.facing;
+      setState(m, 'idle');
+    }
     return;
   }
   const t = nearestHero(s, m);
@@ -47,6 +52,12 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   }
   const dx = t.x - m.x;
   const dy = t.y - m.y;
+  if (def.guard && dx * m.facing < 0) {
+    m.vx = 0;
+    m.vy = 0;
+    startMove(m, def.guard.turn, events);
+    return;
+  }
   if (dx !== 0) m.facing = Math.sign(dx);
   if (def.brain === 'ranged') return ranged(s, m, def, dx, dy, events);
   const ax = Math.abs(dx);
