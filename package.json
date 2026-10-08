@@ -6,10 +6,12 @@
   "description": "2.5D side-scrolling action game in ink-wash style (PixiJS). See design/README.md",
   "workspaces": [
     "engine",
-    "client"
+    "client",
+    "server"
   ],
   "scripts": {
     "dev": "npm run dev -w client",
+    "server": "npm run start -w server",
     "build": "npm run build -w client",
     "test": "npm run test --workspaces",
     "typecheck": "npm run typecheck --workspaces",

@@ -1,4 +1,5 @@
-import { Engine, LocalInputSource, MOVES, TICK_RATE, fromFp, runConfig, type DungeonId, type RunConfig, type Entity, type SimEvent, type SimState } from '@dnf/engine';
+import { MOVES, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
+import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
 import { BodyView } from './bodyView';
@@ -8,16 +9,20 @@ import { Keyboard } from './keyboard';
 import { loadRig, loadSprites, type SpriteSet } from './sprites';
 import type { TaoAsset } from './tao/TaoActor';
 import { GROUND_TOP, VIEW_H, VIEW_W, cameraX } from './layout';
+import { WsLink } from '../net/Link';
+import { OnlineSession } from '../net/OnlineSession';
+import { OfflineSession, type Session } from '../net/Session';
 
-// The offline prototype: one engine stepped at a fixed 30 Hz from the keyboard, drawn every
-// frame with interpolation between ticks. URL switches: ?dungeon=training, ?seed=N, ?bot (the
-// engine's bot plays), ?debug (hit boxes, also F1), ?cheat=dmg (hero damage x10 locally),
-// ?blocks (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of
-// its skeleton), ?zoom=N (a close-up that follows the hero).
+/** The kinds drawn with a skeleton (client/public/art/<kind>/); ?poses shows paintings instead. */
+const RIGGED: readonly Kind[] = ['hero', 'bandit'];
 
-const STEP = 1 / TICK_RATE;
-/** At most this many ticks per frame; beyond it the sim slows down rather than spiralling. */
-const MAX_STEPS = 5;
+// The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
+// the server's metronome unless that is not reachable) drawn every frame with interpolation
+// between ticks. URL switches: ?offline (no server), ?server=ws://host:port, ?lag=N (ms added
+// each way), ?dungeon=training, ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
+// boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
+// (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
+// skeleton), ?zoom=N (a close-up that follows the hero).
 /** Colour of the loose ink each kind of body throws. */
 const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, dummy: 0x6a5c40 } as const;
 
@@ -33,9 +38,10 @@ export class Game {
   private readonly keys = new Keyboard();
   private far?: Sprite;
   private sprites: SpriteSet | null = null;
-  private heroRig: TaoAsset | null = null;
-  private engine!: Engine;
-  private acc = 0;
+  /** Skeletons of the rigged kinds; the others show pose paintings. */
+  private rigs: Partial<Record<Kind, TaoAsset>> = {};
+  private session: Session | null = null;
+  private link: WsLink | null = null;
   private frame = 0;
   private shake = 0;
   private debug: boolean;
@@ -53,7 +59,7 @@ export class Game {
         ev.preventDefault();
         this.debug = !this.debug;
       }
-      if (ev.code === 'KeyR') this.start(this.seed + 1);
+      if (ev.code === 'KeyR' && this.session) void this.start(this.seed + 1);
     });
     window.addEventListener('resize', () => this.fit());
     this.fit();
@@ -70,10 +76,29 @@ export class Game {
       // plain paper without the far layer
     }
     if (!this.params.has('blocks')) {
-      [this.sprites, this.heroRig] = await Promise.all([loadSprites(), this.params.has('poses') ? null : loadRig('hero')]);
+      const rigged = this.params.has('poses') ? [] : RIGGED;
+      const [sprites, ...rigs] = await Promise.all([loadSprites(), ...rigged.map((k) => loadRig(k))]);
+      this.sprites = sprites;
+      rigged.forEach((k, i) => {
+        const rig = rigs[i];
+        if (rig) this.rigs[k] = rig;
+      });
     }
-    this.start(this.seed);
+    this.link = await this.connect();
+    await this.start(this.seed);
     this.app.ticker.add((t) => this.update(t.deltaMS / 1000));
+  }
+
+  /** The link to the server, or null to play offline. */
+  private async connect(): Promise<WsLink | null> {
+    if (this.params.has('offline')) return null;
+    const url = this.params.get('server') ?? `ws://${location.hostname}:${SERVER_PORT}`;
+    try {
+      return await WsLink.connect(url, Number(this.params.get('lag') ?? 0));
+    } catch {
+      this.hud.offlineNote = '离线（没连上服务器）';
+      return null;
+    }
   }
 
   private config(seed: number): RunConfig {
@@ -84,12 +109,25 @@ export class Game {
     });
   }
 
-  private start(seed: number): void {
+  private async start(seed: number): Promise<void> {
     this.seed = seed;
-    this.engine = new Engine(this.config(seed), new LocalInputSource());
+    this.session?.close();
+    this.session = null;
     for (const v of this.views.values()) v.root.destroy();
     this.views.clear();
-    this.acc = 0;
+    if (this.link?.open) {
+      try {
+        this.session = await OnlineSession.join(this.link, { dungeon: this.config(seed).dungeon, device: deviceId(), cheatDmg: this.params.get('cheat') === 'dmg' });
+        return;
+      } catch {
+        this.hud.offlineNote = '离线（服务器没有开局）';
+      }
+    }
+    this.session = new OfflineSession(this.config(seed));
+  }
+
+  private get engine() {
+    return this.session!.engine;
   }
 
   /** Scales the 1920x1080 logical view into the window, letterboxed. */
@@ -100,21 +138,17 @@ export class Game {
   }
 
   private update(dt: number): void {
-    this.acc += Math.min(dt, 0.25);
-    let steps = 0;
-    while (this.acc >= STEP && steps < MAX_STEPS) {
-      const e = this.engine;
-      const buttons = this.params.has('bot') ? botButtons(e.state, 0) : this.keys.read();
-      e.submit({ owner: 0, tick: e.nextTick, buttons });
-      const events = e.advance();
-      if (events) this.onEvents(events);
-      this.tickInk(e.state);
+    const session = this.session;
+    if (!session) return;
+    const n = session.ticksFor(dt * 1000);
+    for (let i = 0; i < n; i++) {
+      const s = session.engine.state;
+      const buttons = this.params.has('bot') ? botButtons(s, 0) : this.keys.read();
+      this.onEvents(session.step(buttons));
+      this.tickInk(session.engine.state);
       for (const v of this.views.values()) v.tick();
-      this.acc -= STEP;
-      steps++;
     }
-    if (steps === MAX_STEPS) this.acc = 0;
-    this.render(this.acc / STEP, dt);
+    this.render(session.alpha, dt);
   }
 
   private onEvents(events: readonly SimEvent[]): void {
@@ -218,7 +252,7 @@ export class Game {
       v.draw(e, alpha, this.frame, dt, this.debug);
     }
     this.fx.update(dt);
-    this.hud.update(s, dt);
+    this.hud.update(s, dt, this.session!);
   }
 
   private syncViews(s: SimState): void {
@@ -231,7 +265,7 @@ export class Game {
     }
     for (const e of s.entities) {
       if (this.views.has(e.id)) continue;
-      const v = new BodyView(e.id, this.sprites, e.kind === 'hero' ? this.heroRig : null);
+      const v = new BodyView(e.id, this.sprites, this.rigs[e.kind] ?? null);
       this.views.set(e.id, v);
       this.bodies.addChild(v.root);
     }
@@ -249,5 +283,17 @@ export class Game {
       const pulse = 0.35 + 0.25 * Math.sin(this.frame / 8);
       g.rect(w - 140, GROUND_TOP - 30, 130, VIEW_H - GROUND_TOP + 30).fill({ color: 0xc8281e, alpha: pulse * 0.5 });
     }
+  }
+}
+
+/** This browser's id for the server's inventory (no accounts in M1). */
+function deviceId(): string {
+  const make = () => crypto.randomUUID();
+  try {
+    let id = localStorage.getItem('dnf.device');
+    if (!id) localStorage.setItem('dnf.device', (id = make()));
+    return id;
+  } catch {
+    return make();
   }
 }

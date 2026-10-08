@@ -14,7 +14,8 @@
     "baseUrl": ".",
     "paths": {
       "@dnf/engine": ["engine/index.ts"],
-      "@dnf/engine/*": ["engine/*"]
+      "@dnf/engine/*": ["engine/*"],
+      "@dnf/server/protocol": ["server/protocol.ts"]
     }
   }
 }

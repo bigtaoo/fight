@@ -8,6 +8,16 @@ spec.json:
   {
     "source": "hero_apose.png",           # relative to the spec file
     "pale_keep": 0.3,                     # optional: lightness kept of pale trim inside the figure
+    "tint": [r, g, b],                    # optional: the colour black ink becomes (paper stays
+                                          #   white), for figures FLUX only paints well in black
+    "regions": [                          # optional, with tint: costume colours. Each region is
+      {"name": "skin", "tint": [r, g, b], #   the black areas reached from its seeds without
+       "seeds": [[x, y], ...],            #   crossing the painting's trim lines, clipped to
+       "poly": [[x, y], ...]}, ...],      #   poly; the rest of the figure takes the colour of
+                                          #   the nearest region (or tint, if none is near)
+    "outline": {"width": 12, "color": [r, g, b]},  # optional: a dark contour drawn inside the
+                                          #   figure's outer edge, so a light figure holds on a
+                                          #   ground of its own tone and against its own kind
     "parts": [                            # listed back to front (the draw order)
       {"name": "arm_f_upper",
        "poly": [[x, y], ...],             # region of the painting that belongs to this part
@@ -15,6 +25,9 @@ spec.json:
        "grow": 6,                         #   ranges, grown by this many px into the figure
        "exclude_parts": ["scarf"],        # optional: pixels owned by other parts, removed
        "hidden": [[[x, y], ...], ...],    # optional: areas covered by other parts, filled in
+       "hidden_fill": "copy",             # optional: fill them with the painting itself (for a
+                                          #   part in front, whose fill shows at rest) instead of
+                                          #   the part's flat ink
        "caps": [[[x, y], ...], ...],      # optional: like hidden but not clipped to the figure,
                                           #   for joint caps where a pale trim line crosses a limb
        "pivot": [x, y]},                  # joint position in painting pixels
@@ -79,6 +92,55 @@ def mute_pale(rgb, hsv, inside, keep):
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
+def tint(rgb, ink):
+    """Lift black ink to `ink`, keeping white white: FLUX paints a silhouette only when asked
+    for black, so the bandits' lighter grey-indigo is applied here."""
+    ink = np.asarray(ink, np.float32)
+    out = ink + rgb.astype(np.float32) * (255 - ink) / 255
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def region_inks(rgb, fg, default, regions, size, soft=3):
+    """Per-pixel ink colour for `tint`: the painting's trim lines split its black fill into
+    patches (the headwrap, the face, each sleeve and forearm, the sash), and every region
+    claims the patches its seeds land on inside its polygon. Pixels no region claims, the trim
+    lines themselves included, take the nearest claimed pixel's colour, so a seam follows a
+    trim line where there is one and the polygon's edge where the fill runs on unbroken."""
+    lum = rgb.astype(np.float32).mean(axis=2)
+    dark = ((lum < 90) & (fg > 200)).astype(np.uint8)
+    label = np.zeros(dark.shape, np.int32)  # 0: unclaimed, i + 1: regions[i]
+    for i, r in enumerate(regions):
+        clip = poly_mask(size, [r["poly"]]) > 0 if "poly" in r else np.ones(dark.shape, bool)
+        n, comp = cv2.connectedComponents((dark & clip).astype(np.uint8), connectivity=4)
+        for x, y in r["seeds"]:
+            # a seed that lands on a trim line takes the nearest fill
+            near = comp[max(0, y - 8):y + 9, max(0, x - 8):x + 9]
+            if not near.any():
+                raise ValueError(f"region {r['name']}: seed {x},{y} is not on the black fill")
+            c = comp[y, x] or np.bincount(near[near > 0]).argmax()
+            label[(comp == c) & (label == 0)] = i + 1
+    # every other pixel takes the label of the nearest claimed one
+    _, idx = cv2.distanceTransformWithLabels((label == 0).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+    ys, xs = np.nonzero(label)
+    lut = np.zeros(idx.max() + 1, np.int32)
+    lut[1:len(ys) + 1] = label[ys, xs]  # DIST_LABEL_PIXEL numbers the zero pixels in scan order
+    full = lut[idx] if len(ys) else label
+    colours = np.array([default] + [r["tint"] for r in regions], np.float32)
+    ink = colours[full]
+    # soften the seams a little, as wet colour bleeds into the next patch
+    return cv2.GaussianBlur(ink, (0, 0), soft)
+
+
+def outline(rgb, fg, width, colour):
+    """Darken a band `width` px wide inside the figure's outer edge toward `colour`: a brush
+    contour, solid for most of the band and fading out on its inner side."""
+    m = (fg > 128).astype(np.uint8)
+    dist = cv2.distanceTransform(m, cv2.DIST_L2, 5)
+    a = np.clip((width - dist) / (width * 0.4), 0, 1)[..., None] * (m[..., None] > 0)
+    out = rgb.astype(np.float32) * (1 - a) + np.asarray(colour, np.float32) * a
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def ink_colour(rgb, hsv, mask):
     """The deep ink of a region: the median of its darkest opaque pixels, not of its grey folds."""
     v = hsv[..., 2]
@@ -127,9 +189,17 @@ def split(spec_path, out_dir):
     inside = solid_inside(fg)
     rgb[inside], fg[inside] = np.asarray(src)[inside], 255
     hsv = cv2.cvtColor(np.array(src), cv2.COLOR_RGB2HSV)
+    lines = rgb.copy()  # the trim lines still white, for the regions to stop at
     keep = spec.get("pale_keep", 1)
     if keep < 1:
         rgb = mute_pale(rgb, hsv, inside, keep)
+    if "tint" in spec:
+        ink = spec["tint"]
+        if "regions" in spec:
+            ink = region_inks(lines, fg, ink, spec["regions"], src.size)
+        rgb = tint(rgb, ink)
+    if "outline" in spec:
+        rgb = outline(rgb, fg, spec["outline"]["width"], spec["outline"]["color"])
     owned = {p["name"]: region_mask(src.size, hsv, fg, p) for p in spec["parts"] if "image" not in p}
     os.makedirs(out_dir, exist_ok=True)
     meta, layers = [], []
@@ -156,7 +226,9 @@ def split(spec_path, out_dir):
         alpha = np.maximum(own, hidden)
         out = rgb.copy()
         fill = (hidden > 0) & (own <= 200)
-        if fill.any():
+        # a part drawn in front keeps the painting in its fill (out is already a copy of it),
+        # since there the fill shows at rest
+        if fill.any() and part.get("hidden_fill") != "copy":
             # the figure is a near-black silhouette, so a flat fill of the part's own ink hides
             # better than inpainting, which drags in the light anti-aliased rim and grey fold lines
             out[fill] = ink_colour(rgb, hsv, own if (own > 250).any() else fg)

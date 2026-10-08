@@ -5,11 +5,11 @@ import type { SpriteSet } from './sprites';
 import { TaoActor, type TaoAsset } from './tao/TaoActor';
 
 // One body: a floor shadow, the figure, the brush arc of an active move, a health bar over hurt
-// monsters. A rigged body (the hero) plays its skeleton: clip time comes from the sim tick for
-// moves, so the cut lands on the active frames and freezes with the hitstop, and from the
-// distance covered for walking and running, so the feet stay planted. The other bodies show one
-// still painting per state (ink blocks when those did not load), and the motion between them is
-// faked here: anticipation lean, bob, squash, tumble. Feedback lives here too: a white flash and
+// monsters. A rigged body (the hero, the bandit) plays its skeleton: clip time comes from the
+// sim tick for moves, so the cut lands on the active frames and freezes with the hitstop, and
+// from the distance covered for walking and running, so the feet stay planted. The other
+// bodies (the dummy) show one still painting per state (ink blocks when those did not load),
+// and the motion between them is faked here: anticipation lean, bob, squash, tumble. Feedback lives here too: a white flash and
 // a shake while frozen by a hit.
 
 const INK = {
@@ -31,14 +31,17 @@ const ARCS: Record<string, { a0: number; a1: number; cz: number; r: number; w: n
   slash: { a0: -1.5, a1: 0.7, cz: 150, r: 0.8, w: 0.26 },
 };
 
-/** World height of the rigged hero standing at rest. */
-const RIG_HEIGHT = 240;
-/** World distance one walk / run cycle (two steps) covers, measured from the stride. */
-const WALK_CYCLE = 176;
-const RUN_CYCLE = 250;
-/** Real seconds of cross-fade into a move or a hit reaction, which must snap, and between other clips. */
-const FADE_MOVE = 0.04;
-const FADE = 0.1;
+/** Per rigged kind: world height standing at rest, and the world distance one walk / run cycle
+ * (two steps) covers, measured from the stride of the clip's keys at that height. */
+const RIG_SIZE: Partial<Record<Entity['kind'], { height: number; walk: number; run: number }>> = {
+  hero: { height: 240, walk: 176, run: 250 },
+  bandit: { height: 250, walk: 141, run: 141 },
+};
+/** Real seconds of cross-fade into a move (short, so it answers the button), into a hit
+ * reaction (shorter: it must snap), and between other clips. */
+const FADE_MOVE = 0.08;
+const FADE_HURT = 0.05;
+const FADE = 0.12;
 
 /** Paints the sprite pure white, for the hit flash. */
 const WHITE = new ColorMatrixFilter();
@@ -68,6 +71,7 @@ export class BodyView {
   /** Distance walked or run so far, which drives the step cycle, and where it was last frame. */
   private dist = 0;
   private last: { x: number; y: number } | null = null;
+  private lastState: Entity['state'] | null = null;
   private clock = 0;
   /** Render frames left of the white hit flash, and shake ticks left. */
   flash = 0;
@@ -121,8 +125,17 @@ export class BodyView {
     const moved = this.last ? Math.hypot(x - this.last.x, y - this.last.y) : 0;
     this.last = { x, y };
     if (moved < 100) this.dist += moved;
-    const sec = (e.st + (e.held ? 0 : alpha)) / TICK_RATE;
+    // a walk or run started from a stand begins at the clip's first step, not wherever the
+    // distance walked so far happens to fall in the cycle
+    const moving = (s: Entity['state'] | null) => s === 'walk' || s === 'run';
+    if (moving(e.state) && !moving(this.lastState)) this.dist = 0;
+    this.lastState = e.state;
+    // positions are drawn between the last tick and this one (lerp(px, x, alpha)), so the clip
+    // time is too; in hitstop the body holds this tick's pose, which is where it got to, and so
+    // a hit freezes the cut instead of throwing it back a tick
+    const sec = Math.max(0, e.held ? e.st : e.st - 1 + alpha) / TICK_RATE;
     const vz = fromFp(e.vz);
+    const size = RIG_SIZE[e.kind] ?? RIG_SIZE.hero!;
     let clip = 'idle';
     let time = this.clock;
     let fade = FADE;
@@ -130,11 +143,11 @@ export class BodyView {
     switch (e.state) {
       case 'walk':
         clip = 'walk';
-        time = this.dist / WALK_CYCLE;
+        time = this.dist / size.walk;
         break;
       case 'run':
         clip = 'run';
-        time = this.dist / RUN_CYCLE;
+        time = this.dist / size.run;
         break;
       case 'jump':
         clip = 'jump';
@@ -149,7 +162,7 @@ export class BodyView {
       case 'getup':
         clip = e.state;
         time = sec;
-        if (e.state === 'hurt') fade = FADE_MOVE;
+        if (e.state === 'hurt') fade = FADE_HURT;
         break;
       case 'air':
         if (z < 30 && vz <= 0) {
@@ -170,7 +183,7 @@ export class BodyView {
     }
     actor.seek(clip, time, dt, fade);
     this.sprite.visible = false;
-    const k = RIG_HEIGHT / actor.height;
+    const k = size.height / actor.height;
     const r = this.rigRoot;
     // a tumble turns about the middle of the body, everything else about the feet
     const mid = tumble ? actor.height / 2 : 0;
@@ -314,7 +327,8 @@ export class BodyView {
       g.rect(left, -z - fromFp(box.z1), x1 - x0, fromFp(box.z1 - box.z0)).stroke({ width: 2, color: active ? 0xc8281e : 0x888888 });
     }
     const span = m.active[1] - m.active[0] + 1;
-    const since = e.st + alpha - m.active[0];
+    // on the rig's clock (see drawRig), so the arc trails the blade instead of leading it
+    const since = (e.held ? e.st : e.st - 1 + alpha) - m.active[0];
     if (since < 0 || since > span + 3) return;
     const grow = Math.min(1, (since + 1) / span);
     const fade = since > span ? 1 - (since - span) / 3 : 1;

@@ -1,7 +1,7 @@
 # @dnf/engine: the simulation
 
 All game logic: a deterministic simulation stepped at a fixed **30 Hz**, fed only by player
-commands. The client draws it; the server's verifier (next) replays the same commands through
+commands. The client draws it; the server's verifier (`server/src/replay.ts`) replays the same commands through
 the same code and trusts nothing else. Built after `D:\standing\engine` (math, hash, lint) and
 `D:\funny\server\engine` (lockstep, replay verification).
 

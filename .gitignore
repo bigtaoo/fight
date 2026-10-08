@@ -19,3 +19,6 @@ Thumbs.db
 
 # Tool run logs (art generation and the like)
 *.log
+
+# Server state (inventory) from local runs
+server/data/

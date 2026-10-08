@@ -1,12 +1,15 @@
 import { Container, Matrix, Rectangle, Sprite, Texture } from 'pixi.js';
 import { aimChain, chainOf, computeWorld, restPoses, type Affine, type Chain } from './pose';
-import { blendPoses, clipTime, samplePose } from './sample';
+import { blendPoses, clipTime, copyPoses, ease, samplePose } from './sample';
 import type { BonePose, TaoSkeleton } from './types';
 
 // Plays a .tao skeleton (ported from standing). The view's origin is the skeleton origin
 // (between the feet). update() plays a clip in real time; seek() sets the clip time directly,
 // which is how the game drives it: attacks from the sim tick so the cut lands on the active
 // frames, walking from the distance covered so the feet do not slide.
+// A clip change cross-fades from the pose last shown, frozen, not from the old clip running on:
+// that pose is what is on screen, also when the change cuts into an unfinished fade, so
+// nothing jumps however fast the clips change (a combo cancelled early, a hit landing mid-move).
 // Sprites sit flat in one container in slot order, because draw order does not follow the
 // bone hierarchy (a hand is drawn behind its own forearm).
 
@@ -38,8 +41,6 @@ export class TaoActor {
   private readonly m = new Matrix();
   private clip = '';
   private time = 0;
-  private prevClip = '';
-  private prevTime = 0;
   private fade = 0;
   private fadeLen = FADE;
   private aimed: { chain: Chain; angle: number; weight: number } | null = null;
@@ -81,11 +82,7 @@ export class TaoActor {
   play(name: string, restart = false): void {
     if (!this.sk.animations[name]) throw new Error(`${this.sk.name} has no animation ${name}`);
     if (name === this.clip && !restart) return;
-    if (this.clip) {
-      this.prevClip = this.clip;
-      this.prevTime = this.time;
-      this.fade = this.fadeLen = FADE;
-    }
+    if (this.clip) this.startFade(FADE);
     this.clip = name;
     this.time = 0;
   }
@@ -121,28 +118,30 @@ export class TaoActor {
 
   update(dt: number): void {
     this.time += dt;
-    this.prevTime += dt;
     this.apply(dt);
   }
 
   /**
    * Shows `name` at clip time `time` (seconds), cross-fading over `fade` seconds of real time
-   * when the clip changes; dt is the real time since the last call.
+   * when the clip changes or a one-shot clip starts over; dt is the real time since the last call.
    */
   seek(name: string, time: number, dt: number, fade = FADE): void {
-    if (!this.sk.animations[name]) throw new Error(`${this.sk.name} has no animation ${name}`);
-    if (name !== this.clip) {
-      if (this.clip && fade > 0) {
-        this.prevClip = this.clip;
-        this.prevTime = this.time;
-        this.fade = this.fadeLen = fade;
-      } else {
-        this.fade = 0;
-      }
+    const anim = this.sk.animations[name];
+    if (!anim) throw new Error(`${this.sk.name} has no animation ${name}`);
+    const restart = name === this.clip && !anim.loop && time < this.time - 0.05;
+    if (name !== this.clip || restart) {
+      if (this.clip && fade > 0) this.startFade(fade);
+      else this.fade = 0;
       this.clip = name;
     }
     this.time = time;
     this.apply(dt);
+  }
+
+  /** Freezes the pose on screen as the start of a cross-fade `len` seconds long. */
+  private startFade(len: number): void {
+    copyPoses(this.poses, this.fromPoses);
+    this.fade = this.fadeLen = len;
   }
 
   private apply(dt: number): void {
@@ -150,10 +149,9 @@ export class TaoActor {
     if (anim) {
       samplePose(anim, clipTime(anim, this.time), this.poses);
       if (this.fade > 0) {
-        const prev = this.sk.animations[this.prevClip];
         this.fade = Math.max(0, this.fade - dt);
-        samplePose(prev, clipTime(prev, this.prevTime), this.fromPoses);
-        blendPoses(this.fromPoses, this.poses, 1 - this.fade / this.fadeLen);
+        // eased out: most of the way at once, so a move still answers the button straight away
+        blendPoses(this.fromPoses, this.poses, ease('ease-out', 1 - this.fade / this.fadeLen));
       }
     }
     if (this.aimed) aimChain(this.sk, this.poses, this.world, this.aimed.chain, this.aimed.angle, this.aimed.weight);

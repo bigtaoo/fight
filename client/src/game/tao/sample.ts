@@ -67,15 +67,25 @@ export function samplePose(anim: TaoAnimation, t: number, poses: Map<string, Bon
   }
 }
 
-/** Blends `from` towards `to` by w (0..1) into `to`, for cross-fading between clips. */
+/** Blends `from` towards `to` by w (0..1) into `to`, for cross-fading between clips. Rotations
+ * take the short way round: two clips may write the same direction 360 degrees apart. */
 export function blendPoses(from: Map<string, BonePose>, to: Map<string, BonePose>, w: number): void {
   for (const [id, b] of to) {
     const a = from.get(id);
     if (!a) continue;
-    b.rotate = a.rotate + (b.rotate - a.rotate) * w;
+    const turn = ((((b.rotate - a.rotate) % 360) + 540) % 360) - 180;
+    b.rotate = a.rotate + turn * w;
     b.x = a.x + (b.x - a.x) * w;
     b.y = a.y + (b.y - a.y) * w;
     b.sx = a.sx + (b.sx - a.sx) * w;
     b.sy = a.sy + (b.sy - a.sy) * w;
+  }
+}
+
+/** Copies every bone's pose of `from` into `to`. */
+export function copyPoses(from: Map<string, BonePose>, to: Map<string, BonePose>): void {
+  for (const [id, a] of from) {
+    const b = to.get(id);
+    if (b) Object.assign(b, a);
   }
 }

@@ -1,98 +1,46 @@
 """Write hero_tao.json, the pack spec with the hero's clips.
 usage: python -I art/rig_r3/anims.py
 
-Poses are written as absolute limb directions, not bone rotations, because that is how a pose
-is thought about ("sword straight up") and it keeps a key valid when its parent changes.
-A direction is in degrees from straight down, positive toward the facing side (+x): 0 hangs
-down, 90 points forward, 180 points up, -90 points back. pose() turns them into the clockwise
-bone rotations pack_tao.py wants. Attack clips are in ticks, keyed to the frame data in
-engine/content.ts (windup up to active[0], the cut over the active ticks, recovery to total).
+Poses are limb directions (see tools/rigpose.py). Attack clips are in ticks, keyed to the
+frame data in engine/content.ts (windup up to active[0], the cut over the active ticks,
+recovery to total).
 """
 import json
-import math
 import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools"))
+from rigpose import Rig, key, loop, once  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# limb directions of the rest pose (the painting), measured from the split's pivots
-REST = {
-    "arm_f_upper": 16, "arm_f_lower": 27, "sword": 52,
-    "arm_b_upper": -19, "arm_b_lower": -19,
-    "leg_f_thigh": 0, "leg_f_shin": 0, "leg_b_thigh": 0, "leg_b_shin": 0,
-}
-
-
-# leg lengths in painting pixels: hip pivot to knee pivot, knee pivot to sole (rest sole at y 1115)
-THIGH, SHIN = 255, 240
-
-
-def planted(lf, lb):
-    """Root drop that keeps the lower foot on the ground for these leg directions."""
-    def drop(d):
-        return THIGH * (1 - math.cos(math.radians(d[0]))) + SHIN * (1 - math.cos(math.radians(d[1])))
-    return round(min(drop(lf), drop(lb)), 1)
-
-
-def chain(names, dirs, base=0.0):
-    """Bone rotations that point each bone of a parent -> child chain along `dirs`; `base`
-    is the rotation the chain's parent already has."""
-    out, acc = {}, base
-    for n, d in zip(names, dirs):
-        if d is None:
-            continue
-        r = REST[n] - d - acc
-        out[n] = round(r, 1)
-        acc += r
-    return out
-
-
-def pose(torso=4, head=-2, af=(25, 55, 75), ab=(-10, 8), lf=(6, 3), lb=(-6, -5),
-         root=None, body=0, robe=0, sash=0, scarf=0, hand_f=0, plant=True):
-    """One key. af: front arm (upper, forearm, sword); ab: back arm (upper, forearm);
-    lf/lb: front/back leg (thigh, shin); body: torso and robe pushed down (a breath, a crouch).
-    With plant, root=(x, dy) is added to the drop that keeps the feet on the ground (so a wide
-    stance sinks instead of floating); without it root is used as given (airborne, kneeling)."""
-    root = root or (0, 0)
-    if plant:
-        root = root[0], round(planted(lf, lb) + root[1], 1)
-    rot = {"torso": torso, "head": head, "robe": robe, "sash": sash, "scarf": scarf, "hand_f": hand_f}
-    rot.update(chain(["arm_f_upper", "arm_f_lower"], af[:2], torso))
-    acc = torso + rot["arm_f_upper"] + rot["arm_f_lower"] + hand_f
-    rot["sword"] = round(REST["sword"] - af[2] - acc, 1)
-    rot.update(chain(["arm_b_upper", "arm_b_lower"], ab, torso))
-    rot.update(chain(["leg_f_thigh", "leg_f_shin"], lf))
-    rot.update(chain(["leg_b_thigh", "leg_b_shin"], lb))
-    return {"rotate": rot, "translate": {"root": list(root), "torso": [0, body], "robe": [0, body]}}
-
-
-def key(t, p, ease=None):
-    k = {"t": t, **p}
-    if ease:
-        k["ease"] = ease
-    return k
+# limb directions of the rest pose (the painting), measured from the split's pivots; leg
+# lengths: hip pivot to knee pivot, knee pivot to sole (rest sole at y 1115)
+RIG = Rig(
+    rest={
+        "arm_f_upper": 16, "arm_f_lower": 27, "sword": 52,
+        "arm_b_upper": -19, "arm_b_lower": -19,
+        "leg_f_thigh": 0, "leg_f_shin": 0, "leg_b_thigh": 0, "leg_b_shin": 0,
+    },
+    thigh=255, shin=240, extras=("sash", "scarf"),
+)
+pose = RIG.pose
 
 
 # Combat poses. Force reads from the whole body, not the arm: a low wide stance, the torso
-# thrown into the cut and the back arm flung the other way, a short tick of anticipation
+# thrown into the cut and the back arm swung back against it, a short tick of anticipation
 # leaning away from the target, then the cut snaps through and is held past the end before
 # the slow recovery. The hit pose lands on the first active tick, which hitstop freezes on.
+# The back arm counters in a small range and turns as few times as it can: mashed, the combo
+# chains a move every 6 ticks, and a free arm flung 130-240 degrees per move (as it was) reads as
+# flailing, moving more than the sword hand. Each move's windup leaves it about where the last
+# cut put it; only atk3's two-handed raise takes it overhead.
 GUARD = dict(torso=8, head=-4, af=(40, 70, 100), ab=(-20, 10), lf=(24, 4), lb=(-22, -18), body=4, sash=4)
 GUARD_IN = dict(GUARD, torso=10, head=-5, af=(36, 66, 96), body=9, sash=7, scarf=2)
-HIT1 = dict(torso=26, head=8, af=(72, 78, 58), ab=(-100, -110), lf=(54, 12), lb=(-52, -54), root=(24, 0), body=10, robe=8, sash=34, scarf=-8)
-HIT2 = dict(torso=-14, head=-10, af=(150, 165, 175), ab=(-75, -65), lf=(42, 6), lb=(-42, -40), root=(16, 0), body=2, robe=6, sash=-14)
-HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(40, 20), lf=(64, 18), lb=(-60, -64), root=(30, 0), body=18, robe=10, sash=44, scarf=-10)
+HIT1 = dict(torso=26, head=8, af=(72, 78, 58), ab=(-55, -35), lf=(54, 12), lb=(-52, -54), root=(24, 0), body=10, robe=8, sash=34, scarf=-8)
+HIT2 = dict(torso=-14, head=-10, af=(150, 165, 175), ab=(-35, 0), lf=(42, 6), lb=(-42, -40), root=(16, 0), body=2, robe=6, sash=-14)
+HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(20, 35), lf=(64, 18), lb=(-60, -64), root=(30, 0), body=18, robe=10, sash=44, scarf=-10)
 THRUST = dict(torso=34, head=-14, af=(88, 90, 92), ab=(-100, -110), lf=(66, 20), lb=(-68, -76), root=(20, 0), body=6, robe=12, sash=48, scarf=-12)
-
-
-def loop(duration, keys, ease="ease-in-out", unit=None):
-    a = {"duration": duration, "loop": True, "ease": ease, "keys": keys}
-    if unit:
-        a["unit"] = unit
-    return a
-
-
-def once(duration, keys, ease="linear"):
-    return {"duration": duration, "unit": "tick", "ease": ease, "keys": keys}
 
 
 def walk():
@@ -137,8 +85,8 @@ def clips():
         # diagonal cut down from over the shoulder
         "atk1": once(11, [
             key(0, pose(**GUARD), "ease-out"),
-            key(2, pose(torso=-18, head=-8, af=(170, 200, 240), ab=(35, 60), lf=(32, 6), lb=(-28, -24), root=(-12, 0), body=6, robe=-4, sash=-8), "ease-in"),
-            key(3, pose(torso=14, af=(120, 110, 100), ab=(-20, 0), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
+            key(2, pose(torso=-18, head=-8, af=(170, 200, 240), ab=(-5, 40), lf=(32, 6), lb=(-28, -24), root=(-12, 0), body=6, robe=-4, sash=-8), "ease-in"),
+            key(3, pose(torso=14, af=(120, 110, 100), ab=(-30, 10), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
             key(4, pose(**HIT1), "ease-out"),
             key(7, pose(**dict(HIT1, torso=28, af=(64, 68, 44), body=12)), "ease-in-out"),
             key(11, pose(**GUARD)),
@@ -146,8 +94,8 @@ def clips():
         # rising backhand from low behind
         "atk2": once(12, [
             key(0, pose(**HIT1), "ease-out"),
-            key(2, pose(torso=26, head=4, af=(20, -5, -40), ab=(30, 40), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
-            key(3, pose(torso=10, af=(80, 95, 110), ab=(-20, -10), lf=(40, 10), lb=(-40, -36), body=6, sash=8)),
+            key(2, pose(torso=26, head=4, af=(20, -5, -40), ab=(-45, -20), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
+            key(3, pose(torso=10, af=(80, 95, 110), ab=(-40, -10), lf=(40, 10), lb=(-40, -36), body=6, sash=8)),
             key(4, pose(**HIT2), "ease-out"),
             key(7, pose(**dict(HIT2, af=(160, 178, 190))), "ease-in-out"),
             key(12, pose(**GUARD)),
@@ -155,8 +103,8 @@ def clips():
         # the finisher: both hands over the head, rise, slam down into a deep lunge
         "atk3": once(18, [
             key(0, pose(**HIT2), "ease-out"),
-            key(3, pose(torso=-26, head=-12, af=(195, 215, 250), ab=(165, 195), lf=(20, 0), lb=(-16, -12), root=(-14, -18), robe=-4, sash=-12), "ease-in"),
-            key(4, pose(torso=10, af=(140, 135, 130), ab=(110, 120), lf=(40, 10), lb=(-40, -40), body=6)),
+            key(3, pose(torso=-26, head=-12, af=(195, 215, 250), ab=(110, 135), lf=(20, 0), lb=(-16, -12), root=(-14, -18), robe=-4, sash=-12), "ease-in"),
+            key(4, pose(torso=10, af=(140, 135, 130), ab=(75, 95), lf=(40, 10), lb=(-40, -40), body=6)),
             key(5, pose(**HIT3), "ease-out"),
             key(11, pose(**dict(HIT3, torso=32, af=(62, 66, 62), body=14, sash=34)), "ease-in-out"),
             key(18, pose(**GUARD)),

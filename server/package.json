@@ -1,0 +1,23 @@
+{
+  "name": "@dnf/server",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "M1 server in one process: the metronome relay, the verifier that replays every run, loot and inventory",
+  "exports": {
+    "./protocol": "./protocol.ts"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}

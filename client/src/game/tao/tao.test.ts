@@ -79,6 +79,15 @@ describe('computeWorld', () => {
     blendPoses(a, b, 0.25);
     expect(b.get('arm')!.rotate).toBeCloseTo(10);
   });
+
+  it('blends rotations the short way round', () => {
+    const a = restPoses(sk);
+    const b = restPoses(sk);
+    a.get('arm')!.rotate = 170;
+    b.get('arm')!.rotate = -170;
+    blendPoses(a, b, 0.5);
+    expect(b.get('arm')!.rotate).toBeCloseTo(180);
+  });
 });
 
 describe('aimChain', () => {
