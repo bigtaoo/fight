@@ -28,9 +28,10 @@ RIG = Rig(
 )
 pose = RIG.pose
 
-# the dao held low and forward, the free hand loose at the side
-GUARD = dict(torso=12, head=-8, af=(30, 60, 45), ab=(-14, 10), lf=(20, 4), lb=(-18, -14), body=6)
-GUARD_IN = dict(GUARD, torso=14, head=-9, af=(26, 56, 40), body=11)
+# the dao held low with the blade pointing forward out of the fist (a blade hanging along the
+# forearm's line reads as about to slip out of the fingers), the free hand loose at the side
+GUARD = dict(torso=12, head=-8, af=(30, 60, 100), ab=(-14, 10), lf=(20, 4), lb=(-18, -14), body=6)
+GUARD_IN = dict(GUARD, torso=14, head=-9, af=(26, 56, 96), body=11)
 WINDUP = dict(torso=-16, head=-12, af=(185, 215, 245), ab=(40, 70), lf=(30, 8), lb=(-26, -24), root=(-16, 0), body=6, robe=-6)
 CHOP = dict(torso=34, head=6, af=(82, 84, 66), ab=(-80, -95), lf=(50, 12), lb=(-46, -50), root=(26, 0), body=14, robe=10)
 
@@ -38,10 +39,10 @@ CHOP = dict(torso=34, head=6, af=(82, 84, 66), ab=(-80, -95), lf=(50, 12), lb=(-
 def walk():
     # a heavy, short-stepped walk; the client advances it by distance walked (WALK_CYCLE in
     # bodyView.ts is the two steps of these keys at game size)
-    a = dict(GUARD, lf=(18, 10), lb=(-16, -30), ab=(14, 30), af=(26, 56, 40), robe=-3)
-    b = dict(GUARD, lf=(0, 0), lb=(4, -26), ab=(-4, 6), af=(30, 60, 45), body=10)
-    c = dict(GUARD, lf=(-16, -30), lb=(18, 10), ab=(-24, -18), af=(34, 64, 50), robe=3)
-    d = dict(GUARD, lf=(4, -26), lb=(0, 0), ab=(-4, 6), af=(30, 60, 45), body=10)
+    a = dict(GUARD, lf=(18, 10), lb=(-16, -30), ab=(14, 30), af=(26, 56, 96), robe=-3)
+    b = dict(GUARD, lf=(0, 0), lb=(4, -26), ab=(-4, 6), af=(30, 60, 100), body=10)
+    c = dict(GUARD, lf=(-16, -30), lb=(18, 10), ab=(-24, -18), af=(34, 64, 104), robe=3)
+    d = dict(GUARD, lf=(4, -26), lb=(0, 0), ab=(-4, 6), af=(30, 60, 100), body=10)
     return loop(1.0, [key(0, pose(**a)), key(0.25, pose(**b)), key(0.5, pose(**c)), key(0.75, pose(**d)), key(1.0, pose(**a))], ease="linear")
 
 
@@ -72,8 +73,8 @@ def clips():
         # snapped back at the waist, the head whipped, knocked a step back
         "hurt": once(6, [
             key(0, pose(**GUARD), "ease-out"),
-            key(1, pose(torso=-22, head=-18, af=(-20, 0, 50), ab=(-55, -45), lf=(24, 8), lb=(-8, -12), root=(-20, 0))),
-            key(6, pose(torso=-12, head=-8, af=(10, 30, 55), ab=(-36, -22), lf=(20, 6), lb=(-14, -16), root=(-14, 0))),
+            key(1, pose(torso=-22, head=-18, af=(-20, 0, 70), ab=(-55, -45), lf=(24, 8), lb=(-8, -12), root=(-20, 0))),
+            key(6, pose(torso=-12, head=-8, af=(10, 30, 85), ab=(-36, -22), lf=(20, 6), lb=(-14, -16), root=(-14, 0))),
         ]),
         "down": once(1, [key(0, down())]),
         "getup": once(10, [

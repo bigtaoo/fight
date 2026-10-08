@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # lengths: hip pivot to knee pivot, knee pivot to sole (rest sole at y 1115)
 RIG = Rig(
     rest={
-        "arm_f_upper": 16, "arm_f_lower": 27, "sword": 52,
+        "arm_f_upper": 22, "arm_f_lower": 27, "sword": 52,
         "arm_b_upper": -19, "arm_b_lower": -19,
         "leg_f_thigh": 0, "leg_f_shin": 0, "leg_b_thigh": 0, "leg_b_shin": 0,
     },
@@ -40,7 +40,7 @@ GUARD_IN = dict(GUARD, torso=10, head=-5, af=(36, 66, 96), body=9, sash=7, scarf
 HIT1 = dict(torso=26, head=8, af=(72, 78, 58), ab=(-55, -35), lf=(54, 12), lb=(-52, -54), root=(24, 0), body=10, robe=8, sash=34, scarf=-8)
 HIT2 = dict(torso=-14, head=-10, af=(150, 165, 175), ab=(-35, 0), lf=(42, 6), lb=(-42, -40), root=(16, 0), body=2, robe=6, sash=-14)
 HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(20, 35), lf=(64, 18), lb=(-60, -64), root=(30, 0), body=18, robe=10, sash=44, scarf=-10)
-THRUST = dict(torso=34, head=-14, af=(88, 90, 92), ab=(-100, -110), lf=(66, 20), lb=(-68, -76), root=(20, 0), body=6, robe=12, sash=48, scarf=-12)
+THRUST = dict(torso=34, head=-14, af=(88, 90, 92), ab=(-105, -100), lf=(66, 20), lb=(-68, -76), root=(20, 0), body=6, robe=12, sash=48, scarf=-12)
 
 
 def walk():
@@ -86,7 +86,7 @@ def clips():
         "atk1": once(11, [
             key(0, pose(**GUARD), "ease-out"),
             key(2, pose(torso=-18, head=-8, af=(170, 200, 240), ab=(-5, 40), lf=(32, 6), lb=(-28, -24), root=(-12, 0), body=6, robe=-4, sash=-8), "ease-in"),
-            key(3, pose(torso=14, af=(120, 110, 100), ab=(-30, 10), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
+            key(3, pose(torso=14, af=(115, 120, 100), ab=(-30, 10), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
             key(4, pose(**HIT1), "ease-out"),
             key(7, pose(**dict(HIT1, torso=28, af=(64, 68, 44), body=12)), "ease-in-out"),
             key(11, pose(**GUARD)),
@@ -94,7 +94,7 @@ def clips():
         # rising backhand from low behind
         "atk2": once(12, [
             key(0, pose(**HIT1), "ease-out"),
-            key(2, pose(torso=26, head=4, af=(20, -5, -40), ab=(-45, -20), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
+            key(2, pose(torso=26, head=4, af=(0, 12, -40), ab=(-45, -20), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
             key(3, pose(torso=10, af=(80, 95, 110), ab=(-40, -10), lf=(40, 10), lb=(-40, -36), body=6, sash=8)),
             key(4, pose(**HIT2), "ease-out"),
             key(7, pose(**dict(HIT2, af=(160, 178, 190))), "ease-in-out"),
@@ -113,14 +113,14 @@ def clips():
             key(0, pose(**JUMP_UP), "ease-out"),
             key(1, pose(**dict(JUMP_UP, torso=-10, af=(170, 195, 230), ab=(20, 40))), "ease-in"),
             key(2, pose(**dict(JUMP_UP, torso=10, af=(120, 115, 110)))),
-            key(4, pose(**dict(JUMP_UP, torso=30, head=6, af=(40, 20, -10), ab=(-70, -60), lf=(60, -20), lb=(-20, -70), sash=30)), "ease-out"),
-            key(8, pose(**dict(JUMP_UP, torso=26, af=(35, 15, -20), ab=(-60, -50), lf=(50, -10), lb=(-20, -60), sash=24)), "ease-in-out"),
+            key(4, pose(**dict(JUMP_UP, torso=30, head=6, af=(30, 40, -10), ab=(-70, -60), lf=(60, -20), lb=(-20, -70), sash=30)), "ease-out"),
+            key(8, pose(**dict(JUMP_UP, torso=26, af=(26, 36, -20), ab=(-60, -50), lf=(50, -10), lb=(-20, -60), sash=24)), "ease-in-out"),
             key(14, pose(**JUMP_DOWN)),
         ]),
         # crouch with the blade low, then rip it up and rise onto the toes
         "upper": once(20, [
             key(0, pose(**GUARD), "ease-out"),
-            key(3, pose(torso=30, head=6, af=(10, -15, -45), ab=(-30, -10), lf=(55, -5), lb=(-40, -60), body=14, sash=24), "ease-in"),
+            key(3, pose(torso=30, head=6, af=(-6, 6, -45), ab=(-30, -10), lf=(55, -5), lb=(-40, -60), body=14, sash=24), "ease-in"),
             key(4, pose(torso=8, af=(85, 100, 120), ab=(-40, -25), lf=(30, 0), lb=(-24, -24), root=(0, -10))),
             key(6, pose(torso=-18, head=-12, af=(175, 185, 195), ab=(-60, -50), lf=(14, 10), lb=(-30, -40), root=(0, -30), sash=-20, scarf=6), "ease-out"),
             key(13, pose(torso=-14, head=-10, af=(170, 180, 190), ab=(-55, -45), lf=(14, 10), lb=(-28, -36), root=(0, -10), sash=-12)),
