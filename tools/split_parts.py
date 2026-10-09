@@ -13,8 +13,10 @@ spec.json:
     "regions": [                          # optional, with tint: costume colours. Each region is
       {"name": "skin", "tint": [r, g, b], #   the black areas reached from its seeds without
        "seeds": [[x, y], ...],            #   crossing the painting's trim lines, clipped to
-       "poly": [[x, y], ...]}, ...],      #   poly; the rest of the figure takes the colour of
-                                          #   the nearest region (or tint, if none is near)
+       "poly": [[x, y], ...]}, ...],      #   poly ("all": true claims every black area in poly
+                                          #   that an earlier region has not, for armour cut
+                                          #   into many small plates); the rest of the figure
+                                          #   takes the colour of the nearest region
     "outline": {"width": 12, "color": [r, g, b]},  # optional: a dark contour drawn inside the
                                           #   figure's outer edge, so a light figure holds on a
                                           #   ground of its own tone and against its own kind
@@ -112,7 +114,9 @@ def region_inks(rgb, fg, default, regions, size, soft=3):
     for i, r in enumerate(regions):
         clip = poly_mask(size, [r["poly"]]) > 0 if "poly" in r else np.ones(dark.shape, bool)
         n, comp = cv2.connectedComponents((dark & clip).astype(np.uint8), connectivity=4)
-        for x, y in r["seeds"]:
+        if r.get("all"):
+            label[(comp > 0) & (label == 0)] = i + 1
+        for x, y in r.get("seeds", []):
             # a seed that lands on a trim line takes the nearest fill
             near = comp[max(0, y - 8):y + 9, max(0, x - 8):x + 9]
             if not near.any():

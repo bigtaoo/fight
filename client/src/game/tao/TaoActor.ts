@@ -111,9 +111,22 @@ export class TaoActor {
 
   /** A bone's pivot in the view's space, as of the last update. */
   point(bone: string): { x: number; y: number } {
+    return this.pointIn(bone, 0, 0);
+  }
+
+  /** A point given in a bone's own space (skeleton units from its pivot, as at rest), in the
+   * view's space as of the last update: e.g. the tips of a bow held by that bone. */
+  pointIn(bone: string, x: number, y: number): { x: number; y: number } {
     const w = this.world.get(bone);
     if (!w) throw new Error(`${this.sk.name} has no bone ${bone}`);
-    return { x: w.tx, y: w.ty };
+    return { x: w.a * x + w.c * y + w.tx, y: w.b * x + w.d * y + w.ty };
+  }
+
+  /** Fades one slot, e.g. a shield that is not guarding; 1 restores it. */
+  setAlpha(slot: string, alpha: number): void {
+    const sprite = this.bySlot.get(slot);
+    if (!sprite) throw new Error(`${this.sk.name} has no slot ${slot}`);
+    sprite.alpha = alpha;
   }
 
   update(dt: number): void {

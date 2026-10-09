@@ -5,7 +5,7 @@ import type { SpriteSet } from './sprites';
 import { TaoActor, type TaoAsset } from './tao/TaoActor';
 
 // One body: a floor shadow, the figure, the brush arc of an active move, a health bar over hurt
-// monsters. A rigged body (the hero, the bandit) plays its skeleton: clip time comes from the
+// monsters. A rigged body (the hero and the monsters) plays its skeleton: clip time comes from the
 // sim tick for moves, so the cut lands on the active frames and freezes with the hitstop, and
 // from the distance covered for walking and running, so the feet stay planted. The other
 // bodies (the dummy) show one still painting per state (ink blocks when those did not load),
@@ -38,7 +38,19 @@ const ARCS: Record<string, { a0: number; a1: number; cz: number; r: number; w: n
 const RIG_SIZE: Partial<Record<Entity['kind'], { height: number; walk: number; run: number }>> = {
   hero: { height: 240, walk: 176, run: 250 },
   bandit: { height: 250, walk: 141, run: 141 },
+  archer: { height: 236, walk: 168, run: 168 },
+  shield: { height: 250, walk: 128, run: 128 },
 };
+/** The archer's bow tips in the bow bone's space (skeleton units from the grip), from the
+ * tips tools/draw_sword.py prints, turned upright as art/rig_archer/make_split.py places it
+ * (-90 degrees) and scaled like the pack (0.34): string side back, upper tip first. */
+const BOW_TIPS = [
+  { x: -13.6, y: -117.6 },
+  { x: -13.6, y: 117.6 },
+] as const;
+/** Ticks of the shot in which the drawing hand holds the string (art/rig_archer/anims.py
+ * nocks on 8; the arrow leaves on the move's fire tick). */
+const NOCK_TICK = 8;
 /** Real seconds of cross-fade into a move (short, so it answers the button), into a hit
  * reaction (shorter: it must snap), and between other clips. */
 const FADE_MOVE = 0.08;
@@ -111,8 +123,11 @@ export class BodyView {
       this.sprite.visible = false;
       this.drawBlocks(g, e, z, hw, h);
     }
-    if (e.kind === 'archer') this.drawBow(fx, e, z, alpha);
-    if (e.kind === 'shield') this.drawShield(fx, e, z, hw, alpha);
+    if (e.kind === 'archer') {
+      if (this.actor) this.drawString(fx, this.actor, e, alpha);
+      else this.drawBow(fx, e, z, alpha);
+    }
+    if (e.kind === 'shield' && !this.actor) this.drawShield(fx, e, z, hw, alpha);
     if (e.state === 'act') this.strike(fx, e, z, alpha, debug);
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
@@ -128,8 +143,10 @@ export class BodyView {
     this.clock += dt;
     // a jump of more than a stride between frames is a room change, not a step
     const moved = this.last ? Math.hypot(x - this.last.x, y - this.last.y) : 0;
+    // backing away while facing the hero (the archer keeping its distance) steps backward
+    const back = this.last !== null && (x - this.last.x) * e.facing < 0 && Math.abs(x - this.last.x) > Math.abs(y - this.last.y);
     this.last = { x, y };
-    if (moved < 100) this.dist += moved;
+    if (moved < 100) this.dist += back ? -moved : moved;
     // a walk or run started from a stand begins at the clip's first step, not wherever the
     // distance walked so far happens to fall in the cycle
     const moving = (s: Entity['state'] | null) => s === 'walk' || s === 'run';
@@ -194,9 +211,14 @@ export class BodyView {
     const mid = tumble ? actor.height / 2 : 0;
     r.pivot.set(0, -mid);
     r.position.set(0, -z - mid * k);
-    r.scale.set(e.facing * k, k);
+    // turning round (the facing flips at the move's end): squeezed through edge-on, so the
+    // flip lands where the squeeze has turned the body round already
+    const turn = e.state === 'act' && MOVES[e.move].turn ? Math.cos((Math.PI * Math.min(1, sec * TICK_RATE / MOVES[e.move].total))) : 1;
+    r.scale.set(e.facing * k * (Math.abs(turn) < 0.08 ? 0.08 * Math.sign(turn || 1) : turn), k);
     r.rotation = tumble * e.facing;
     r.filters = this.flash > 0 ? [WHITE] : [];
+    // the shield bearer's shield pales while it guards nothing
+    if (e.kind === 'shield') actor.setAlpha('shield', guarding(e) ? 1 : 0.55);
   }
 
   /** Whether this kind has paintings; one without (a monster not drawn yet) shows ink blocks. */
@@ -204,7 +226,41 @@ export class BodyView {
     return this.sprites!.has(e.kind === 'dummy' ? 'dummy' : `${PREFIX[e.kind]}_idle`);
   }
 
-  /** The archer's bow, drawn in code: held low at rest, raised and drawn back through the draw,
+  /** The rigged archer's bowstring, drawn here so it can be pulled: straight between the bow's
+   * tips, or to the drawing hand from the nock to the release with the arrow on it, its head
+   * glinting red in the last moments; and the lane marked on the floor while it aims. */
+  private drawString(g: Graphics, actor: TaoActor, e: Entity, alpha: number): void {
+    if (e.state === 'down' || e.state === 'dead') return;
+    const to = (p: { x: number; y: number }) => g.toLocal(p, actor.view);
+    const top = to(actor.pointIn('bow', BOW_TIPS[0].x, BOW_TIPS[0].y));
+    const bottom = to(actor.pointIn('bow', BOW_TIPS[1].x, BOW_TIPS[1].y));
+    const ink = 0x2b2620;
+    const fire = e.state === 'act' ? MOVES[e.move].fire : undefined;
+    const t = e.held ? e.st : e.st - 1 + alpha;
+    if (!fire || t < NOCK_TICK || t >= fire.at) {
+      g.moveTo(top.x, top.y).lineTo(bottom.x, bottom.y).stroke({ width: 1.5, color: ink, alpha: 0.8 });
+      return;
+    }
+    const nock = to(actor.point('hand_b'));
+    const grip = to(actor.point('bow'));
+    g.moveTo(top.x, top.y).lineTo(nock.x, nock.y).lineTo(bottom.x, bottom.y).stroke({ width: 1.5, color: ink, alpha: 0.8 });
+    // the arrow from the nock through the grip and a little past it
+    const dx = grip.x - nock.x;
+    const dy = grip.y - nock.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const head = { x: grip.x + (dx / len) * 14, y: grip.y + (dy / len) * 14 };
+    g.moveTo(nock.x, nock.y).lineTo(head.x, head.y).stroke({ width: 3, color: ink });
+    const left = fire.at - t;
+    if (left <= 7) {
+      const k = 1 - left / 7;
+      g.circle(head.x, head.y, 6 + 10 * k).fill({ color: 0xc8281e, alpha: 0.25 + 0.5 * k });
+    }
+    const lane = Math.min(1, t / fire.at);
+    const f = e.facing;
+    g.rect(f > 0 ? 40 : -40 - 700 * lane, -2, 700 * lane, 4).fill({ color: 0xc8281e, alpha: 0.18 * lane });
+  }
+
+  /** The archer's bow, drawn in code (without its rig): held low at rest, raised and drawn back through the draw,
    * a red glint on the arrowhead in the last moments before the release, and its lane marked
    * on the floor while it aims down it. */
   private drawBow(g: Graphics, e: Entity, z: number, alpha: number): void {
@@ -237,7 +293,7 @@ export class BodyView {
     g.rect(f > 0 ? 40 : -40 - 700 * lane, -2, 700 * lane, 4).fill({ color: 0xc8281e, alpha: 0.18 * lane });
   }
 
-  /** The shield bearer's shield, drawn in code: a tall board held square in front while it
+  /** The shield bearer's shield, drawn in code without its rig: a tall board held square in front while it
    * guards, rammed forward in the bash, and swung down to its side (pale: open) through the
    * recovery, while it turns round and when it is knocked about. */
   private drawShield(g: Graphics, e: Entity, z: number, hw: number, alpha: number): void {

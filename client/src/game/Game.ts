@@ -15,8 +15,7 @@ import { OnlineSession } from '../net/OnlineSession';
 import { OfflineSession, type Session } from '../net/Session';
 
 /** The kinds drawn with a skeleton (client/public/art/<kind>/); ?poses shows paintings instead. */
-const RIGGED: readonly Kind[] = ['hero', 'bandit'];
-// (the archer and the shield bearer have no art yet: they are drawn as ink blocks whatever the switches)
+const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield'];
 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation

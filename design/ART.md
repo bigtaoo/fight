@@ -225,3 +225,67 @@ R3 计划：
   普攻一段挥下中途、二段蓄力、上挑蓄力、跳斩两帧（突刺的后手也有 10°）。全部改成肘只往前弯。规则：`af`/`ab` 的前臂方向不小于上臂方向。
 - **山贼握刀**：站立和走路时刀的方向（45°）比前臂（60°）还往下，刀顺着胳膊的线往下垂，像只用指尖捏着刀柄。现在刀从拳头里朝前伸出
   （站立 100°，走路 96–104°，受击 70–85°），刀柄横穿拳头，刀穗从拳底露出。
+
+### 弓手、盾兵骨骼（`art/rig_archer/`、`art/rig_shield/`，2026-10-09）
+
+两种怪都照山贼的流程：人偶 → FLUX 黑剪影 → 分区上色、拆件 → 骨骼动作 → 打包。弓和盾由代码画（`tools/draw_sword.py` 加了 `bow`、`shield`），
+挂在前手上，和刀剑一样当一个部件。
+
+重跑（以盾兵为例，弓手把 `shield` 换成 `archer`）：
+
+1. `python -I tools/mannequin.py art/rig_shield/mannequin.png art/rig_shield/mannequin_joints.json --build stocky`（弓手 `--build lean`）。
+2. `tools/edit_image.sh mannequin.png shield_apose_X.png shield_apose_X.txt`，选定的图存为 `shield_apose.png`（弓手 A 图朝左，水平翻转后用）。
+3. `python -I tools/draw_sword.py art/rig_shield/shield.png shield`（弓手 `art/rig_archer/bow.png bow`），打印握点。
+4. `python -I art/rig_shield/make_split.py` 生成 `split.json` → `python -I tools/split_parts.py art/rig_shield/split.json art/rig_shield/parts`。
+5. `python -I art/rig_shield/anims.py` → `python -I tools/pack_tao.py art/rig_shield/shield_tao.json art/rig_shield/shield.tao client/public/art/shield`。
+6. 检查 `anim_sheet.png`；四人可读性：`python -I tools/rig_scene_test.py art/scene_m2.png art/rig_r3/parts:240 art/rig_bandit/parts:250 art/rig_archer/parts:236 art/rig_shield/parts:250`。
+
+成图：
+
+- 盾兵选 A（铁盔带檐、札甲背心、络腮胡、壮汉）；B 正面站，拆不了侧身动作，弃用。
+- 弓手 A、B 都可用，选 A（瘦高、背箭囊、及膝裹衣、头巾）。
+- 两次出图都一次成，没有重画。
+
+配色（`make_split.py` 的 `regions`）：
+
+- 盾兵：铁灰盔、淡赭脸、土黄札甲、赭褐裙甲、花青腰带（敌方记号）、深褐裤、墨靴。盾是木色加铁箍。
+- 弓手：橄榄绿裹衣、墨色头发、淡赭脸、赭色箭囊、花青腰带。
+- 四人并排（`art/scene_m2.png`）：黑衣朱砂主角、赭色山贼、绿色弓手、土黄盾兵，三种地面、两种尺寸都能一眼分开，重叠时也能分开。
+
+动作：
+
+- 盾兵：举盾站立和走路时盾竖在身前；盾击 34 帧，第 15 帧冲撞（引擎判定帧 15–17）；转身 16 帧，转身时盾放下。
+  客户端：不举盾时盾牌变淡（和引擎的 `guarding` 一致）；转身时整个人沿水平方向压扁再展开，像转了半圈。
+- 弓手：射箭 34 帧，第 8 帧搭箭，之后弓弦拉到后手，第 21 帧放箭；后跳 30 帧。
+  客户端画弓弦和搭在弦上的箭（骨骼上取弓的两端和后手的位置），最后 7 帧箭头亮红点，地上画射线。
+- 后退走路时步态倒放（两种怪都会边面对主角边后退）。步幅：弓手一个循环 168、盾兵 128 世界单位（按脚在关键帧上的位置算）。
+
+工具改动：
+
+- `split_parts.py`：区域加 `"all": true`，占领多边形里所有没被占领的黑块。原因：没被占领的块取最近区域的颜色，
+  第一版盾兵的脸色和腰带的花青渗满了胸口和胳膊，弓手的裹衣也一样。现在每个大面积衣服都用一个 `all` 区域兜底，放在最后。
+- `rigpose.py`：`Rig(..., weapon="shield")`，武器部件名不再写死 `sword`。
+- `TaoActor`：`pointIn`（骨骼局部坐标转屏幕）、`setAlpha`（单个部件的透明度）。
+
+**Q1 耗时**（两种怪交替做，分不开各自的时间）：
+
+- 09:34 人偶 → 09:35 两张成图各出两版 → 09:41 盾兵拆件 → 09:43 弓手拆件 → 09:46 两套动作打包 → 09:48 客户端接好。约 14 分钟。
+- 09:48 → 10:12 进游戏验证、可读性测试，约 25 分钟。
+- 对比：山贼（第一种骨骼怪，2026-10-08）在剪影 prompt、配色、勾边上试了好几轮（见上节）。这次这些都直接沿用，成图一次成，没有返工。
+
+每次仍要手工做的事：
+
+- 每张成图的拆件多边形：脸和脖子、腰带、膝盖圆、裤子和靴子的分界、小腿在脚底截掉地面阴影。都要对着图量像素。
+- 分区的种子点和 `all` 区域的范围框；哪些部件要 `exclude`（弓手的长衣下摆会在小腿上重复一份）。
+- 关节位置（肩、肘、腕、髋、膝）和武器的握点、角度。
+- 每个姿势的关键帧（`anims.py`），以及引擎招式帧数要对上的判定帧、发射帧。
+- 步幅（`RIG_SIZE.walk`）要按腿长和关键帧算。
+- 怪物特有的客户端表现（弓弦、盾牌变淡）要写代码。
+
+已知小问题：
+
+- 盾兵冲撞时前膝有一条白边接缝。
+- 弓手是四分之三侧身，头一半头发一半脸，远看像侧脸。
+- 拉弦的后手大多被身体挡住（在身体远侧）。
+- 弓和盾是代码画的平涂，和刀剑一样偏卡通，与 FLUX 画的身体质感不同。
+- 箭从世界坐标 x=50 处发出，弓手的手在 85 左右，差一点，没管。

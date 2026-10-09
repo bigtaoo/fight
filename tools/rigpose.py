@@ -6,19 +6,21 @@ A direction is in degrees from straight down, positive toward the facing side (+
 down, 90 points forward, 180 points up, -90 points back. Rig.pose() turns them into the
 clockwise bone rotations pack_tao.py wants.
 
-Every rig has the same limb bones (arm_f_upper / arm_f_lower / hand_f / sword, arm_b_upper /
-arm_b_lower, leg_f_thigh / leg_f_shin, leg_b_thigh / leg_b_shin, torso, head, robe); `extras`
-names the rig's other bones that keys may turn (the hero's sash and scarf).
+Every rig has the same limb bones (arm_f_upper / arm_f_lower / hand_f / a weapon in the front
+hand, arm_b_upper / arm_b_lower, leg_f_thigh / leg_f_shin, leg_b_thigh / leg_b_shin, torso,
+head, robe); `weapon` names the weapon bone (sword, shield, bow) and `extras` the rig's other
+bones that keys may turn (the hero's sash and scarf).
 """
 import math
 
 
 class Rig:
-    def __init__(self, rest, thigh, shin, extras=()):
+    def __init__(self, rest, thigh, shin, extras=(), weapon="sword"):
         """rest: limb directions of the rest pose (the painting), measured from the split's
         pivots. thigh, shin: leg lengths in painting pixels, hip pivot to knee pivot and knee
         pivot to sole."""
         self.rest, self.thigh, self.shin, self.extras = rest, thigh, shin, tuple(extras)
+        self.weapon = weapon
 
     def planted(self, lf, lb):
         """Root drop that keeps the lower foot on the ground for these leg directions."""
@@ -56,7 +58,7 @@ class Rig:
         rot["hand_f"] = hand_f
         rot.update(self.chain(["arm_f_upper", "arm_f_lower"], af[:2], torso))
         acc = torso + rot["arm_f_upper"] + rot["arm_f_lower"] + hand_f
-        rot["sword"] = round(self.rest["sword"] - af[2] - acc, 1)
+        rot[self.weapon] = round(self.rest[self.weapon] - af[2] - acc, 1)
         rot.update(self.chain(["arm_b_upper", "arm_b_lower"], ab, torso))
         rot.update(self.chain(["leg_f_thigh", "leg_f_shin"], lf))
         rot.update(self.chain(["leg_b_thigh", "leg_b_shin"], lb))
