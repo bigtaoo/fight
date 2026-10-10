@@ -1,3 +1,4 @@
+import { DEFAULT_LOADOUT, type SkillId } from '@dnf/engine';
 import { botButtons } from '@dnf/engine/bot';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WsLink } from '../../client/src/net/Link';
@@ -25,13 +26,14 @@ interface PlayOptions {
   lagMs?: number;
   cheatDmg?: boolean;
   device?: string;
+  loadout?: SkillId[];
   /** A lag spike: from `at` ms into the run, `lagMs` each way for `forMs`. */
   spike?: { at: number; forMs: number; lagMs: number };
 }
 
 async function playOnline(opts: PlayOptions) {
   const link = await WsLink.connect(`ws://localhost:${server.port}`, (opts.lagMs ?? 0) * SCALE);
-  const s = await OnlineSession.join(link, { dungeon: 'trial', device: opts.device ?? 'test-device-1', cheatDmg: opts.cheatDmg ?? false });
+  const s = await OnlineSession.join(link, { dungeon: 'trial', device: opts.device ?? 'test-device-1', loadout: opts.loadout, cheatDmg: opts.cheatDmg ?? false });
   const t0 = performance.now();
   let last = t0;
   while (!s.result && performance.now() < t0 + 60_000) {
@@ -58,6 +60,18 @@ describe('online run', () => {
     expect(s.engine.state.outcome).toBe('cleared');
     expect(s.result!.settleMs! * (1 / SCALE)).toBeLessThan(1000);
     expect(s.inventory).toHaveLength(1);
+  }, 70_000);
+
+  it('runs the skills the client chose, checked: the swapped ones, or the default for a bad pick', async () => {
+    const swapped: SkillId[] = ['dragon', 'crush', 'iai', 'phantom'];
+    const s = await playOnline({ loadout: swapped, device: 'test-device-loadout' });
+    expect(s.engine.state.players[0].skills).toEqual(swapped);
+    expect(s.flag).toBeNull();
+    expect(s.result?.ok ? 'cleared' : 'failed').toBe(s.engine.state.outcome);
+    const link = await WsLink.connect(`ws://localhost:${server.port}`, 0);
+    const bad = await OnlineSession.join(link, { dungeon: 'trial', device: 'test-device-loadout', loadout: ['upper', 'triple', 'iai', 'phantom'], cheatDmg: false });
+    expect(bad.engine.state.players[0].skills).toEqual(DEFAULT_LOADOUT);
+    link.close();
   }, 70_000);
 
   it('flags a client running x10 damage and grants nothing', async () => {

@@ -55,7 +55,7 @@ describe('combat', () => {
     const t0 = e.state.tick;
     const ev = play(e, 70, (_s, t) => {
       const k = t - t0;
-      if (k === 1) return BTN.SKILL1;
+      if (k === 1) return BTN.SKILL2;
       if (k === 22) return BTN.JUMP;
       if (k >= 25 && k <= 27) return BTN.ATTACK;
       return 0;
@@ -71,7 +71,7 @@ describe('combat', () => {
     const states = new Set<string>();
     const ev = play(e, 90, (_s, t) => {
       states.add(dummyOf(e).state);
-      return t === t0 + 1 ? BTN.SKILL1 : 0;
+      return t === t0 + 1 ? BTN.SKILL2 : 0;
     });
     expect(ev.some((x) => x.type === 'down')).toBe(true);
     expect([...states]).toEqual(expect.arrayContaining(['air', 'down', 'getup', 'idle']));

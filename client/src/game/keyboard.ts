@@ -1,7 +1,7 @@
 import { BTN } from '@dnf/engine';
 
-// Keyboard to engine buttons, DNF's default layout: arrows move (double tap to run),
-// X attacks, C jumps, A and S are the two skills.
+// Keyboard to engine buttons, DNF's default layout where it has one: arrows move (double tap to
+// run), X attacks, C jumps, Z dodges, A S D are the three skill slots and F the ultimate.
 
 const KEYS: Record<string, number> = {
   ArrowLeft: BTN.LEFT,
@@ -12,6 +12,9 @@ const KEYS: Record<string, number> = {
   KeyC: BTN.JUMP,
   KeyA: BTN.SKILL1,
   KeyS: BTN.SKILL2,
+  KeyD: BTN.SKILL3,
+  KeyF: BTN.ULT,
+  KeyZ: BTN.DODGE,
 };
 
 export class Keyboard {
@@ -33,6 +36,11 @@ export class Keyboard {
       this.held &= ~b;
     });
     target.addEventListener('blur', () => (this.held = 0));
+  }
+
+  /** The buttons held right now. */
+  get down(): number {
+    return this.held;
   }
 
   /** The buttons for the next tick: held now, or tapped since the last tick. */

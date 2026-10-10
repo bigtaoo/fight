@@ -3,12 +3,14 @@ import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randRange } from '../math/prng';
 import { hittable, setState, type Entity, type SimState } from '../state';
+import { armored } from './moves';
 
 // Hit detection on the 2.5D floor and what a hit does. A hit lands when the attack box and the
 // target overlap in x, the two are within the box's depth in y, and their heights overlap in z.
 // Attackers are checked in array order, targets too, so every machine resolves a tick the same.
 // A shield bearer guarding takes a hit from the front as a block: a sliver of the damage, the
-// hitstop, no stun. It is not turned by hits, so a hero behind it stays behind it.
+// hitstop, no stun. It is not turned by hits, so a hero behind it stays behind it. A body under
+// super armour takes the full damage and the hitstop but is not stunned, turned or launched.
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
@@ -21,6 +23,7 @@ export function combatSystem(s: SimState, events: SimEvent[]): void {
     if (a.held || a.state !== 'act') continue;
     const m = MOVES[a.move];
     if (!m.box || a.st < m.active[0] || a.st > m.active[1]) continue;
+    if (m.rehit && a.st > m.active[0] && (a.st - m.active[0]) % m.rehit === 0) a.hitList = [];
     for (const t of s.entities) {
       if (t.team === a.team || !hittable(t) || a.hitList.includes(t.id)) continue;
       if (!overlaps(a, a.facing, m.box, t)) continue;
@@ -61,12 +64,16 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     if (chip < t.hp) {
       t.hp -= chip;
       t.stop = m.stop;
-      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true });
+      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false });
       return;
     }
   }
   t.hp -= dmg;
   t.stop = m.stop;
+  if (t.hp > 0 && armored(t)) {
+    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: false, armor: true });
+    return;
+  }
   if (!guard) t.facing = -facing;
 
   const airborne = t.z > 0 || t.state === 'air';
@@ -86,6 +93,6 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     t.vx = facing * m.push;
     t.vy = 0;
   }
-  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false });
+  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false, armor: false });
   if (kill) events.push(t.team === 0 ? { type: 'heroDown', id: t.id } : { type: 'death', id: t.id });
 }

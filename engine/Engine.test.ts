@@ -86,14 +86,16 @@ describe('engine', () => {
   it('matches the golden hash (bump ENGINE_VERSION when this changes on purpose)', () => {
     const e = newRun({ seed: 42 });
     play(e, 600, bot);
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 4, tick: 600, hash: 4006797598 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 5, tick: 600, hash: 3979953687 });
   });
 
-  it('matches the golden hash in Black Wind Fort, arrows flying and shields up', () => {
-    const e = newRun({ dungeon: 'heifeng', seed: 42 });
+  it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour', () => {
+    const e = newRun({ dungeon: 'heifeng', seed: 7 });
     const ev = play(e, 3600, bot);
-    expect(ev.filter((x) => x.type === 'fire').length).toBeGreaterThan(3);
+    expect(ev.filter((x) => x.type === 'fire' && x.shot === 'arrow').length).toBeGreaterThan(3);
+    expect(ev.filter((x) => x.type === 'fire' && x.shot === 'wave').length).toBeGreaterThan(1);
     expect(ev.filter((x) => x.type === 'hit' && x.blocked).length).toBeGreaterThan(3);
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 4, tick: 3600, hash: 2228637561 });
+    expect(ev.filter((x) => x.type === 'hit' && x.armor).length).toBeGreaterThan(1);
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 5, tick: 3600, hash: 1858465697 });
   });
 });

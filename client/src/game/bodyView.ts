@@ -1,4 +1,4 @@
-import { BODIES, HERO, MOVES, TICK_RATE, WORLD, fromFp, guarding, type Entity } from '@dnf/engine';
+import { BODIES, HERO, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, type Entity } from '@dnf/engine';
 import { ColorMatrixFilter, Container, Graphics, Sprite } from 'pixi.js';
 import { floorY, lerp } from './layout';
 import type { SpriteSet } from './sprites';
@@ -31,7 +31,37 @@ const ARCS: Record<string, { a0: number; a1: number; cz: number; r: number; w: n
   jumpAtk: { a0: -0.7, a1: 1.3, cz: 90, r: 0.9, w: 0.26 },
   upper: { a0: 1.1, a1: -1.8, cz: 120, r: 0.85, w: 0.3 },
   slash: { a0: -1.5, a1: 0.7, cz: 150, r: 0.8, w: 0.26 },
+  tri1: { a0: -0.9, a1: 0.4, cz: 130, r: 0.8, w: 0.22 },
+  tri2: { a0: 0.7, a1: -1.4, cz: 130, r: 0.8, w: 0.22 },
+  tri3: { a0: -1.7, a1: 0.8, cz: 140, r: 0.85, w: 0.32 },
+  dragon4: { a0: 1.1, a1: -1.8, cz: 120, r: 0.85, w: 0.3 },
+  crush2: { a0: 1.2, a1: -1.9, cz: 120, r: 0.8, w: 0.34 },
+  // the gathered cut: one flat sweep wide round the hero
+  iai: { a0: -2.6, a1: 0.5, cz: 110, r: 0.55, w: 0.18 },
+  // the dance: cuts this way and that, a new one each time the hit list clears (see phantomArc)
+  phantomA: { a0: -1.2, a1: 0.9, cz: 140, r: 0.9, w: 0.2 },
+  phantomB: { a0: 1.0, a1: -1.3, cz: 120, r: 0.9, w: 0.2 },
 };
+
+/** The hero's skills have no clips of their own yet (colour blocks): each part plays the clip of
+ * a move like it, timed so the clip's strike lands on the part's (see proxyTime). */
+const PROXY: Record<string, string> = {
+  tri1: 'atk1',
+  tri2: 'atk2',
+  tri3: 'atk3',
+  dragon1: 'dash',
+  dragon2: 'dash',
+  dragon3: 'dash',
+  dragon4: 'upper',
+  crush1: 'dash',
+  crush2: 'upper',
+  iai: 'atk3',
+  phantomEnd: 'atk3',
+};
+/** The first active tick of each clip a proxy can play (the moves they were keyed to). */
+const STRIKE: Record<string, number> = { atk1: 3, atk2: 3, atk3: 4, upper: 4, dash: 3 };
+/** Ticks of each cut of the phantom dance (two hits of its rehit 3). */
+const DANCE_CUT = 6;
 
 /** Per rigged kind: world height standing at rest, and the world distance one walk / run cycle
  * (two steps) covers, measured from the stride of the clip's keys at that height. */
@@ -129,6 +159,12 @@ export class BodyView {
     }
     if (e.kind === 'shield' && !this.actor) this.drawShield(fx, e, z, hw, alpha);
     if (e.state === 'act') this.strike(fx, e, z, alpha, debug);
+    if (armored(e)) {
+      // super armour: a red ring of ink about the body, pulsing
+      const k = 0.5 + 0.5 * Math.sin(frame / 3);
+      fx.ellipse(0, -z - h / 2, hw + 26, h / 2 + 20).stroke({ width: 4 + 3 * k, color: 0xc8281e, alpha: 0.35 + 0.3 * k });
+    }
+    if (!this.actor) this.root.alpha *= e.inv > 0 && frame % 4 < 2 ? 0.4 : 1;
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
     const bar = this.bar.clear();
@@ -162,6 +198,7 @@ export class BodyView {
     let time = this.clock;
     let fade = FADE;
     let tumble = 0;
+    let scrub = false;
     switch (e.state) {
       case 'walk':
         clip = 'walk';
@@ -175,11 +212,21 @@ export class BodyView {
         clip = 'jump';
         time = Math.min(1, Math.max(0, 0.5 - vz / (2 * fromFp(HERO.jumpVz))));
         break;
-      case 'act':
-        clip = e.move;
-        time = sec;
+      case 'act': {
         fade = FADE_MOVE;
+        if (e.move === 'backstep') {
+          clip = 'jump';
+          time = Math.min(1, Math.max(0, 0.5 - vz / (2 * fromFp(MOVES.backstep.hop!.up))));
+          break;
+        }
+        const p = this.proxy(actor, e, sec * TICK_RATE);
+        clip = p.clip;
+        time = p.time;
+        scrub = e.move === 'phantom';
+        // out of the dance into the last heavy cut: a slower blend, as nothing waits on it
+        if (scrub && clip !== 'atk1') fade = FADE;
         break;
+      }
       case 'hurt':
       case 'getup':
         clip = e.state;
@@ -203,7 +250,7 @@ export class BodyView {
         time = 0;
         break;
     }
-    actor.seek(clip, time, dt, fade);
+    actor.seek(clip, time, dt, fade, scrub);
     this.sprite.visible = false;
     const k = size.height / actor.height;
     const r = this.rigRoot;
@@ -217,8 +264,38 @@ export class BodyView {
     r.scale.set(e.facing * k * (Math.abs(turn) < 0.08 ? 0.08 * Math.sign(turn || 1) : turn), k);
     r.rotation = tumble * e.facing;
     r.filters = this.flash > 0 ? [WHITE] : [];
+    // untouchable (the dodge, a quick rise): flickering
+    this.rigRoot.alpha = e.inv > 0 && Math.floor(this.clock * 20) % 2 === 0 ? 0.35 : 1;
     // the shield bearer's shield pales while it guards nothing
     if (e.kind === 'shield') actor.setAlpha('shield', guarding(e) ? 1 : 0.55);
+  }
+
+  /** The clip and clip time of tick `t` of the body's move: its own clip, or a proxy's (PROXY)
+   * with the windup stretched to the move's and the rest to its recovery; the phantom dance
+   * cuts down and back up again on one clip, played forward and backward so each cut starts
+   * where the last one ended, and ends on the heavy cut as the wave leaves. */
+  private proxy(actor: TaoActor, e: Entity, t: number): { clip: string; time: number } {
+    const m = MOVES[e.move];
+    if (e.move === 'phantom') {
+      const end = m.active[1] + 1;
+      // each cut runs from just before the clip's strike to its end, or back
+      const from = STRIKE.atk1 - 1;
+      if (t < m.active[0]) return { clip: 'atk1', time: (t * from) / m.active[0] / TICK_RATE };
+      if (t < end) {
+        const k = Math.floor((t - m.active[0]) / DANCE_CUT);
+        let u = (t - m.active[0] - k * DANCE_CUT) / DANCE_CUT;
+        if (k % 2 === 1) u = 1 - u;
+        // eased at both ends, so the blade turns round slowly instead of snapping back
+        u = u * u * (3 - 2 * u);
+        return { clip: 'atk1', time: (from + u * (actor.duration('atk1') * TICK_RATE - from)) / TICK_RATE };
+      }
+      // the heavy cut from its windup's top, as the last cut of the dance ended raised
+      return { clip: 'atk3', time: proxyTime(t - end, m.fire!.at - end, m.total - end, STRIKE.atk3, actor.duration('atk3'), from) };
+    }
+    const clip = PROXY[e.move];
+    if (!clip) return { clip: e.move, time: t / TICK_RATE };
+    const strike = m.active[1] >= m.active[0] ? m.active[0] : (m.fire?.at ?? 0);
+    return { clip, time: proxyTime(t, strike, m.total, STRIKE[clip], actor.duration(clip)) };
   }
 
   /** Whether this kind has paintings; one without (a monster not drawn yet) shows ink blocks. */
@@ -455,14 +532,17 @@ export class BodyView {
       const left = e.facing > 0 ? x0 : -x1;
       g.rect(left, -z - fromFp(box.z1), x1 - x0, fromFp(box.z1 - box.z0)).stroke({ width: 2, color: active ? 0xc8281e : 0x888888 });
     }
-    const span = m.active[1] - m.active[0] + 1;
+    // the dance draws each cut on its own, as if it were a move of DANCE_CUT ticks
+    const dance = e.move === 'phantom';
+    const span = dance ? DANCE_CUT : m.active[1] - m.active[0] + 1;
     // on the rig's clock (see drawRig), so the arc trails the blade instead of leading it
-    const since = (e.held ? e.st : e.st - 1 + alpha) - m.active[0];
+    let since = (e.held ? e.st : e.st - 1 + alpha) - m.active[0];
+    if (dance && since >= 0 && e.st <= m.active[1]) since %= DANCE_CUT;
     if (since < 0 || since > span + 3) return;
     const grow = Math.min(1, (since + 1) / span);
     const fade = since > span ? 1 - (since - span) / 3 : 1;
     const color = e.team === 0 ? 0x111014 : 0x34466b;
-    const arc = ARCS[e.move];
+    const arc = ARCS[e.move === 'phantom' ? phantomArc(e) : e.move];
     if (!arc) {
       // the dash: one long tapering stroke along the thrust
       const f = e.facing;
@@ -500,4 +580,19 @@ export class BodyView {
   frame(): void {
     if (this.flash > 0) this.flash--;
   }
+}
+
+/** Clip time (seconds) of tick `t` of a move whose cut lands on `strike` and that lasts `total`,
+ * played on a clip whose cut lands on `clipStrike` and that lasts `clipSec`, starting at clip
+ * tick `from`. */
+function proxyTime(t: number, strike: number, total: number, clipStrike: number, clipSec: number, from = 0): number {
+  const clipTicks = clipSec * TICK_RATE;
+  const tick = t < strike ? from + (t * (clipStrike - from)) / Math.max(1, strike) : clipStrike + ((t - strike) * (clipTicks - clipStrike)) / Math.max(1, total - strike);
+  return Math.min(clipTicks, tick) / TICK_RATE;
+}
+
+/** Which way the current cut of the phantom dance sweeps. */
+function phantomArc(e: Entity): string {
+  const m = MOVES.phantom;
+  return Math.floor((e.st - m.active[0]) / DANCE_CUT) % 2 === 0 ? 'phantomA' : 'phantomB';
 }

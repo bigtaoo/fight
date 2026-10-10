@@ -1,4 +1,4 @@
-import type { DungeonId, RunConfig } from '@dnf/engine';
+import type { DungeonId, RunConfig, SkillId } from '@dnf/engine';
 
 // The wire protocol between the client and the server, JSON over one WebSocket. Types only, so
 // the client imports it as source. JSON is enough for M1 (one player, a few messages a second);
@@ -44,7 +44,9 @@ export interface Frame {
 }
 
 export type ClientMsg =
-  | { type: 'join'; dungeon: DungeonId; device: string }
+  /** `loadout`: the skill wanted in each slot; the server falls back to the default for one it
+   * does not accept. */
+  | { type: 'join'; dungeon: DungeonId; device: string; loadout?: SkillId[] }
   | CmdMsg
   | { type: 'hash'; tick: number; hash: number }
   /** `tick` is the tick the client would stamp a command with right now. */

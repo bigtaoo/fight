@@ -73,7 +73,7 @@ describe('shield bearer', () => {
 
   it('the rising slash breaks the guard and launches it', () => {
     const { e, shield } = duel(1000, 1, 1100, -1);
-    const ev = play(e, 10, press(BTN.SKILL1));
+    const ev = play(e, 10, press(BTN.SKILL2));
     const [hit] = hits(ev);
     expect(hit).toMatchObject({ target: shield.id, blocked: false, launch: true });
     expect(shield.state).toBe('air');

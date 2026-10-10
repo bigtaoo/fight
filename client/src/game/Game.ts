@@ -1,4 +1,4 @@
-import { BODIES, DOOR_HALF, DUNGEONS, MOVES, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState } from '@dnf/engine';
+import { BODIES, DEFAULT_LOADOUT, DOOR_HALF, DUNGEONS, MOVES, SKILLS, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState, type SkillId } from '@dnf/engine';
 import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
@@ -23,9 +23,15 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield'];
 // each way), ?dungeon=training, ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
-// skeleton), ?zoom=N (a close-up that follows the hero).
+// skeleton), ?zoom=N (a close-up that follows the hero), ?loadout=dragon,crush (skills swapped
+// into their slots over the default ones).
 /** Colour of the loose ink each kind of body throws. */
 const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, shield: 0x3d4148, dummy: 0x6a5c40 } as const;
+/** Moves that throw a heavy splash of ink as they start, and those that cut upward. */
+const HEAVY = new Set(['atk3', 'upper', 'slash', 'bash', 'tri3', 'dragon4', 'crush2', 'iai', 'phantom']);
+const RISING = new Set(['upper', 'crush2', 'dragon4']);
+/** Moves that rush forward, ink streaming behind them while they cut. */
+const RUSHES = new Set(['tri1', 'tri2', 'tri3', 'dragon1', 'dragon2', 'dragon3', 'dragon4', 'crush1']);
 
 export class Game {
   private readonly root = new Container();
@@ -108,7 +114,17 @@ export class Game {
       seed,
       dungeon: (this.params.get('dungeon') as DungeonId | null) ?? 'trial',
       heroDamagePct: this.params.get('cheat') === 'dmg' ? 1000 : 100,
+      loadout: this.loadout(),
     });
+  }
+
+  /** The default skills, with those ?loadout= names swapped into their slots. */
+  private loadout(): SkillId[] {
+    const l = [...DEFAULT_LOADOUT];
+    for (const id of (this.params.get('loadout') ?? '').split(',')) {
+      if (Object.prototype.hasOwnProperty.call(SKILLS, id)) l[SKILLS[id as SkillId].slot] = id as SkillId;
+    }
+    return l;
   }
 
   private async start(seed: number): Promise<void> {
@@ -119,7 +135,8 @@ export class Game {
     this.views.clear();
     if (this.link?.open) {
       try {
-        this.session = await OnlineSession.join(this.link, { dungeon: this.config(seed).dungeon, device: deviceId(), cheatDmg: this.params.get('cheat') === 'dmg' });
+        const { dungeon, loadout } = this.config(seed);
+        this.session = await OnlineSession.join(this.link, { dungeon, loadout: [...loadout], device: deviceId(), cheatDmg: this.params.get('cheat') === 'dmg' });
         return;
       } catch {
         this.hud.offlineNote = '离线（服务器没有开局）';
@@ -145,7 +162,7 @@ export class Game {
     const n = session.ticksFor(dt * 1000);
     for (let i = 0; i < n; i++) {
       const s = session.engine.state;
-      const buttons = this.params.has('bot') ? botButtons(s, 0) : this.keys.read();
+      const buttons = this.params.has('bot') ? botButtons(s, 0) : this.keys.read() | this.hud.controls.read();
       this.onEvents(session.step(buttons));
       this.tickInk(session.engine.state);
       for (const v of this.views.values()) v.tick();
@@ -159,9 +176,10 @@ export class Game {
       if (ev.type === 'hit') {
         const target = this.views.get(ev.target);
         if (target) {
-          // a blocked blow does not flash the body white: it rocks it behind its shield
-          target.flash = ev.blocked ? 0 : 3;
-          target.shake = ev.blocked ? Math.min(2, ev.stop) : ev.stop;
+          // a blocked blow does not flash the body white: it rocks it behind its shield; one
+          // taken under super armour barely shakes it
+          target.flash = ev.blocked || ev.armor ? 0 : 3;
+          target.shake = ev.blocked || ev.armor ? Math.min(2, ev.stop) : ev.stop;
         }
         const attacker = s.entities.find((e) => e.id === ev.attacker);
         const victim = s.entities.find((e) => e.id === ev.target);
@@ -177,9 +195,9 @@ export class Game {
         this.fx.damage(x, y - 90, ev.dmg, victim?.team === 0, ev.blocked);
         if (attacker?.team === 0) this.hud.heroHit();
         if (ev.stop >= 5 || ev.launch) this.shake = Math.max(this.shake, 0.14);
-      } else if (ev.type === 'swing' || ev.type === 'jump' || ev.type === 'land' || ev.type === 'down' || ev.type === 'death') {
+      } else if (ev.type === 'swing' || ev.type === 'jump' || ev.type === 'land' || ev.type === 'down' || ev.type === 'death' || ev.type === 'rise') {
         const e = s.entities.find((b) => b.id === ev.id);
-        if (e) this.ink(e, ev.type, ev.type === 'swing' ? ev.move : '');
+        if (e) this.ink(e, ev.type === 'rise' ? 'land' : ev.type, ev.type === 'swing' ? ev.move : '');
       } else if (ev.type === 'fire') {
         const p = s.shots.find((q) => q.id === ev.id);
         const owner = s.entities.find((b) => b.id === ev.owner);
@@ -206,9 +224,12 @@ export class Game {
     switch (what) {
       case 'swing': {
         if (MOVES[move].turn) break;
-        const heavy = move === 'atk3' || move === 'upper' || move === 'slash' || move === 'bash';
-        const dir = move === 'upper' ? -Math.PI / 2 + f * 0.4 : move === 'dash' ? (f > 0 ? Math.PI : 0) : fwdUp;
-        this.fx.burst(x + f * 50, feet - 130, floor, { n: heavy ? 8 : 5, dir, spread: 1, speed: [220, 520], r: [2.4, 7.2], color, jitter: [30, 40] });
+        if (move === 'backstep') {
+          this.ink(e, 'jump', '');
+          break;
+        }
+        const dir = RISING.has(move) ? -Math.PI / 2 + f * 0.4 : RUSHES.has(move) ? (f > 0 ? Math.PI : 0) : fwdUp;
+        this.fx.burst(x + f * 50, feet - 130, floor, { n: HEAVY.has(move) ? 8 : 5, dir, spread: 1, speed: [220, 520], r: [2.4, 7.2], color, jitter: [30, 40] });
         break;
       }
       case 'jump':
@@ -236,7 +257,7 @@ export class Game {
       const back = e.facing > 0 ? Math.PI : 0;
       if (e.state === 'run' && s.tick % 2 === 0) {
         this.fx.burst(x - e.facing * 20, floor - 6, floor, { n: 2, dir: e.facing > 0 ? -Math.PI + 0.5 : -0.5, spread: 0.6, speed: [120, 280], r: [2.4, 5.6], g: 1300, color: DROP_INK[e.kind] });
-      } else if (e.state === 'act' && e.move === 'dash' && e.st <= MOVES.dash.active[1]) {
+      } else if (e.state === 'act' && RUSHES.has(e.move) && e.st <= MOVES[e.move].active[1]) {
         this.fx.burst(x - e.facing * 30, floor - 100, floor, { n: 3, dir: back, spread: 0.35, speed: [60, 200], r: [2.4, 6.4], g: 500, color: DROP_INK[e.kind], jitter: [20, 120] });
       }
     }
@@ -270,7 +291,7 @@ export class Game {
     }
     for (const p of s.shots) this.shotViews.get(p.id)!.draw(p, alpha, this.debug);
     this.fx.update(dt);
-    this.hud.update(s, dt, this.session!);
+    this.hud.update(s, dt, this.session!, this.keys.down);
   }
 
   private syncViews(s: SimState): void {

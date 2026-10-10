@@ -1,4 +1,4 @@
-import { BODIES, DUNGEONS, type DungeonId, type Kind, type ShotKind } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type Kind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -12,10 +12,12 @@ export interface RunConfig {
   /** Percentage applied to the heroes' damage. Always 100 in a real run; the client's
    * `?cheat=dmg` raises it locally to prove the server catches a tampered client. */
   heroDamagePct: number;
+  /** The skill in each slot, for every hero (see validLoadout; the server checks it). */
+  loadout: readonly SkillId[];
 }
 
 export function runConfig(over: Partial<RunConfig> = {}): RunConfig {
-  return { seed: 1, dungeon: 'trial', players: 1, heroDamagePct: 100, ...over };
+  return { seed: 1, dungeon: 'trial', players: 1, heroDamagePct: 100, loadout: DEFAULT_LOADOUT, ...over };
 }
 
 export type BodyState =
@@ -74,8 +76,15 @@ export interface Entity {
   bounced: boolean;
   /** The air attack is spent until the hero lands. */
   airAtk: boolean;
-  /** Cooldown ticks left per skill slot (heroes) or until the next attack (monsters, slot 0). */
+  /** Cooldown ticks left per skill slot and the dodge (heroes), or until the next attack
+   * (monsters, slot 0) and the next hop back (archers, slot 1). */
   cd: number[];
+  /** Untouchable ticks left (a dodge, a quick rise). */
+  inv: number;
+  /** Where the current move heads, from the stick as it started: aimX 1 forward, 0 not at all;
+   * aimY -1 back, 1 front, 0 neither. Plain moves head forward. */
+  aimX: number;
+  aimY: number;
 }
 
 /** A projectile in flight (its definition is SHOTS[kind]). */
@@ -114,6 +123,8 @@ export interface PlayerSlot {
   /** The buffered press (one BTN bit, 0: none) and its unfrozen ticks left. */
   buf: number;
   bufLeft: number;
+  /** The skill in each slot. */
+  skills: SkillId[];
 }
 
 export type Outcome = 'playing' | 'cleared' | 'failed';
@@ -161,7 +172,8 @@ export function newEntity(s: SimState, kind: Kind, team: number, owner: number, 
     hp: body.hp, maxHp: body.hp,
     state: 'idle', st: 0, move: '', hitList: [],
     stop: 0, held: false, timer: 0, juggle: 0, bounced: false, airAtk: false,
-    cd: [0, 0],
+    cd: team === 0 ? new Array<number>(DODGE.slot + 1).fill(0) : [0, 0],
+    inv: 0, aimX: 1, aimY: 0,
   };
   s.entities.push(e);
   return e;
@@ -177,7 +189,7 @@ export function setState(e: Entity, state: BodyState): void {
   if (state !== 'act') e.move = '';
 }
 
-/** Alive and not lying down: something a hit can land on. */
+/** Alive, not lying down and not untouchable: something a hit can land on. */
 export function hittable(e: Entity): boolean {
-  return e.hp > 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
+  return e.hp > 0 && e.inv === 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
 }

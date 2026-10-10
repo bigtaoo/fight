@@ -1,4 +1,4 @@
-import { Engine, hashState, type DungeonId, type PlayerCommand, type SimEvent, type SimState } from '@dnf/engine';
+import { Engine, hashState, type DungeonId, type PlayerCommand, type SimEvent, type SimState, type SkillId } from '@dnf/engine';
 import { CHECK_EVERY, type Frame, type Item, type ServerMsg } from '@dnf/server/protocol';
 import type { Link } from './Link';
 import { Clock, type Session } from './Session';
@@ -22,6 +22,8 @@ const RING = 300;
 export interface JoinOptions {
   dungeon: DungeonId;
   device: string;
+  /** The skill wanted in each slot (none: the default). */
+  loadout?: SkillId[];
   /** ?cheat=dmg: run the hero's damage x10 locally, as a tampered client would. */
   cheatDmg: boolean;
 }
@@ -97,7 +99,7 @@ export class OnlineSession implements Session {
         clearTimeout(timer);
         resolve(new OnlineSession(link, m, opts.cheatDmg, now() - t0, now));
       });
-      link.send({ type: 'join', dungeon: opts.dungeon, device: opts.device });
+      link.send({ type: 'join', dungeon: opts.dungeon, device: opts.device, loadout: opts.loadout });
     });
   }
 

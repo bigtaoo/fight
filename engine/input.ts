@@ -15,11 +15,17 @@ export const BTN = {
   DOWN: 8,
   ATTACK: 16,
   JUMP: 32,
-  /** Rising slash: launches. */
+  /** The skill slots (whatever skill the loadout puts in each) and the ultimate. */
   SKILL1: 64,
-  /** Dash slash. */
   SKILL2: 128,
+  SKILL3: 256,
+  ULT: 512,
+  /** The dodge: a hop back. */
+  DODGE: 1024,
 } as const;
+
+/** Every button bit: what a command from outside is masked to. */
+export const BTN_ALL = Object.values(BTN).reduce((m, b) => m | b, 0);
 
 export interface PlayerCommand {
   owner: number;

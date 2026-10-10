@@ -4,9 +4,10 @@ import { toFp } from './math/fixed';
 import type { Entity, SimState } from './state';
 
 // A plain bot for tests and headless runs: lines up with the nearest monster in depth, walks
-// up to it and mashes attack, using the skills when they are ready; steps out of the lane of an
-// arrow coming at it (or of an archer drawing on it); walks round a shield held at it unless the
-// rising slash can break it; with the room clear it heads for the door
+// up to it and mashes attack, using the skills when they are ready (pressing on through a skill
+// of several parts); steps out of the lane of an arrow coming at it (or of an archer drawing on
+// it); walks round a shield held at it unless the slot 2 skill (both of which break guards) is
+// ready; with the room clear it heads for the door
 // on the shortest way to the boss. It only reads the state and returns buttons, like
 // a player would, so its runs replay like any other.
 
@@ -35,7 +36,7 @@ export function botButtons(s: SimState, owner: number): number {
   if (dy > ALIGN) b |= BTN.DOWN;
   else if (dy < -ALIGN) b |= BTN.UP;
   const shieldUp = target.kind !== 'hero' && !!MONSTERS[target.kind].guard && target.facing * dx < 0;
-  if (shieldUp && hero.cd[0] !== 0) {
+  if (shieldUp && hero.cd[1] !== 0) {
     // its shield is toward us and the guard breaker is not ready: go round behind it, out of
     // its lane while passing it (the bash only reaches along the lane)
     const goal = target.x - target.facing * BEHIND - hero.x;
@@ -50,11 +51,16 @@ export function botButtons(s: SimState, owner: number): number {
   else if (Math.abs(dy) <= ALIGN * 2) {
     // face it, then strike; alternate the skills on a slow beat so the buffer sees presses
     if ((dx > 0) !== (hero.facing > 0)) b |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
+    const chain = hero.state === 'act' && MOVES[hero.move].follow;
     if (shieldUp) {
-      // only the rising slash goes through the shield
-      if (s.tick % 2 === 0) b |= BTN.SKILL1;
-    } else if (hero.cd[1] === 0 && s.tick % 12 === 0) b |= BTN.SKILL2;
-    else if (hero.cd[0] === 0 && s.tick % 12 === 6) b |= BTN.SKILL1;
+      // only the slot 2 skill goes through the shield
+      if (s.tick % 2 === 0) b |= BTN.SKILL2;
+    } else if (chain) {
+      if (s.tick % 4 === 0) b |= BTN.SKILL1;
+    } else if (hero.cd[3] === 0 && s.tick % 12 === 0) b |= BTN.ULT;
+    else if (hero.cd[2] === 0 && s.tick % 12 === 3) b |= BTN.SKILL3;
+    else if (hero.cd[1] === 0 && s.tick % 12 === 6) b |= BTN.SKILL2;
+    else if (hero.cd[0] === 0 && s.tick % 12 === 9) b |= BTN.SKILL1;
     else b |= BTN.ATTACK;
   }
   return b;

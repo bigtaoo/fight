@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from 'node:crypto';
-import { runConfig, type DungeonId, type RunConfig } from '@dnf/engine';
+import { BTN_ALL, runConfig, type DungeonId, type RunConfig, type SkillId } from '@dnf/engine';
 import { CHECK_EVERY, type ClientMsg, type CmdMsg, type Frame, type FrameCmd, type ServerMsg } from '../protocol';
 import { rollLoot, type Inventory } from './loot';
 import type { ReplayOut } from './replay';
@@ -46,17 +46,18 @@ export class Run {
 
   constructor(
     dungeon: DungeonId,
+    loadout: SkillId[],
     private readonly device: string,
     private readonly inventory: Inventory,
     private readonly send: (msg: ServerMsg) => void,
     private readonly opts: RunOptions,
     private readonly log: (msg: string) => void,
   ) {
-    this.config = runConfig({ seed: randomInt(1, 2 ** 31 - 1), dungeon, players: 1, heroDamagePct: 100 });
+    this.config = runConfig({ seed: randomInt(1, 2 ** 31 - 1), dungeon, players: 1, heroDamagePct: 100, loadout });
     this.verifier = new Verifier(this.config, (out) => this.onVerifier(out), (err) => this.fail(`verifier crashed: ${err.message}`));
     send({ type: 'start', run: this.id, owner: 0, config: this.config, tickMs: opts.tickMs, inventory: inventory.get(device) });
     this.timer = setInterval(() => this.flush(), Math.max(10, Math.min(50, opts.tickMs * 2)));
-    log(`run ${this.id} start: ${dungeon}, seed ${this.config.seed}`);
+    log(`run ${this.id} start: ${dungeon}, seed ${this.config.seed}, skills ${loadout.join(' ')}`);
   }
 
   handle(msg: ClientMsg): void {
@@ -83,7 +84,7 @@ export class Run {
     // strictly after the last one, so a late tap and its release never collapse into one frame
     const frame = Math.max(m.tick, this.frame + 1, this.lastAssigned + 1);
     this.lastAssigned = frame;
-    const cmd: FrameCmd = { owner: 0, seq: m.seq, buttons: m.buttons & 0xff };
+    const cmd: FrameCmd = { owner: 0, seq: m.seq, buttons: m.buttons & BTN_ALL };
     const list = this.pending.get(frame);
     if (list) list.push(cmd);
     else this.pending.set(frame, [cmd]);

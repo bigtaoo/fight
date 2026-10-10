@@ -1,4 +1,4 @@
-import { DUNGEONS, type DungeonId } from '@dnf/engine';
+import { DEFAULT_LOADOUT, DUNGEONS, validLoadout, type DungeonId } from '@dnf/engine';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ClientMsg, ServerMsg } from '../protocol';
 import { Inventory, validDevice } from './loot';
@@ -39,7 +39,8 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       if (msg?.type === 'join') {
         if (!validDevice(msg.device) || !Object.hasOwn(DUNGEONS, msg.dungeon)) return;
         run?.close();
-        run = new Run(msg.dungeon as DungeonId, msg.device, inventory, send, runOpts, log);
+        const loadout = validLoadout(msg.loadout) ? msg.loadout : [...DEFAULT_LOADOUT];
+        run = new Run(msg.dungeon as DungeonId, loadout, msg.device, inventory, send, runOpts, log);
       } else run?.handle(msg);
     });
     ws.on('close', () => run?.close());

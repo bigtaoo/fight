@@ -63,6 +63,13 @@ export class TaoActor {
     return this.sk.height;
   }
 
+  /** Seconds clip `name` lasts. */
+  duration(name: string): number {
+    const anim = this.sk.animations[name];
+    if (!anim) throw new Error(`${this.sk.name} has no animation ${name}`);
+    return anim.duration;
+  }
+
   get current(): string {
     return this.clip;
   }
@@ -137,11 +144,12 @@ export class TaoActor {
   /**
    * Shows `name` at clip time `time` (seconds), cross-fading over `fade` seconds of real time
    * when the clip changes or a one-shot clip starts over; dt is the real time since the last call.
+   * `scrub`: the time may run backward, which then is not a start over.
    */
-  seek(name: string, time: number, dt: number, fade = FADE): void {
+  seek(name: string, time: number, dt: number, fade = FADE, scrub = false): void {
     const anim = this.sk.animations[name];
     if (!anim) throw new Error(`${this.sk.name} has no animation ${name}`);
-    const restart = name === this.clip && !anim.loop && time < this.time - 0.05;
+    const restart = !scrub && name === this.clip && !anim.loop && time < this.time - 0.05;
     if (name !== this.clip || restart) {
       if (this.clip && fade > 0) this.startFade(fade);
       else this.fade = 0;

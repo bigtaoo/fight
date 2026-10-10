@@ -16,7 +16,7 @@ import { fireSystem, shotsSystem } from './systems/shots';
 // a system or any number in content.ts, changes every replay, so bump ENGINE_VERSION (and
 // record the new golden hash in Engine.test.ts on purpose).
 
-export const ENGINE_VERSION = 4;
+export const ENGINE_VERSION = 5;
 
 export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'cleanup', 'room'] as const;
 
@@ -84,7 +84,7 @@ function setup(s: SimState): SimEvent[] {
   const events: SimEvent[] = [];
   for (let i = 0; i < s.config.players; i++) {
     const h = newEntity(s, 'hero', 0, i, ENTRY.x, ENTRY.y);
-    s.players.push({ owner: i, hero: h.id, buttons: 0, prev: 0, tapDir: 0, tapTick: -100, running: false, buf: 0, bufLeft: 0 });
+    s.players.push({ owner: i, hero: h.id, buttons: 0, prev: 0, tapDir: 0, tapTick: -100, running: false, buf: 0, bufLeft: 0, skills: [...s.config.loadout] });
   }
   enterRoom(s, 0, events);
   return events;

@@ -153,6 +153,8 @@ export const HERO = {
   doubleTap: 8,
   /** A press is remembered this long (in unfrozen ticks) until the hero can act on it. */
   buffer: 6,
+  /** Untouchable this long after a quick rise has got the hero up (on top of the getup itself). */
+  riseInv: ticks(0.4),
 };
 
 /** An attack box relative to the attacker: x forward of its facing, z up from its feet. */
@@ -190,16 +192,32 @@ export interface Move extends HitData {
   active: readonly [number, number];
   /** None: the move hits nothing itself (it shoots, or only moves the body). */
   box?: HitBox;
-  /** From this tick on a buffered press may start the follow-up (or a skill). 0: never. */
+  /** From this tick on a buffered press may start the follow-up, a skill or the dodge. 0: never
+   * (nothing cancels it). */
   cancel: number;
   /** The follow-up an ATTACK press chains into. */
   next?: string;
+  /** The skill this move is part of: no move of a skill cancels into the same skill. */
+  of?: SkillId;
+  /** The next part a press of the same skill's button chains into (from `cancel` on). */
+  follow?: string;
+  /** The part that starts by itself when this one ends, steered like `steer`. */
+  then?: string;
+  /** Steered as it starts: the held direction turns it around (left, right) and sends it along
+   * the depth (up, down) as well as, or instead of, forward. */
+  steer?: boolean;
   /** Forward speed during ticks [from, to], FP per tick. */
   advance?: { from: number; to: number; speed: number };
+  /** Super armour over ticks [from, to]: a hit still deals its damage and hitstop, but no stun. */
+  armor?: readonly [number, number];
+  /** Untouchable for this many ticks from the start. */
+  inv?: number;
+  /** Hits each target again every this many ticks of its active window (the hit list clears). */
+  rehit?: number;
+  /** A JUMP press before the move fires (or ends) cuts to this finish. */
+  early?: string;
   /** Started in the air: gravity keeps acting, and landing ends it. */
   air?: boolean;
-  /** Ticks before the skill can be used again. */
-  cooldown?: number;
   /** Speeds the body is thrown at when the move starts: back (against its facing) and up.
    * With `air`, the move then lasts until it lands. */
   hop?: { back: number; up: number };
@@ -234,15 +252,71 @@ const MOVE_LIST: Move[] = [
     damage: 36, hitstun: 14, stop: 3, push: toFp(4), launch: 0, lift: toFp(10),
     cancel: 0, air: true,
   },
+  // the hero's skills (see SKILLS); every part of a skill is tagged with it
   {
-    id: 'upper', total: 20, active: [4, 7], box: box(0, 150, 40, 0, 260),
-    damage: 52, hitstun: 20, stop: 4, push: toFp(3), launch: toFp(30), lift: toFp(26),
-    cancel: 13, cooldown: ticks(2.5), breaks: true,
+    id: 'tri1', of: 'triple', total: 14, active: [3, 7], box: box(-10, 150, 45, 20, 220),
+    damage: 45, hitstun: 18, stop: 3, push: toFp(8), launch: 0, lift: toFp(10),
+    cancel: 8, follow: 'tri2', advance: { from: 1, to: 6, speed: toFp(18) },
   },
   {
-    id: 'dash', total: 18, active: [3, 10], box: box(-20, 140, 45, 0, 220),
-    damage: 75, hitstun: 22, stop: 5, push: toFp(16), launch: toFp(14), lift: toFp(14),
-    cancel: 14, advance: { from: 2, to: 10, speed: toFp(26) }, cooldown: ticks(4),
+    id: 'tri2', of: 'triple', total: 14, active: [3, 7], box: box(-10, 150, 45, 20, 220),
+    damage: 50, hitstun: 18, stop: 3, push: toFp(8), launch: 0, lift: toFp(10),
+    cancel: 8, follow: 'tri3', advance: { from: 1, to: 6, speed: toFp(18) },
+  },
+  {
+    id: 'tri3', of: 'triple', total: 20, active: [3, 8], box: box(-10, 160, 45, 0, 230),
+    damage: 65, hitstun: 20, stop: 5, push: toFp(10), launch: toFp(22), lift: toFp(18),
+    cancel: 13, advance: { from: 1, to: 7, speed: toFp(20) },
+  },
+  // four dashes in a row that go where the stick points, the last one launching
+  ...[1, 2, 3].map((i): Move => ({
+    id: `dragon${i}`, of: 'dragon', total: 9, active: [2, 7], box: box(-20, 130, 50, 0, 220),
+    damage: 40, hitstun: 20, stop: 2, push: toFp(6), launch: 0, lift: toFp(10),
+    cancel: 0, steer: true, then: `dragon${i + 1}`, advance: { from: 1, to: 7, speed: toFp(30) },
+  })),
+  {
+    id: 'dragon4', of: 'dragon', total: 20, active: [2, 8], box: box(-20, 140, 50, 0, 240),
+    damage: 70, hitstun: 22, stop: 5, push: toFp(10), launch: toFp(26), lift: toFp(22),
+    cancel: 14, steer: true, advance: { from: 1, to: 7, speed: toFp(30) },
+  },
+  {
+    id: 'upper', of: 'upper', total: 20, active: [4, 7], box: box(0, 150, 40, 0, 260),
+    damage: 52, hitstun: 20, stop: 4, push: toFp(3), launch: toFp(30), lift: toFp(26),
+    cancel: 13, breaks: true,
+  },
+  // a shoulder ram under super armour, then the one-handed rising cut
+  {
+    id: 'crush1', of: 'crush', total: 12, active: [4, 8], box: box(0, 120, 45, 20, 220),
+    damage: 40, hitstun: 22, stop: 3, push: toFp(4), launch: 0, lift: toFp(10),
+    cancel: 0, then: 'crush2', advance: { from: 2, to: 8, speed: toFp(16) }, armor: [1, 12], breaks: true,
+  },
+  {
+    id: 'crush2', of: 'crush', total: 20, active: [3, 6], box: box(0, 150, 45, 0, 280),
+    damage: 70, hitstun: 22, stop: 5, push: toFp(3), launch: toFp(32), lift: toFp(28),
+    cancel: 13, advance: { from: 1, to: 3, speed: toFp(6) }, armor: [1, 6], breaks: true,
+  },
+  // a still gathering, then one wide cut that knocks down all round
+  {
+    id: 'iai', of: 'iai', total: 34, active: [14, 16], box: box(-80, 380, 110, 0, 240),
+    damage: 140, hitstun: 24, stop: 6, push: toFp(18), launch: toFp(14), lift: toFp(16),
+    cancel: 24,
+  },
+  // the ultimate: a flurry on the spot under super armour, then a sword wave; jump fires the wave at once
+  {
+    id: 'phantom', of: 'phantom', total: 66, active: [4, 51], box: box(-40, 200, 60, 0, 240),
+    damage: 22, hitstun: 14, stop: 1, push: toFp(2), launch: 0, lift: toFp(7),
+    cancel: 0, rehit: 3, armor: [1, 66], early: 'phantomEnd', fire: { at: 56, shot: 'wave', x: toFp(60), z: 0 },
+  },
+  {
+    id: 'phantomEnd', of: 'phantom', total: 14, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, armor: [1, 4], fire: { at: 3, shot: 'wave', x: toFp(60), z: 0 },
+  },
+  // the dodge: a hop back, untouchable as it leaves the ground
+  {
+    id: 'backstep', total: 30, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, air: true, hop: { back: toFp(17), up: toFp(20) }, inv: 8,
   },
   // the archer: a long, visible draw, then the arrow; and a hop back out of reach
   {
@@ -276,7 +350,7 @@ const MOVE_LIST: Move[] = [
 
 export const MOVES: Readonly<Record<string, Move>> = Object.fromEntries(MOVE_LIST.map((m) => [m.id, m]));
 
-export type ShotKind = 'arrow';
+export type ShotKind = 'arrow' | 'wave';
 
 /** A projectile: flies straight along x at `speed`, hits what its box touches (`box` is around
  * its own position, x forward of its flight), and is gone after `life` ticks, `pierce` hits or
@@ -294,10 +368,43 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
     speed: toFp(24), life: ticks(2.2), pierce: 1, box: box(-30, 30, 18, -8, 8),
     damage: 55, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
   },
+  // the phantom dance's sword wave: tall and wide, through everything in its way
+  wave: {
+    speed: toFp(32), life: ticks(0.9), pierce: 20, box: box(-50, 50, 60, 0, 240),
+    damage: 160, hitstun: 26, stop: 5, push: toFp(18), launch: toFp(24), lift: toFp(22), breaks: true,
+  },
 };
 
-/** The hero's skills, by slot: SKILL1, SKILL2. */
-export const SKILLS = ['upper', 'dash'] as const;
+export type SkillId = 'triple' | 'dragon' | 'upper' | 'crush' | 'iai' | 'phantom';
+
+/** A skill the hero can carry: the slot it goes in (0..2 the skills, 3 the ultimate; the buttons
+ * SKILL1, SKILL2, SKILL3, ULT), the move it starts with, and its cooldown from that start. */
+export interface Skill {
+  slot: number;
+  move: string;
+  cooldown: number;
+}
+
+export const SKILLS: Readonly<Record<SkillId, Skill>> = {
+  triple: { slot: 0, move: 'tri1', cooldown: ticks(4) },
+  dragon: { slot: 0, move: 'dragon1', cooldown: ticks(7) },
+  upper: { slot: 1, move: 'upper', cooldown: ticks(2.5) },
+  crush: { slot: 1, move: 'crush1', cooldown: ticks(6) },
+  iai: { slot: 2, move: 'iai', cooldown: ticks(8) },
+  phantom: { slot: 3, move: 'phantom', cooldown: ticks(20) },
+};
+
+/** Skill slots a hero carries; its cooldowns are one per slot, then the dodge's. */
+export const SLOTS = 4;
+export const DODGE = { slot: SLOTS, move: 'backstep', cooldown: ticks(1) };
+
+/** The skill in each slot when the player has not chosen. */
+export const DEFAULT_LOADOUT: readonly SkillId[] = ['triple', 'upper', 'iai', 'phantom'];
+
+/** One skill per slot, each in its own slot: what the server accepts from a client. */
+export function validLoadout(l: unknown): l is SkillId[] {
+  return Array.isArray(l) && l.length === SLOTS && l.every((id, i) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, id) && SKILLS[id as SkillId].slot === i);
+}
 
 export interface Spawn {
   kind: MonsterKind;

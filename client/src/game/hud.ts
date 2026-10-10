@@ -1,10 +1,11 @@
-import { DUNGEONS, MOVES, SKILLS, type SimState } from '@dnf/engine';
+import { DUNGEONS, type SimState } from '@dnf/engine';
 import { Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { OnlineSession } from '../net/OnlineSession';
 import type { Session } from '../net/Session';
+import { Controls } from './controls';
 import { VIEW_H, VIEW_W } from './layout';
 
-// Screen-space overlay: health, the two skills with their cooldowns, the room, the combo
+// Screen-space overlay: health, the on-screen controls with the cooldowns, the room, the combo
 // counter, the key help, the end-of-run banner with the server's verdict, the connection and
 // the inventory. Prototype text, not yet through i18n.
 
@@ -31,13 +32,13 @@ export class Hud {
   private readonly bag = new Text({ text: '', style: { ...style(24, 0x4a4640), align: 'right' } });
   /** Why the game is offline, when it tried to go online. */
   offlineNote = '';
-  private readonly skillLabels = SKILLS.map((_, i) => new Text({ text: ['A 上挑', 'S 突进'][i], style: style(26) }));
+  readonly controls = new Controls();
   private comboCount = 0;
   private comboTime = 0;
 
   constructor() {
-    const help = new Text({ text: '←→↑↓ 移动（双击奔跑）   X 攻击（按住连打）   C 跳跃   A 上挑   S 突进   R 重开   F1 判定框', style: style(24, 0x4a4640) });
-    help.position.set(40, VIEW_H - 46);
+    const help = new Text({ text: '←→↑↓ 移动（双击奔跑）  X 攻击（按住连打）  C 跳  Z 闪避  A S D 技能  F 大招  R 重开  F1 判定框', style: style(22, 0x4a4640) });
+    help.position.set(40, 124);
     this.room.position.set(VIEW_W - 40, 36);
     this.room.anchor.set(1, 0);
     this.combo.anchor.set(1, 0);
@@ -47,10 +48,9 @@ export class Hud {
     this.verdict.anchor.set(0.5, 0);
     this.verdict.position.set(VIEW_W / 2, VIEW_H * 0.36 + 80);
     this.net.position.set(40, 84);
-    this.bag.anchor.set(1, 1);
-    this.bag.position.set(VIEW_W - 40, VIEW_H - 46);
-    this.skillLabels.forEach((t, i) => t.position.set(40 + i * 130, VIEW_H - 196));
-    this.layer.addChild(this.g, this.room, this.combo, this.banner, this.verdict, this.net, this.bag, help, ...this.skillLabels);
+    this.bag.anchor.set(1, 0);
+    this.bag.position.set(VIEW_W - 40, 200);
+    this.layer.addChild(this.g, this.controls.layer, this.room, this.combo, this.banner, this.verdict, this.net, this.bag, help);
   }
 
   /** A hit by the hero: grows the combo, which lapses after 1.2 s without a hit. */
@@ -59,23 +59,16 @@ export class Hud {
     this.comboTime = 1.2;
   }
 
-  update(s: SimState, dt: number, session: Session): void {
+  /** `keys`: the keyboard's held buttons, lit on the controls too. */
+  update(s: SimState, dt: number, session: Session, keys: number): void {
     const hero = s.entities.find((e) => e.team === 0);
     const g = this.g.clear();
     if (hero) {
       g.rect(40, 40, 520, 30).fill({ color: 0x000000, alpha: 0.25 });
       g.rect(40, 40, (520 * Math.max(0, hero.hp)) / hero.maxHp, 30).fill(0xc8281e);
       g.rect(40, 40, 520, 30).stroke({ width: 3, color: 0x141317 });
-      SKILLS.forEach((id, i) => {
-        const x = 40 + i * 130;
-        const y = VIEW_H - 160;
-        const cd = hero.cd[i];
-        const total = MOVES[id].cooldown ?? 1;
-        g.rect(x, y, 100, 100).fill(cd > 0 ? 0x8a857a : 0x141317);
-        if (cd > 0) g.rect(x, y, 100, (100 * cd) / total).fill({ color: 0x000000, alpha: 0.45 });
-        g.rect(x, y, 100, 100).stroke({ width: 3, color: 0x141317 });
-      });
     }
+    this.controls.update(s, keys);
     const dungeon = DUNGEONS[s.config.dungeon];
     const open = s.roomCleared && s.room !== dungeon.boss ? '   → 前进' : '';
     this.room.text = s.config.dungeon === 'training' ? '训练场' : `房间 ${s.room + 1} / ${dungeon.rooms.length}${open}`;
