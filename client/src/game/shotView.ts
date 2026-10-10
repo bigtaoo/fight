@@ -3,7 +3,7 @@ import { Container, Graphics } from 'pixi.js';
 import { floorY, lerp } from './layout';
 
 // One projectile: an arrow in flight, an ink shaft with a head and fletching, or the sword wave,
-// a tall crescent of ink; its shadow on the floor under it so its lane reads at a glance; its hit
+// a tall crescent of ink, or the chief's shockwave, a low ridge of ink racing along the floor; its shadow on the floor under it so its lane reads at a glance; its hit
 // box in debug.
 
 const INK = 0x2b2620;
@@ -25,6 +25,7 @@ export class ShotView {
     const f = Math.sign(p.vx);
     const g = this.g.clear();
     if (p.kind === 'wave') this.wave(g, p, f, z);
+    else if (p.kind === 'quake') this.quake(g, p, f);
     else this.arrow(g, f, z);
     if (debug) {
       const b = SHOTS[p.kind].box;
@@ -67,5 +68,23 @@ export class ShotView {
     // a pale wash trailing it, then the stroke
     g.rect(f > 0 ? -140 : 20, mid - h * 0.3, 120, h * 0.6).fill({ color: INK, alpha: 0.08 * fade });
     g.poly(pts).fill({ color: INK, alpha: 0.85 * fade });
+  }
+
+  /** A ridge of torn floor as wide as its lane and knee high: jagged ink spikes leaning back
+   * from the front, a dark crack on the floor behind it; fading out over its last ticks. */
+  private quake(g: Graphics, p: Projectile, f: number): void {
+    const b = SHOTS.quake.box;
+    const depth = fromFp(b.depth);
+    const h = fromFp(b.z1);
+    const fade = Math.min(1, p.life / 5);
+    g.rect(f > 0 ? -160 : 0, -6, 160, 12).fill({ color: INK, alpha: 0.3 * fade });
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const dy = -depth + ((i + 0.5) * depth * 2) / n;
+      const tall = h * (0.6 + 0.4 * (((i * 37 + p.id * 11) % 7) / 6));
+      const x = f * (30 - ((i * 13) % 3) * 12);
+      g.poly([x - f * 34, dy, x, dy - tall, x + f * 10, dy]).fill({ color: INK, alpha: 0.8 * fade });
+    }
+    g.ellipse(0, 0, 50, depth).stroke({ width: 3, color: 0xc8281e, alpha: 0.35 * fade });
   }
 }

@@ -20,18 +20,20 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield'];
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation
 // between ticks. URL switches: ?offline (no server), ?server=ws://host:port, ?lag=N (ms added
-// each way), ?dungeon=training, ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
+// each way), ?dungeon=training (or heifeng, or hall: the chief alone), ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
 // skeleton), ?zoom=N (a close-up that follows the hero), ?loadout=dragon,crush (skills swapped
 // into their slots over the default ones).
 /** Colour of the loose ink each kind of body throws. */
-const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, shield: 0x3d4148, dummy: 0x6a5c40 } as const;
+const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, shield: 0x3d4148, chief: 0x3b2420, dummy: 0x6a5c40 } as const;
 /** Moves that throw a heavy splash of ink as they start, and those that cut upward. */
-const HEAVY = new Set(['atk3', 'upper', 'slash', 'bash', 'tri3', 'dragon4', 'crush2', 'iai', 'phantom']);
+const HEAVY = new Set(['atk3', 'upper', 'slash', 'bash', 'tri3', 'dragon4', 'crush2', 'iai', 'phantom', 'chop', 'chopF', 'roar']);
 const RISING = new Set(['upper', 'crush2', 'dragon4']);
 /** Moves that rush forward, ink streaming behind them while they cut. */
 const RUSHES = new Set(['tri1', 'tri2', 'tri3', 'dragon1', 'dragon2', 'dragon3', 'dragon4', 'crush1']);
+/** Rushes that stand still through a windup first: ink only once they are off. */
+const CHARGES = new Set(['charge', 'chargeF']);
 
 export class Game {
   private readonly root = new Container();
@@ -205,6 +207,16 @@ export class Game {
           const floor = floorY(fromFp(p.y));
           const dir = p.vx > 0 ? 0 : Math.PI;
           this.fx.burst(fromFp(p.x), floor - fromFp(p.z), floor, { n: 4, dir, spread: 0.5, speed: [120, 300], r: [2, 4.5], color: DROP_INK[owner.kind] });
+          // the slam's landing shakes the room
+          if (p.kind === 'quake') this.shake = Math.max(this.shake, 0.22);
+        }
+      } else if (ev.type === 'phase') {
+        // a boss's second phase: its roar shakes the room and throws ink all round it
+        const e = s.entities.find((b) => b.id === ev.id);
+        this.shake = Math.max(this.shake, 0.5);
+        if (e) {
+          const floor = GROUND_TOP + fromFp(e.y);
+          this.fx.burst(fromFp(e.x), floor - 200, floor, { n: 26, dir: -Math.PI / 2, spread: 3.2, speed: [200, 600], r: [3, 9], color: DROP_INK[e.kind], jitter: [40, 80] });
         }
       } else if (ev.type === 'roomEnter') {
         for (const v of this.views.values()) v.root.destroy();
@@ -257,7 +269,7 @@ export class Game {
       const back = e.facing > 0 ? Math.PI : 0;
       if (e.state === 'run' && s.tick % 2 === 0) {
         this.fx.burst(x - e.facing * 20, floor - 6, floor, { n: 2, dir: e.facing > 0 ? -Math.PI + 0.5 : -0.5, spread: 0.6, speed: [120, 280], r: [2.4, 5.6], g: 1300, color: DROP_INK[e.kind] });
-      } else if (e.state === 'act' && RUSHES.has(e.move) && e.st <= MOVES[e.move].active[1]) {
+      } else if (e.state === 'act' && (RUSHES.has(e.move) || (CHARGES.has(e.move) && e.st >= MOVES[e.move].active[0])) && e.st <= MOVES[e.move].active[1]) {
         this.fx.burst(x - e.facing * 30, floor - 100, floor, { n: 3, dir: back, spread: 0.35, speed: [60, 200], r: [2.4, 6.4], g: 500, color: DROP_INK[e.kind], jitter: [20, 120] });
       }
     }

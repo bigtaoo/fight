@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from 'node:crypto';
-import { BTN_ALL, runConfig, type DungeonId, type RunConfig, type SkillId } from '@dnf/engine';
+import { BTN_ALL, DUNGEONS, runConfig, type DungeonId, type RunConfig, type SkillId } from '@dnf/engine';
 import { CHECK_EVERY, type ClientMsg, type CmdMsg, type Frame, type FrameCmd, type ServerMsg } from '../protocol';
 import { rollLoot, type Inventory } from './loot';
 import type { ReplayOut } from './replay';
@@ -10,7 +10,7 @@ import { Verifier } from './Verifier';
 // than real time even solo. A command lands on the tick the client stamped it with if that
 // frame is not final yet, else on the next open one; the client predicts the first case and
 // rolls back on the second. Loot is drawn only when the verifier's replay cleared the dungeon
-// and every checkpoint the client reported on the way matched it.
+// and every checkpoint the client reported on the way matched it (and never for a practice one).
 
 export interface RunOptions {
   tickMs: number;
@@ -151,6 +151,7 @@ export class Run {
     for (let t = CHECK_EVERY; t <= tick; t += CHECK_EVERY) if (!this.clientHash.has(t)) return;
     if (!this.clientHash.has(tick)) return;
     if (outcome === 'failed') return this.fail('the hero fell');
+    if (DUNGEONS[this.config.dungeon].practice) return this.fail('practice');
     this.settled = true;
     clearTimeout(this.settleTimer);
     const loot = rollLoot();

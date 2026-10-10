@@ -14,9 +14,9 @@ import { armored } from './moves';
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
-/** Each further hit in one juggle lifts this many percent less, down to JUGGLE_FLOOR. */
-const JUGGLE_DECAY = 12;
-const JUGGLE_FLOOR = 30;
+/** Each further hit in one juggle lifts this many percent less, down to the floor (unless the
+ * monster has its own, see Monster.juggle). */
+const JUGGLE = { decay: 12, floor: 30 };
 
 export function combatSystem(s: SimState, events: SimEvent[]): void {
   for (const a of s.entities) {
@@ -79,8 +79,9 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
   const airborne = t.z > 0 || t.state === 'air';
   const kill = t.hp <= 0;
   if (kill || airborne || m.launch > 0) {
+    const j = (t.kind !== 'hero' && MONSTERS[t.kind].juggle) || JUGGLE;
     const lift = airborne
-      ? Math.trunc((m.lift * Math.max(JUGGLE_FLOOR, 100 - JUGGLE_DECAY * t.juggle)) / 100)
+      ? Math.trunc((m.lift * Math.max(j.floor, 100 - j.decay * t.juggle)) / 100)
       : m.launch > 0 ? m.launch : DEATH_POP;
     setState(t, 'air');
     t.vz = lift;

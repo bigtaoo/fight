@@ -1,6 +1,7 @@
 import { BODIES, MOVES, WORLD } from '../content';
 import type { SimEvent } from '../events';
 import { setState, type Entity, type SimState } from '../state';
+import { startMove } from './moves';
 
 // Moves every unfrozen body by its speed: gravity in the air, landing, the once-only bounce
 // of a launched body, sliding out of a hit, and the room's walls and floor band.
@@ -55,9 +56,11 @@ function land(e: Entity, events: SimEvent[]): void {
   }
   e.vz = 0;
   if (e.state === 'jump' || (e.state === 'act' && MOVES[e.move].air)) {
+    const then = e.state === 'act' ? MOVES[e.move].land : undefined;
     e.airAtk = false;
     e.vx = 0;
     setState(e, 'idle');
     events.push({ type: 'land', id: e.id });
+    if (then) startMove(e, then, events);
   }
 }

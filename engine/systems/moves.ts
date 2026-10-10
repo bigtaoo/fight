@@ -1,4 +1,4 @@
-import { MOVES, type Move } from '../content';
+import { MONSTERS, MOVES, type Move } from '../content';
 import type { SimEvent } from '../events';
 import { setState, type Entity } from '../state';
 
@@ -43,8 +43,10 @@ export function moveVelocity(e: Entity, m: Move): void {
   e.vy = Math.trunc((e.aimY * a.speed * 6 * slant) / 100);
 }
 
-/** Whether `e` is in a super armour window of its move. */
+/** Whether `e` is in a super armour window of its move, or standing or walking in the armour of
+ * a monster that has it always. */
 export function armored(e: Entity): boolean {
+  if (e.state === 'idle' || e.state === 'walk') return e.kind !== 'hero' && MONSTERS[e.kind].armor === true;
   if (e.state !== 'act') return false;
   const w = MOVES[e.move].armor;
   return w !== undefined && e.st >= w[0] && e.st <= w[1];

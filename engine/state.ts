@@ -85,6 +85,8 @@ export interface Entity {
    * aimY -1 back, 1 front, 0 neither. Plain moves head forward. */
   aimX: number;
   aimY: number;
+  /** A boss's phase: 0, then 1 once its second phase has started. */
+  phase: number;
 }
 
 /** A projectile in flight (its definition is SHOTS[kind]). */
@@ -173,7 +175,7 @@ export function newEntity(s: SimState, kind: Kind, team: number, owner: number, 
     state: 'idle', st: 0, move: '', hitList: [],
     stop: 0, held: false, timer: 0, juggle: 0, bounced: false, airAtk: false,
     cd: team === 0 ? new Array<number>(DODGE.slot + 1).fill(0) : [0, 0],
-    inv: 0, aimX: 1, aimY: 0,
+    inv: 0, aimX: 1, aimY: 0, phase: 0,
   };
   s.entities.push(e);
   return e;

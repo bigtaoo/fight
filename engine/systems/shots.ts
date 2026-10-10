@@ -12,16 +12,18 @@ export function fireSystem(s: SimState, events: SimEvent[]): void {
   for (const e of s.entities) {
     if (e.held || e.state !== 'act') continue;
     const f = MOVES[e.move].fire;
-    if (f && e.st === f.at) fire(s, e, f.shot, f.x, f.z, events);
+    if (!f || e.st !== f.at) continue;
+    fire(s, e, e.facing, f.shot, f.x, f.z, events);
+    if (f.twin) fire(s, e, -e.facing, f.shot, f.x, f.z, events);
   }
 }
 
-function fire(s: SimState, e: Entity, kind: keyof typeof SHOTS, ahead: number, up: number, events: SimEvent[]): void {
+function fire(s: SimState, e: Entity, dir: number, kind: keyof typeof SHOTS, ahead: number, up: number, events: SimEvent[]): void {
   const def = SHOTS[kind];
-  const x = e.x + e.facing * ahead;
+  const x = e.x + dir * ahead;
   const z = e.z + up;
   const id = s.nextId++;
-  s.shots.push({ id, kind, team: e.team, owner: e.id, x, y: e.y, z, px: x, py: e.y, pz: z, vx: e.facing * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
+  s.shots.push({ id, kind, team: e.team, owner: e.id, x, y: e.y, z, px: x, py: e.y, pz: z, vx: dir * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
   events.push({ type: 'fire', id, owner: e.id, shot: kind });
 }
 

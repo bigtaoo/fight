@@ -15,6 +15,8 @@ export type SimEvent =
   /** A hero lying down got straight up (a quick rise). */
   | { type: 'rise'; id: number }
   | { type: 'death'; id: number }
+  /** A boss went into its next phase. */
+  | { type: 'phase'; id: number; phase: number }
   | { type: 'roomEnter'; room: number }
   /** Every monster of the room is dead; the door to the next room is open (unless it was the last). */
   | { type: 'roomClear'; room: number }

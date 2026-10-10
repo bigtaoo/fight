@@ -1,7 +1,7 @@
-import { BODIES, CROWD, MONSTERS, MOVES, type Monster, type MonsterKind } from '../content';
+import { BODIES, CROWD, MONSTERS, MOVES, WORLD, type BossMove, type Monster, type MonsterKind } from '../content';
 import type { SimEvent } from '../events';
-import { randRange } from '../math/prng';
-import { setState, type Entity, type SimState } from '../state';
+import { randInt, randRange } from '../math/prng';
+import { newEntity, setState, type Entity, type SimState } from '../state';
 import { moveVelocity, startMove } from './moves';
 
 // Monster brains, picked by each kind's `brain` in content.ts. A melee monster walks up to the
@@ -40,9 +40,11 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
     if (m.st >= mv.total) {
       if (mv.turn) m.facing = -m.facing;
       setState(m, 'idle');
+      if (mv.then) chain(s, m, mv.then, events);
     }
     return;
   }
+  if (def.boss && m.phase === 0 && m.hp * 100 <= m.maxHp * def.boss.phase2Pct) return phase2(s, m, def, events);
   const t = nearestHero(s, m);
   if (!t) {
     m.vx = 0;
@@ -62,7 +64,8 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   if (def.brain === 'ranged') return ranged(s, m, def, dx, dy, events);
   const ax = Math.abs(dx);
   const ay = Math.abs(dy);
-  if (ax <= def.range && ay <= def.alignY && m.cd[0] === 0) {
+  if (def.boss && m.cd[0] === 0 && pickMove(s, m, def, ax, ay, events)) return;
+  if (!def.boss && ax <= def.range && ay <= def.alignY && m.cd[0] === 0) {
     startMove(m, def.attack, events);
     m.cd[0] = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
     return;
@@ -98,6 +101,53 @@ function ranged(s: SimState, m: Entity, def: Monster, dx: number, dy: number, ev
   m.vy = ay > Math.trunc(def.alignY / 2) ? Math.sign(dy) * def.walkY : 0;
   const next = m.vx === 0 && m.vy === 0 ? 'idle' : 'walk';
   if (next !== m.state) setState(m, next);
+}
+
+/** Draws a boss move for the distance to the hero, among those it is in reach and line for:
+ * false when there is none (it walks on). */
+function pickMove(s: SimState, m: Entity, def: Monster, ax: number, ay: number, events: SimEvent[]): boolean {
+  const b = def.boss!;
+  const band = ax <= b.bands[0] ? 0 : ax <= b.bands[1] ? 1 : 2;
+  const weight = (bm: BossMove) => (ax <= bm.reach && ay <= bm.alignY ? bm.weight[band] : 0);
+  let total = 0;
+  for (const bm of b.moves) total += weight(bm);
+  if (total === 0) return false;
+  let r = randInt(s.rng, 'ai', total);
+  const bm = b.moves.find((x) => (r -= weight(x)) < 0)!;
+  m.vx = 0;
+  m.vy = 0;
+  startMove(m, m.phase > 0 ? bm.fast : bm.move, events);
+  const cd = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
+  m.cd[0] = m.phase > 0 ? Math.trunc((cd * b.fastPct) / 100) : cd;
+  return true;
+}
+
+/** Starts the part that follows a move by itself; a leap is aimed to land on the nearest hero. */
+function chain(s: SimState, m: Entity, id: string, events: SimEvent[]): void {
+  startMove(m, id, events);
+  const mv = MOVES[id];
+  const t = nearestHero(s, m);
+  if (!mv.leap || !mv.hop || !t) return;
+  if (t.x !== m.x) m.facing = Math.sign(t.x - m.x);
+  const flight = Math.trunc((2 * mv.hop.up) / WORLD.gravity);
+  m.vx = Math.max(-mv.leap, Math.min(mv.leap, Math.trunc((t.x - m.x) / flight)));
+}
+
+/** The boss's second phase starts: it roars and its help comes in, from the wall farther from the hero. */
+function phase2(s: SimState, m: Entity, def: Monster, events: SimEvent[]): void {
+  const b = def.boss!;
+  m.phase = 1;
+  m.vx = 0;
+  m.vy = 0;
+  startMove(m, b.roar, events);
+  events.push({ type: 'phase', id: m.id, phase: m.phase });
+  const t = nearestHero(s, m);
+  const fromRight = !t || t.x < Math.trunc(s.roomWidth / 2);
+  for (const sp of b.summon) {
+    const help = newEntity(s, sp.kind, 1, -1, fromRight ? s.roomWidth - sp.x : sp.x, sp.y);
+    const first = MONSTERS[sp.kind].firstCooldown;
+    if (first) help.cd[0] = randRange(s.rng, 'ai', first[0], first[1]);
+  }
 }
 
 /** Monsters standing on the same spot push apart, in array order. */

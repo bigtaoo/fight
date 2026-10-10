@@ -32,8 +32,9 @@ export interface Body {
 
 /** What drives a monster: `melee` walks up, lines up in depth and swings; `ranged` keeps its
  * distance, lines up in depth and shoots, hopping back when the hero gets close; `guard` walks up
- * and swings like `melee` behind a shield, turning slowly to a hero behind it; `still` stands there. */
-export type Brain = 'melee' | 'ranged' | 'guard' | 'still';
+ * and swings like `melee` behind a shield, turning slowly to a hero behind it; `boss` picks one of
+ * its moves by the distance to the hero (see Boss); `still` stands there. */
+export type Brain = 'melee' | 'ranged' | 'guard' | 'boss' | 'still';
 
 /** How a ranged monster keeps its distance. */
 export interface Ranged {
@@ -55,6 +56,30 @@ export interface Guard {
   turn: string;
 }
 
+/** A move a boss may pick, once its cooldown is up and the hero is within `reach` in x and
+ * `alignY` in depth: drawn by `weight` for the distance band the hero is in (near, mid, far). */
+export interface BossMove {
+  move: string;
+  /** The quicker version it uses in its second phase. */
+  fast: string;
+  reach: number;
+  alignY: number;
+  weight: readonly [number, number, number];
+}
+
+/** A boss: its moves, picked from the engine's `ai` stream; and its second phase, which starts
+ * with `roar` once its health is down to `phase2Pct` percent, calls in `summon` (each x is from
+ * the wall farther from the hero) and shortens its cooldowns to `fastPct` percent. */
+export interface Boss {
+  moves: readonly BossMove[];
+  /** Where the near band ends and the mid band ends, in x. */
+  bands: readonly [number, number];
+  phase2Pct: number;
+  roar: string;
+  summon: readonly Spawn[];
+  fastPct: number;
+}
+
 export interface Monster {
   body: Body;
   brain: Brain;
@@ -73,9 +98,16 @@ export interface Monster {
   immortal?: boolean;
   ranged?: Ranged;
   guard?: Guard;
+  /** Super armour while it stands or walks (its moves carry their own windows, which end where
+   * the recovery starts: the openings). */
+  armor?: boolean;
+  /** Each further hit in one juggle lifts this many percent less, down to `floor` percent
+   * (the default: 12, 30). */
+  juggle?: { decay: number; floor: number };
+  boss?: Boss;
 }
 
-export type MonsterKind = 'bandit' | 'archer' | 'shield' | 'dummy';
+export type MonsterKind = 'bandit' | 'archer' | 'shield' | 'chief' | 'dummy';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -114,6 +146,36 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     firstCooldown: [ticks(1), ticks(2)],
     guard: { pct: 15, turn: 'turn' },
   },
+  // the fort's chief: half as big again, in super armour except in the recovery of a move,
+  // and quickly out of a juggle
+  chief: {
+    body: { halfWidth: toFp(62), height: toFp(330), hp: 4800 },
+    brain: 'boss',
+    walkX: toFp(2.6),
+    walkY: toFp(2),
+    range: toFp(240),
+    alignY: toFp(40),
+    attack: '',
+    cooldown: [ticks(1), ticks(2)],
+    firstCooldown: [ticks(1), ticks(1.5)],
+    armor: true,
+    juggle: { decay: 35, floor: 0 },
+    boss: {
+      moves: [
+        { move: 'chop', fast: 'chopF', reach: toFp(240), alignY: toFp(45), weight: [6, 0, 0] },
+        { move: 'charge', fast: 'chargeF', reach: toFp(3000), alignY: toFp(30), weight: [1, 3, 5] },
+        { move: 'slam', fast: 'slamF', reach: toFp(900), alignY: toFp(400), weight: [2, 4, 2] },
+      ],
+      bands: [toFp(300), toFp(700)],
+      phase2Pct: 50,
+      roar: 'roar',
+      summon: [
+        { kind: 'bandit', x: toFp(250), y: toFp(80) },
+        { kind: 'bandit', x: toFp(250), y: toFp(280) },
+      ],
+      fastPct: 60,
+    },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -132,6 +194,7 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   bandit: MONSTERS.bandit.body,
   archer: MONSTERS.archer.body,
   shield: MONSTERS.shield.body,
+  chief: MONSTERS.chief.body,
   dummy: MONSTERS.dummy.body,
 };
 
@@ -221,10 +284,15 @@ export interface Move extends HitData {
   /** Speeds the body is thrown at when the move starts: back (against its facing) and up.
    * With `air`, the move then lasts until it lands. */
   hop?: { back: number; up: number };
-  /** Fires projectile `shot` on tick `at`, from `x` ahead of the body and `z` above its feet. */
-  fire?: { at: number; shot: ShotKind; x: number; z: number };
+  /** Fires projectile `shot` on tick `at`, from `x` ahead of the body and `z` above its feet;
+   * `twin`: one each way. */
+  fire?: { at: number; shot: ShotKind; x: number; z: number; twin?: boolean };
   /** The body turns around as the move ends. */
   turn?: boolean;
+  /** With `hop`: the forward speed is set as it starts to land on the hero, up to this (monsters). */
+  leap?: number;
+  /** With `air`: the move that starts as it lands. */
+  land?: string;
 }
 
 function box(x0: number, x1: number, depth: number, z0: number, z1: number): HitBox {
@@ -346,11 +414,58 @@ const MOVE_LIST: Move[] = [
     damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
     cancel: 0, turn: true,
   },
+  // the chief, each move in two speeds (the second phase's is quicker to start and to recover)
+  ...chiefMoves('', 100),
+  ...chiefMoves('F', 65),
+  // the second phase starts: a roar under super armour that calls in help
+  {
+    id: 'roar', total: 40, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, armor: [1, 40],
+  },
 ];
+
+/** The chief's moves, their windups and recoveries at `pct` percent, ids suffixed with `sfx`: a
+ * heavy chop wide in front that knocks down; a charge across half the room along its lane, low
+ * enough to jump; and a slam: a crouch, a leap that lands on the hero, a shockwave both ways
+ * along the floor. Under super armour until the recovery. */
+function chiefMoves(sfx: string, pct: number): Move[] {
+  const t = (n: number) => Math.trunc((n * pct) / 100);
+  const chopW = t(28);
+  const chargeW = t(24);
+  const dash = 30;
+  return [
+    {
+      id: `chop${sfx}`, total: chopW + 4 + t(28), active: [chopW + 1, chopW + 4], box: box(0, 260, 60, 0, 280),
+      damage: 150, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
+      cancel: 0, advance: { from: chopW - 2, to: chopW + 2, speed: toFp(6) }, armor: [1, chopW + 4],
+    },
+    {
+      id: `charge${sfx}`, total: chargeW + dash + t(26), active: [chargeW + 1, chargeW + dash], box: box(-20, 120, 40, 0, 80),
+      damage: 110, hitstun: 20, stop: 4, push: toFp(20), launch: toFp(18), lift: toFp(14),
+      cancel: 0, advance: { from: chargeW + 1, to: chargeW + dash, speed: toFp(30) }, armor: [1, chargeW + dash],
+    },
+    {
+      id: `slam${sfx}`, total: t(20), active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, then: `slamAir${sfx}`, armor: [1, t(20)],
+    },
+    {
+      id: `slamAir${sfx}`, total: 90, active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, air: true, hop: { back: 0, up: toFp(36) }, leap: toFp(30), land: `slamLand${sfx}`, armor: [1, 90],
+    },
+    {
+      id: `slamLand${sfx}`, total: t(30), active: [1, 2], box: box(-140, 140, 70, 0, 180),
+      damage: 120, hitstun: 20, stop: 5, push: toFp(16), launch: toFp(18), lift: toFp(14),
+      cancel: 0, armor: [1, 2], fire: { at: 1, shot: 'quake', x: toFp(60), z: 0, twin: true },
+    },
+  ];
+}
 
 export const MOVES: Readonly<Record<string, Move>> = Object.fromEntries(MOVE_LIST.map((m) => [m.id, m]));
 
-export type ShotKind = 'arrow' | 'wave';
+export type ShotKind = 'arrow' | 'wave' | 'quake';
 
 /** A projectile: flies straight along x at `speed`, hits what its box touches (`box` is around
  * its own position, x forward of its flight), and is gone after `life` ticks, `pierce` hits or
@@ -372,6 +487,11 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   wave: {
     speed: toFp(32), life: ticks(0.9), pierce: 20, box: box(-50, 50, 60, 0, 240),
     damage: 160, hitstun: 26, stop: 5, push: toFp(18), launch: toFp(24), lift: toFp(22), breaks: true,
+  },
+  // the chief's shockwave, running along the floor from where it lands: low, so a jump clears it
+  quake: {
+    speed: toFp(20), life: ticks(0.6), pierce: 1, box: box(-40, 40, 100, 0, 45),
+    damage: 90, hitstun: 18, stop: 4, push: toFp(12), launch: toFp(14), lift: toFp(10),
   },
 };
 
@@ -436,9 +556,11 @@ export interface Dungeon {
   rooms: readonly Room[];
   /** Clearing this room wins the run. */
   boss: number;
+  /** For practice: the server gives no loot for clearing it. */
+  practice?: boolean;
 }
 
-export type DungeonId = 'trial' | 'training' | 'heifeng';
+export type DungeonId = 'trial' | 'training' | 'heifeng' | 'hall';
 
 function room(width: number, spawns: [MonsterKind, number, number][], doors: [Side, number, number?][], endless = false): Room {
   return {
@@ -459,8 +581,8 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
   },
   training: { rooms: [room(2400, [['dummy', 900, 180], ['dummy', 1300, 120]], [], true)], boss: 0 },
   // Black Wind Fort (M2). The layout is final; bandits and archers in the first rooms as planned,
-  // shield bearers from the gate on; the side room and the hall are placeholders until the elite
-  // and the boss exist:
+  // shield bearers from the gate on, the chief in the hall; the side room is a placeholder until
+  // the elite exists:
   //   0 mountain road > 1 mountain road > 2 gate > 3 inner fort > 5 hall (boss)
   //                                         v
   //                                    4 side room (elite, optional)
@@ -471,10 +593,12 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
       room(2600, [['bandit', 1000, 200], ['shield', 1400, 120], ['archer', 2000, 280]], [['left', 1], ['right', 3], ['down', 4, 1300]]),
       room(2400, [['bandit', 900, 120], ['shield', 1200, 260], ['archer', 1700, 200], ['archer', 1900, 60]], [['left', 2], ['right', 5]]),
       room(1800, [['bandit', 1100, 180]], [['up', 2, 900]]),
-      room(2000, [['bandit', 1200, 180], ['bandit', 1400, 100], ['bandit', 1400, 260]], [['left', 3]]),
+      room(2200, [['chief', 1500, 180]], [['left', 3]]),
     ],
     boss: 5,
   },
+  // the fort's hall on its own, to practise on the chief (?dungeon=hall)
+  hall: { rooms: [room(2200, [['chief', 1500, 180]], [])], boss: 0, practice: true },
 };
 
 /** Where heroes stand when they come in through a left-wall door (or start the run). */

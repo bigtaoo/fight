@@ -1,4 +1,4 @@
-import { BODIES, HERO, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, type Entity } from '@dnf/engine';
+import { BODIES, HERO, MONSTERS, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, type Entity } from '@dnf/engine';
 import { ColorMatrixFilter, Container, Graphics, Sprite } from 'pixi.js';
 import { floorY, lerp } from './layout';
 import type { SpriteSet } from './sprites';
@@ -10,17 +10,19 @@ import { TaoActor, type TaoAsset } from './tao/TaoActor';
 // from the distance covered for walking and running, so the feet stay planted. The other
 // bodies (the dummy) show one still painting per state (ink blocks when those did not load),
 // and the motion between them is faked here: anticipation lean, bob, squash, tumble. Feedback lives here too: a white flash and
-// a shake while frozen by a hit.
+// a shake while frozen by a hit. A boss also marks on the floor where its next blow will fall
+// (see telegraph).
 
 const INK = {
   hero: { body: 0x17161a, band: 0xc8281e },
   bandit: { body: 0x6f7480, band: 0x34466b },
   archer: { body: 0x6b6a58, band: 0x8a4a2a },
   shield: { body: 0x55595f, band: 0x7a2e24 },
+  chief: { body: 0x3b2c26, band: 0x9a2a1c },
   dummy: { body: 0x9a8a68, band: 0x6a5c40 },
 } as const;
 
-const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', shield: 'shield', dummy: 'dummy' } as const;
+const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', shield: 'shield', chief: 'chief', dummy: 'dummy' } as const;
 
 /** Brush arc of each move in a right-facing frame: angles in radians from forward (negative is
  * up), centre height above the feet, radius as a share of the box reach. */
@@ -41,7 +43,12 @@ const ARCS: Record<string, { a0: number; a1: number; cz: number; r: number; w: n
   // the dance: cuts this way and that, a new one each time the hit list clears (see phantomArc)
   phantomA: { a0: -1.2, a1: 0.9, cz: 140, r: 0.9, w: 0.2 },
   phantomB: { a0: 1.0, a1: -1.3, cz: 120, r: 0.9, w: 0.2 },
+  // the chief's chop: from high over its head down to the floor in front
+  chop: { a0: -2.0, a1: 0.7, cz: 190, r: 0.85, w: 0.34 },
+  chopF: { a0: -2.0, a1: 0.7, cz: 190, r: 0.85, w: 0.34 },
 };
+/** Moves whose blow shows only as what they leave behind (the slam's shockwaves). */
+const NO_ARC = new Set(['slamLand', 'slamLandF']);
 
 /** The hero's skills have no clips of their own yet (colour blocks): each part plays the clip of
  * a move like it, timed so the clip's strike lands on the part's (see proxyTime). */
@@ -159,6 +166,7 @@ export class BodyView {
     }
     if (e.kind === 'shield' && !this.actor) this.drawShield(fx, e, z, hw, alpha);
     if (e.state === 'act') this.strike(fx, e, z, alpha, debug);
+    if (e.state === 'act' && MONSTERS[e.kind as keyof typeof MONSTERS]?.boss) this.telegraph(fx, e, alpha, frame);
     if (armored(e)) {
       // super armour: a red ring of ink about the body, pulsing
       const k = 0.5 + 0.5 * Math.sin(frame / 3);
@@ -168,7 +176,8 @@ export class BodyView {
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
     const bar = this.bar.clear();
-    if (e.team === 1 && e.kind !== 'dummy' && e.hp < e.maxHp && e.hp > 0) {
+    // (a boss's health is on the screen's top instead, see Hud)
+    if (e.team === 1 && e.kind !== 'dummy' && e.kind !== 'hero' && !MONSTERS[e.kind].boss && e.hp < e.maxHp && e.hp > 0) {
       const w = 90;
       bar.rect(-w / 2, -z - h - 30, w, 8).fill({ color: 0x000000, alpha: 0.35 });
       bar.rect(-w / 2, -z - h - 30, (w * e.hp) / e.maxHp, 8).fill(0x34466b);
@@ -524,7 +533,7 @@ export class BodyView {
   private strike(g: Graphics, e: Entity, z: number, alpha: number, debug: boolean): void {
     const m = MOVES[e.move];
     const box = m.box;
-    if (!box) return;
+    if (!box || NO_ARC.has(e.move)) return;
     const x0 = fromFp(box.x0);
     const x1 = fromFp(box.x1);
     const active = e.st >= m.active[0] && e.st <= m.active[1];
@@ -569,6 +578,55 @@ export class BodyView {
       pts.push(cx + e.facing * Math.cos(a) * (r - w), cy + Math.sin(a) * (r - w));
     }
     g.poly(pts).fill({ color, alpha: 0.82 * fade });
+  }
+
+  /** A boss's move marked on the floor before it lands, in red wash that darkens as the blow
+   * nears: the chop's reach in front, the charge's lane to where it will stop, and the slam's
+   * landing spot with the lanes its shockwaves will run along (a ring gathering at its feet
+   * while it crouches, before it knows where it will land). */
+  private telegraph(g: Graphics, e: Entity, alpha: number, frame: number): void {
+    const m = MOVES[e.move];
+    const t = e.held ? e.st : e.st - 1 + alpha;
+    const f = e.facing;
+    const red = 0xc8281e;
+    const lane = (x0: number, x1: number, depth: number, k: number) => {
+      const left = f > 0 ? x0 : -x1;
+      g.rect(left, -depth, x1 - x0, depth * 2).fill({ color: red, alpha: 0.1 + 0.25 * k });
+      g.rect(left, -depth, x1 - x0, depth * 2).stroke({ width: 2, color: red, alpha: 0.2 + 0.4 * k });
+    };
+    if (m.box && m.advance && t < m.active[0]) {
+      const k = Math.min(1, t / m.active[0]);
+      const reach = fromFp(m.box.x1 + Math.max(0, m.advance.to - m.advance.from + 1) * m.advance.speed);
+      const depth = fromFp(m.box.depth);
+      // the charge's lane fills out from the chief toward where it stops
+      lane(fromFp(m.box.x0), fromFp(m.box.x0) + (reach - fromFp(m.box.x0)) * (fromFp(m.advance.speed) >= 10 ? k : 1), depth, k);
+      return;
+    }
+    if (m.then) {
+      const k = Math.min(1, t / m.total);
+      const pulse = 0.5 + 0.5 * Math.sin(frame / 2);
+      g.ellipse(0, 0, 80 + 60 * k, 20 + 20 * k).stroke({ width: 3 + 3 * pulse, color: red, alpha: 0.3 + 0.4 * k });
+      return;
+    }
+    if (m.land) {
+      // where it comes down: the same arc the sim will fly
+      let x = e.x;
+      for (let zz = e.z, vz = e.vz, n = 0; zz > 0 && n < 90; n++) {
+        vz -= WORLD.gravity;
+        zz += vz;
+        x += e.vx;
+      }
+      const dx = fromFp(x - e.x);
+      const land = MOVES[m.land];
+      const shot = land.fire ? fromFp(land.fire.x) : 0;
+      const k = Math.max(0, 1 - fromFp(e.z) / 400);
+      const depth = land.box ? fromFp(land.box.depth) : 80;
+      g.ellipse(dx, 0, fromFp(land.box?.x1 ?? 0), depth).fill({ color: red, alpha: 0.12 + 0.25 * k });
+      g.ellipse(dx, 0, fromFp(land.box?.x1 ?? 0), depth).stroke({ width: 3, color: red, alpha: 0.3 + 0.4 * k });
+      // the shockwaves' lanes, both ways along the floor
+      g.rect(dx - shot - 360, -4, 360, 8).fill({ color: red, alpha: 0.12 + 0.2 * k });
+      g.rect(dx + shot, -4, 360, 8).fill({ color: red, alpha: 0.12 + 0.2 * k });
+    }
   }
 
   /** Called once per sim tick. */
