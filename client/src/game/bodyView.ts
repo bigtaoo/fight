@@ -94,9 +94,14 @@ const FADE_MOVE = 0.08;
 const FADE_HURT = 0.05;
 const FADE = 0.12;
 
-/** Paints the sprite pure white, for the hit flash. */
+/** Pales the figure most of the way to white, for the hit flash. Not all the way: a crowd of
+ * monsters stands overlapped, and pure white silhouettes merged into one blob that snapped back
+ * to ink on every hit, which read as the bodies trading places. */
+const PALE = 0.6;
 const WHITE = new ColorMatrixFilter();
-WHITE.matrix = [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0];
+WHITE.matrix = [1 - PALE, 0, 0, 0, PALE, 0, 1 - PALE, 0, 0, PALE, 0, 0, 1 - PALE, 0, PALE, 0, 0, 0, 1, 0];
+/** Seconds of the hit flash (real time, so it lasts as long at any refresh rate). */
+export const FLASH_SEC = 0.06;
 
 interface Look {
   name: string;
@@ -124,7 +129,7 @@ export class BodyView {
   private last: { x: number; y: number } | null = null;
   private lastState: Entity['state'] | null = null;
   private clock = 0;
-  /** Render frames left of the white hit flash, and shake ticks left. */
+  /** Seconds left of the white hit flash, and shake ticks left. */
   flash = 0;
   shake = 0;
 
@@ -141,7 +146,9 @@ export class BodyView {
     const b = BODIES[e.kind];
     const hw = fromFp(b.halfWidth);
     const h = fromFp(b.height);
-    const jitter = this.shake > 0 ? (frame % 2 === 0 ? 5 : -5) : 0;
+    // one side, then the other, a sim tick each: switched every render frame it buzzed at the
+    // screen's refresh rate
+    const jitter = this.shake > 0 ? (this.shake % 2 === 0 ? 4 : -4) : 0;
     this.root.position.set(x + jitter, floorY(y));
     this.root.zIndex = y;
     this.root.alpha = e.state === 'dead' ? Math.max(0, 1 - e.st / WORLD.fadeTicks) : 1;
@@ -634,9 +641,9 @@ export class BodyView {
     if (this.shake > 0) this.shake--;
   }
 
-  /** Called once per render frame. */
-  frame(): void {
-    if (this.flash > 0) this.flash--;
+  /** Called once per render frame, after draw, with the frame's seconds. */
+  frame(dt: number): void {
+    this.flash = Math.max(0, this.flash - dt);
   }
 }
 

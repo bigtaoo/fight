@@ -5,7 +5,8 @@ import { newEntity, setState, type Entity, type SimState } from '../state';
 import { moveVelocity, startMove } from './moves';
 
 // Monster brains, picked by each kind's `brain` in content.ts. A melee monster walks up to the
-// nearest hero, lines up in depth and swings, then waits a rolled cooldown. A ranged one keeps
+// nearest hero, lines up in depth and swings, then waits a rolled cooldown; in a crowd it lines up
+// beside the ones ahead of it instead (see lane). A ranged one keeps
 // its distance and shoots down its lane once lined up; a hero closing in makes it hop back, or
 // back off on foot while the hop is not ready (not into a wall, though: cornered, it stands and
 // shoots). A guard one fights like a melee one behind its shield, but does not just face the hero:
@@ -70,12 +71,39 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
     m.cd[0] = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
     return;
   }
-  // close in to a bit inside striking range; too close, step back
-  const want = Math.trunc((def.range * 3) / 4);
+  // close in to a bit inside striking range; too close, step back. Waiting in a lane beside
+  // the hero's, just out of its reach, so the crowd queues aslant instead of all closing in
+  const ly = def.brain === 'melee' ? lane(s, m, t) : t.y;
+  const want = ly === t.y ? Math.trunc((def.range * 3) / 4) : def.range + Math.trunc(CROWD.sepX / 2);
   m.vx = ax > want ? Math.sign(dx) * def.walkX : ax < CROWD.sepX ? -Math.sign(dx) * Math.trunc(def.walkX / 2) : 0;
-  m.vy = ay > Math.trunc(def.alignY / 2) ? Math.sign(dy) * def.walkY : 0;
+  const ldy = ly - m.y;
+  m.vy = Math.abs(ldy) > Math.trunc(def.alignY / 2) ? Math.sign(ldy) * def.walkY : 0;
   const next = m.vx === 0 && m.vy === 0 ? 'idle' : 'walk';
   if (next !== m.state) setState(m, next);
+}
+
+/** The depth melee monster `m` lines up at against hero `t` (see CROWD): the hero's own, or, taken
+ * by a monster nearer the hero on the same side, the free lane beside it nearest `m`, so a crowd
+ * spreads out in depth instead of stacking on one line. All taken: the hero's. */
+function lane(s: SimState, m: Entity, t: Entity): number {
+  const side = m.x < t.x ? -1 : 1;
+  const mine = Math.abs(m.x - t.x);
+  const taken = (y: number) =>
+    s.entities.some((o) => {
+      if (o === m || o.team !== 1 || o.hp <= 0 || (o.x < t.x ? -1 : 1) !== side) return false;
+      const d = Math.abs(o.x - t.x);
+      return (d < mine || (d === mine && o.id < m.id)) && Math.abs(o.y - y) < CROWD.sepY;
+    });
+  if (!taken(t.y)) return t.y;
+  // the side nearer where m stands first
+  const first = m.y < t.y ? -1 : 1;
+  for (let k = 1; k <= CROWD.lanes; k++) {
+    for (const dir of [first, -first]) {
+      const y = t.y + dir * k * CROWD.laneY;
+      if (y >= 0 && y <= WORLD.depth && !taken(y)) return y;
+    }
+  }
+  return t.y;
 }
 
 function ranged(s: SimState, m: Entity, def: Monster, dx: number, dy: number, events: SimEvent[]): void {

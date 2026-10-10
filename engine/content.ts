@@ -198,11 +198,16 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   dummy: MONSTERS.dummy.body,
 };
 
-/** Two monsters closer than this in x and depth push apart. */
+/** Two monsters closer than this in x and depth push apart. A melee monster lines up on the
+ * hero's depth unless one nearer the hero on the same side stands there (within sepY); then it
+ * takes the nearest free lane beside it, laneY apart: inside the reach of the hero's cuts, out of
+ * its own, and waits there a little farther off than its reach for its turn. */
 export const CROWD = {
   sepX: toFp(60),
   sepY: toFp(24),
   push: toFp(2),
+  laneY: toFp(36),
+  lanes: 2,
 };
 
 export const HERO = {

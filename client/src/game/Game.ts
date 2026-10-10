@@ -2,7 +2,7 @@ import { BODIES, DEFAULT_LOADOUT, DOOR_HALF, DUNGEONS, MOVES, SKILLS, WORLD, fro
 import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
-import { BodyView } from './bodyView';
+import { BodyView, FLASH_SEC } from './bodyView';
 import { ShotView } from './shotView';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -180,7 +180,7 @@ export class Game {
         if (target) {
           // a blocked blow does not flash the body white: it rocks it behind its shield; one
           // taken under super armour barely shakes it
-          target.flash = ev.blocked || ev.armor ? 0 : 3;
+          target.flash = ev.blocked || ev.armor ? 0 : FLASH_SEC;
           target.shake = ev.blocked || ev.armor ? Math.min(2, ev.stop) : ev.stop;
         }
         const attacker = s.entities.find((e) => e.id === ev.attacker);
@@ -298,8 +298,8 @@ export class Game {
     this.drawFloor(s);
     for (const e of s.entities) {
       const v = this.views.get(e.id)!;
-      v.frame();
       v.draw(e, alpha, this.frame, dt, this.debug);
+      v.frame(dt);
     }
     for (const p of s.shots) this.shotViews.get(p.id)!.draw(p, alpha, this.debug);
     this.fx.update(dt);

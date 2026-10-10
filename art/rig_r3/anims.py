@@ -35,8 +35,8 @@ pose = RIG.pose
 # chains a move every 6 ticks, and a free arm flung 130-240 degrees per move (as it was) reads as
 # flailing, moving more than the sword hand. Each move's windup leaves it about where the last
 # cut put it; only atk3's two-handed raise takes it overhead.
-GUARD = dict(torso=8, head=-4, af=(40, 70, 100), ab=(-20, 10), lf=(24, 4), lb=(-22, -18), body=4, sash=4)
-GUARD_IN = dict(GUARD, torso=10, head=-5, af=(36, 66, 96), body=9, sash=7, scarf=2)
+GUARD = dict(torso=8, head=-4, af=(16, 74, 124), ab=(-20, 10), lf=(24, 4), lb=(-22, -18), body=4, sash=4)
+GUARD_IN = dict(GUARD, torso=10, head=-5, af=(12, 70, 118), body=9, sash=7, scarf=2)
 HIT1 = dict(torso=26, head=8, af=(72, 78, 58), ab=(-55, -35), lf=(54, 12), lb=(-52, -54), root=(24, 0), body=10, robe=8, sash=34, scarf=-8)
 HIT2 = dict(torso=-14, head=-10, af=(150, 165, 175), ab=(-35, 0), lf=(42, 6), lb=(-42, -40), root=(16, 0), body=2, robe=6, sash=-14)
 HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(20, 35), lf=(64, 18), lb=(-60, -64), root=(30, 0), body=18, robe=10, sash=44, scarf=-10)
@@ -54,12 +54,15 @@ def walk():
 
 
 def run():
-    # root as given: the body rises in the flight phase instead of keeping a foot down
-    common = dict(torso=14, head=-8, af=(-35, -15, -70), plant=False)
-    a = dict(common, lf=(42, 22), lb=(-35, -85), root=(0, -6), ab=(45, 95), sash=22, scarf=-4)
-    b = dict(common, lf=(12, -18), lb=(10, -60), root=(0, 18), ab=(0, 40), sash=30, scarf=-2)
-    c = dict(common, lf=(-35, -85), lb=(42, 22), root=(0, -6), ab=(-40, -10), af=(-25, -5, -65), sash=22, scarf=-4)
-    d = dict(common, lf=(10, -60), lb=(12, -18), root=(0, 18), ab=(0, 40), sash=30, scarf=-2)
+    # root as given: the body rises in the flight phase instead of keeping a foot down. Leaning
+    # into the run, the sword hand trails behind the hip with the blade back and a little down,
+    # the arm reaching back so the blade does not seem to come out of the waist; the arms pump
+    # against the legs, the sword arm only a little
+    common = dict(torso=22, head=-16, plant=False)
+    a = dict(common, lf=(42, 22), lb=(-32, -72), root=(0, -6), af=(-52, -78, -100), ab=(28, 70), sash=26, scarf=-6)
+    b = dict(common, lf=(12, -18), lb=(10, -60), root=(0, 18), af=(-46, -72, -96), ab=(0, 40), sash=32, scarf=-4)
+    c = dict(common, lf=(-32, -72), lb=(42, 22), root=(0, -6), af=(-40, -66, -92), ab=(-40, -10), sash=26, scarf=-6)
+    d = dict(common, lf=(10, -60), lb=(12, -18), root=(0, 18), af=(-46, -72, -96), ab=(0, 40), sash=32, scarf=-4)
     return loop(1.0, [key(0, pose(**a)), key(0.25, pose(**b)), key(0.5, pose(**c)), key(0.75, pose(**d)), key(1.0, pose(**a))], ease="linear")
 
 
