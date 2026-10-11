@@ -20,7 +20,7 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield'];
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation
 // between ticks. URL switches: ?offline (no server), ?server=ws://host:port, ?lag=N (ms added
-// each way), ?dungeon=training (or heifeng, or hall: the chief alone), ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
+// each way), ?dungeon=trial (or training, or hall: the chief alone; the fort by default), ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
 // skeleton), ?zoom=N (a close-up that follows the hero), ?loadout=dragon,crush (skills swapped
@@ -114,7 +114,7 @@ export class Game {
   private config(seed: number): RunConfig {
     return runConfig({
       seed,
-      dungeon: (this.params.get('dungeon') as DungeonId | null) ?? 'trial',
+      dungeon: (this.params.get('dungeon') as DungeonId | null) ?? 'heifeng',
       heroDamagePct: this.params.get('cheat') === 'dmg' ? 1000 : 100,
       loadout: this.loadout(),
     });
