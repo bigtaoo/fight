@@ -127,7 +127,8 @@ export class Hud {
     this.banner.text = s.outcome === 'cleared' ? '通关' : s.outcome === 'failed' ? '败北' : '';
     // online, the server's rating once it has replayed the run (it is the same unless the client
     // was tampered with, which the checkpoints catch first)
-    const r = session instanceof OnlineSession && session.result?.ok ? session.result.rating : null;
+    const res = session instanceof OnlineSession ? reached(session, s) : null;
+    const r = res?.ok ? res.rating : null;
     this.rating(s.outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
     this.net.text = session.status() || this.offlineNote;
     if (session instanceof OnlineSession) this.online(session, s);
@@ -212,7 +213,7 @@ export class Hud {
   }
 
   private online(session: OnlineSession, s: SimState): void {
-    const r = session.result;
+    const r = reached(session, s);
     const why = (reason: string) => REASONS[reason] ?? reason;
     if (session.flag) this.verdict.text = `服务器判定：${why(session.flag.reason)}（第 ${session.flag.tick} 帧）\n本局无掉落`;
     else if (r?.ok) {
@@ -224,4 +225,11 @@ export class Hud {
     const items = session.inventory;
     this.bag.text = items.length ? `背包（${items.length}）\n${items.slice(-6).map((i) => i.name).join('\n')}` : '';
   }
+}
+
+/** The server's result once the client has played up to where the server ended the run (a
+ * client that was hidden for a while gets there later, catching up). */
+function reached(session: OnlineSession, s: SimState): OnlineSession['result'] {
+  const r = session.result;
+  return r && s.tick >= r.tick ? r : null;
 }

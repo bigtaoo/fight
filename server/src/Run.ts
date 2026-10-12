@@ -17,7 +17,8 @@ export interface RunOptions {
   tickMs: number;
   /** How far ahead of the frame clock a command may be stamped, in ticks. */
   maxLead: number;
-  /** How long settlement waits for the client's last checkpoints. */
+  /** How long settlement of a cleared run waits for the client's last checkpoints (a phone
+   * locked just after the clear catches up when it wakes). */
   settleMs: number;
   /** A run longer than this many frames is abandoned. */
   maxFrames: number;
@@ -25,7 +26,7 @@ export interface RunOptions {
   seed?: number;
 }
 
-export const DEFAULT_OPTIONS: RunOptions = { tickMs: 1000 / 30, maxLead: 45, settleMs: 3000, maxFrames: 30 * 60 * 20 };
+export const DEFAULT_OPTIONS: RunOptions = { tickMs: 1000 / 30, maxLead: 45, settleMs: 30_000, maxFrames: 30 * 60 * 20 };
 
 type End = Extract<ReplayOut, { type: 'end' }>;
 
@@ -126,6 +127,9 @@ export class Run {
       } else {
         this.end = o;
         this.log(`run ${this.id} verifier: ${o.outcome} at tick ${o.tick}`);
+        // a fallen hero gets nothing whatever the checkpoints say: no need to wait for a client
+        // that may still be catching up (a hidden tab stands still while the clock runs)
+        if (o.outcome === 'failed') return this.fail('the hero fell');
         this.settleTimer = setTimeout(() => this.fail('checkpoints missing'), this.opts.settleMs);
         this.settle();
       }
@@ -150,10 +154,9 @@ export class Run {
   /** Settles once the verifier has ended the run and the client's checkpoints are all in. */
   private settle(): void {
     if (this.settled || !this.end) return;
-    const { tick, outcome } = this.end;
+    const { tick } = this.end;
     for (let t = CHECK_EVERY; t <= tick; t += CHECK_EVERY) if (!this.clientHash.has(t)) return;
     if (!this.clientHash.has(tick)) return;
-    if (outcome === 'failed') return this.fail('the hero fell');
     if (DUNGEONS[this.config.dungeon].practice) return this.fail('practice');
     this.settled = true;
     clearTimeout(this.settleTimer);

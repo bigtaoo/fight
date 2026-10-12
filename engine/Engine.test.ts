@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { botButtons } from './bot';
+import { MOVES } from './content';
 import { Engine, ENGINE_VERSION, STEP_ORDER } from './Engine';
 import { hashState } from './hash';
 import { ReplayInputSource, type PlayerCommand } from './input';
 import { LocalInputSource } from './input';
 import { runConfig } from './state';
-import { newRun, play } from './testUtil';
+import { hero, newRun, play } from './testUtil';
 
 // Determinism: the same seed and commands give the same state on every run, a recorded run
 // replays bit for bit, a snapshot resumes exactly, and a tampered damage number shows in the
@@ -89,10 +90,26 @@ describe('engine', () => {
     expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 9, tick: 600, hash: 3955822475 });
   });
 
-  it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour, the chief', () => {
+  it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour, cancels, the chief', () => {
     // (the bot clears it at tick 11424, rated A)
     const e = newRun({ dungeon: 'heifeng', seed: 7 });
-    const ev = play(e, 30 * 600, bot);
+    // the hero's move changing before it ran out: into the same skill's next part (a follow-up
+    // press) or into another skill or the dodge (a cancel)
+    let prev = { move: '', st: 0 };
+    let followUps = 0;
+    let cancels = 0;
+    const ev = play(e, 30 * 600, (s) => {
+      const h = hero(s);
+      if (prev.move && h.move && h.move !== prev.move && prev.st < MOVES[prev.move].total - 1) {
+        const a = MOVES[prev.move].of;
+        if (a && a === MOVES[h.move].of) followUps++;
+        else if (a !== MOVES[h.move].of) cancels++;
+      }
+      prev = { move: h.move, st: h.st };
+      return bot(s);
+    });
+    expect(followUps).toBeGreaterThan(3);
+    expect(cancels).toBeGreaterThan(3);
     expect(ev.filter((x) => x.type === 'fire' && x.shot === 'arrow').length).toBeGreaterThan(3);
     expect(ev.filter((x) => x.type === 'fire' && x.shot === 'wave').length).toBeGreaterThan(0);
     expect(ev.filter((x) => x.type === 'hit' && x.blocked).length).toBeGreaterThan(3);

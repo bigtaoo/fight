@@ -38,6 +38,8 @@ interface PlayOptions {
   loadout?: SkillId[];
   /** A lag spike: from `at` ms into the run, `lagMs` each way for `forMs`. */
   spike?: { at: number; forMs: number; lagMs: number };
+  /** The tab hidden (no frames drawn, so nothing stepped or sent) from `at` ms for `forMs`. */
+  hidden?: { at: number; forMs: number };
 }
 
 async function playOnline(opts: PlayOptions) {
@@ -46,7 +48,9 @@ async function playOnline(opts: PlayOptions) {
   const s = await OnlineSession.join(link, { dungeon: opts.dungeon ?? 'trial', device: opts.device ?? 'test-device-1', loadout: opts.loadout, cheatDmg: opts.cheatDmg ?? false });
   const t0 = performance.now();
   let last = t0;
-  while (!s.result && performance.now() < t0 + 90_000) {
+  // until the server's result is in and the client has played up to where it ended the run
+  let back = 0;
+  while (!(s.result && s.engine.state.tick >= s.result.tick) && performance.now() < t0 + 90_000) {
     await new Promise((r) => setTimeout(r, 1));
     const now = performance.now();
     if (opts.spike) {
@@ -54,12 +58,17 @@ async function playOnline(opts: PlayOptions) {
       const on = now - t0 >= at * SCALE && now - t0 < (at + forMs) * SCALE;
       link.lagMs = (on ? lagMs : (opts.lagMs ?? 0)) * SCALE;
     }
+    if (opts.hidden && now - t0 >= opts.hidden.at * SCALE && now - t0 < (opts.hidden.at + opts.hidden.forMs) * SCALE) {
+      back = 0;
+      continue;
+    }
+    if (opts.hidden && !back && now - t0 >= opts.hidden.at * SCALE) back = now;
     const n = s.ticksFor(now - last);
     last = now;
     for (let i = 0; i < n; i++) s.step(botButtons(s.engine.state, s.owner));
   }
   link.close();
-  return s;
+  return Object.assign(s, { caughtUpMs: back ? (performance.now() - back) / SCALE : 0 });
 }
 
 describe('online run', () => {
@@ -133,5 +142,16 @@ describe('online run', () => {
     const r = s.result!;
     expect(r.ok || r.reason === 'the hero fell', JSON.stringify(r)).toBe(true);
     expect(r.ok ? 'cleared' : 'failed').toBe(s.engine.state.outcome);
+  }, 70_000);
+
+  it('catches up after the tab was hidden for half a minute, and agrees with the verifier', async () => {
+    const s = await playOnline({ hidden: { at: 3000, forMs: 30_000 }, device: 'test-device-hidden' });
+    expect(s.flag).toBeNull();
+    const r = s.result!;
+    expect(r.ok || r.reason === 'the hero fell', JSON.stringify(r)).toBe(true);
+    expect(r.ok ? 'cleared' : 'failed').toBe(s.engine.state.outcome);
+    // the half minute is made up at up to MAX_STEPS ticks a frame (a few seconds in a browser;
+    // here the frames are this loop's turns; some 3.5 s), not dribbled out a ping at a time (8 s)
+    expect(s.caughtUpMs).toBeLessThan(6000);
   }, 70_000);
 });

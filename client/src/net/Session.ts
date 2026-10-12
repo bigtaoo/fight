@@ -22,9 +22,12 @@ export interface Session {
 export const MAX_STEPS = 8;
 
 /** Wall time to ticks. Past MAX_STEPS in one frame the rest waits for later frames, up to
- * `backlog` ticks; anything beyond that is dropped. */
+ * `backlog` ticks; anything beyond that is dropped. Ticks owed to catch up (after a stalled tab,
+ * online) are never dropped: they go out MAX_STEPS a frame until paid. */
 export class Clock {
   private acc = 0;
+  /** Ticks still owed to catch up. */
+  owed = 0;
 
   constructor(private readonly tickMs: number, private readonly backlog = 0) {}
 
@@ -34,11 +37,14 @@ export class Clock {
 
   /** Whole ticks for `dtMs` at `speed`, plus `extra` ticks to catch up or (negative) wait. */
   ticks(dtMs: number, speed = 1, extra = 0): number {
-    this.acc += (Math.min(dtMs, 250) / this.tickMs) * speed + extra;
+    this.acc += (Math.min(dtMs, 250) / this.tickMs) * speed + Math.min(0, extra);
+    this.owed += Math.max(0, extra);
     const n = Math.max(0, Math.min(MAX_STEPS, Math.floor(this.acc)));
     this.acc -= n;
     if (this.acc > this.backlog + 1) this.acc = this.backlog;
-    return n;
+    const paid = Math.min(MAX_STEPS - n, Math.floor(this.owed));
+    this.owed -= paid;
+    return n + paid;
   }
 }
 

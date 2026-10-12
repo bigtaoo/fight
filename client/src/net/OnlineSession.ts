@@ -118,6 +118,8 @@ export class OnlineSession implements Session {
       this.lastPing = t;
       this.pingSent.set(++this.pingId, t);
       this.link.send({ type: 'ping', id: this.pingId, tick: this.engine.nextTick });
+      // while ticks are still owed, the answer would count them a second time
+      if (this.clock.owed >= 1) this.syncedAfter = this.pingId;
     }
     // small differences are worked off at +-20% speed; a big one (a stalled tab) at once
     let extra = 0;
