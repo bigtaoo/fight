@@ -50,23 +50,6 @@ const ARCS: Record<string, { a0: number; a1: number; cz: number; r: number; w: n
 /** Moves whose blow shows only as what they leave behind (the slam's shockwaves). */
 const NO_ARC = new Set(['slamLand', 'slamLandF']);
 
-/** The hero's skills have no clips of their own yet (colour blocks): each part plays the clip of
- * a move like it, timed so the clip's strike lands on the part's (see proxyTime). */
-const PROXY: Record<string, string> = {
-  tri1: 'atk1',
-  tri2: 'atk2',
-  tri3: 'atk3',
-  dragon1: 'dash',
-  dragon2: 'dash',
-  dragon3: 'dash',
-  dragon4: 'upper',
-  crush1: 'dash',
-  crush2: 'upper',
-  iai: 'atk3',
-  phantomEnd: 'atk3',
-};
-/** The first active tick of each clip a proxy can play (the moves they were keyed to). */
-const STRIKE: Record<string, number> = { atk1: 3, atk2: 3, atk3: 4, upper: 4, dash: 3 };
 /** Ticks of each cut of the phantom dance (two hits of its rehit 3). */
 const DANCE_CUT = 6;
 
@@ -215,7 +198,6 @@ export class BodyView {
     let time = this.clock;
     let fade = FADE;
     let tumble = 0;
-    let scrub = false;
     switch (e.state) {
       case 'walk':
         clip = 'walk';
@@ -231,17 +213,14 @@ export class BodyView {
         break;
       case 'act': {
         fade = FADE_MOVE;
+        // the dodge, like the jump: its clip time comes from the vertical speed
         if (e.move === 'backstep') {
-          clip = 'jump';
+          clip = 'backstep';
           time = Math.min(1, Math.max(0, 0.5 - vz / (2 * fromFp(MOVES.backstep.hop!.up))));
           break;
         }
-        const p = this.proxy(actor, e, sec * TICK_RATE);
-        clip = p.clip;
-        time = p.time;
-        scrub = e.move === 'phantom';
-        // out of the dance into the last heavy cut: a slower blend, as nothing waits on it
-        if (scrub && clip !== 'atk1') fade = FADE;
+        clip = e.move;
+        time = sec;
         break;
       }
       case 'hurt':
@@ -267,7 +246,7 @@ export class BodyView {
         time = 0;
         break;
     }
-    actor.seek(clip, time, dt, fade, scrub);
+    actor.seek(clip, time, dt, fade);
     this.sprite.visible = false;
     const k = size.height / actor.height;
     const r = this.rigRoot;
@@ -285,34 +264,6 @@ export class BodyView {
     this.rigRoot.alpha = e.inv > 0 && Math.floor(this.clock * 20) % 2 === 0 ? 0.35 : 1;
     // the shield bearer's shield pales while it guards nothing
     if (e.kind === 'shield') actor.setAlpha('shield', guarding(e) ? 1 : 0.55);
-  }
-
-  /** The clip and clip time of tick `t` of the body's move: its own clip, or a proxy's (PROXY)
-   * with the windup stretched to the move's and the rest to its recovery; the phantom dance
-   * cuts down and back up again on one clip, played forward and backward so each cut starts
-   * where the last one ended, and ends on the heavy cut as the wave leaves. */
-  private proxy(actor: TaoActor, e: Entity, t: number): { clip: string; time: number } {
-    const m = MOVES[e.move];
-    if (e.move === 'phantom') {
-      const end = m.active[1] + 1;
-      // each cut runs from just before the clip's strike to its end, or back
-      const from = STRIKE.atk1 - 1;
-      if (t < m.active[0]) return { clip: 'atk1', time: (t * from) / m.active[0] / TICK_RATE };
-      if (t < end) {
-        const k = Math.floor((t - m.active[0]) / DANCE_CUT);
-        let u = (t - m.active[0] - k * DANCE_CUT) / DANCE_CUT;
-        if (k % 2 === 1) u = 1 - u;
-        // eased at both ends, so the blade turns round slowly instead of snapping back
-        u = u * u * (3 - 2 * u);
-        return { clip: 'atk1', time: (from + u * (actor.duration('atk1') * TICK_RATE - from)) / TICK_RATE };
-      }
-      // the heavy cut from its windup's top, as the last cut of the dance ended raised
-      return { clip: 'atk3', time: proxyTime(t - end, m.fire!.at - end, m.total - end, STRIKE.atk3, actor.duration('atk3'), from) };
-    }
-    const clip = PROXY[e.move];
-    if (!clip) return { clip: e.move, time: t / TICK_RATE };
-    const strike = m.active[1] >= m.active[0] ? m.active[0] : (m.fire?.at ?? 0);
-    return { clip, time: proxyTime(t, strike, m.total, STRIKE[clip], actor.duration(clip)) };
   }
 
   /** Whether this kind has paintings; one without (a monster not drawn yet) shows ink blocks. */
@@ -651,12 +602,6 @@ export class BodyView {
 /** Clip time (seconds) of tick `t` of a move whose cut lands on `strike` and that lasts `total`,
  * played on a clip whose cut lands on `clipStrike` and that lasts `clipSec`, starting at clip
  * tick `from`. */
-function proxyTime(t: number, strike: number, total: number, clipStrike: number, clipSec: number, from = 0): number {
-  const clipTicks = clipSec * TICK_RATE;
-  const tick = t < strike ? from + (t * (clipStrike - from)) / Math.max(1, strike) : clipStrike + ((t - strike) * (clipTicks - clipStrike)) / Math.max(1, total - strike);
-  return Math.min(clipTicks, tick) / TICK_RATE;
-}
-
 /** Which way the current cut of the phantom dance sweeps. */
 function phantomArc(e: Entity): string {
   const m = MOVES.phantom;

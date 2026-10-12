@@ -1,9 +1,9 @@
 """Write hero_tao.json, the pack spec with the hero's clips.
 usage: python -I art/rig_r3/anims.py
 
-Poses are limb directions (see tools/rigpose.py). Attack clips are in ticks, keyed to the
-frame data in engine/content.ts (windup up to active[0], the cut over the active ticks,
-recovery to total).
+Poses are limb directions (see tools/rigpose.py). Attack and skill clips are in ticks, each
+named as its move and keyed to the frame data in engine/content.ts (windup up to active[0],
+the cut over the active ticks, recovery to total).
 """
 import json
 import os
@@ -40,7 +40,6 @@ GUARD_IN = dict(GUARD, torso=10, head=-5, af=(12, 70, 118), body=9, sash=7, scar
 HIT1 = dict(torso=26, head=8, af=(72, 78, 58), ab=(-55, -35), lf=(54, 12), lb=(-52, -54), root=(24, 0), body=10, robe=8, sash=34, scarf=-8)
 HIT2 = dict(torso=-14, head=-10, af=(150, 165, 175), ab=(-35, 0), lf=(42, 6), lb=(-42, -40), root=(16, 0), body=2, robe=6, sash=-14)
 HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(20, 35), lf=(64, 18), lb=(-60, -64), root=(30, 0), body=18, robe=10, sash=44, scarf=-10)
-THRUST = dict(torso=34, head=-14, af=(88, 90, 92), ab=(-105, -100), lf=(66, 20), lb=(-68, -76), root=(20, 0), body=6, robe=12, sash=48, scarf=-12)
 
 
 def walk():
@@ -78,8 +77,197 @@ def down():
     return p
 
 
+def P(base, **over):
+    return pose(**dict(base, **over))
+
+
+# The skills, each part its own clip named as its move. A part chained from the one before
+# (follow, then) starts on the pose that one holds when it may chain, so nothing snaps. The
+# blade follows the brush arc the client draws for the move (ARCS in bodyView.ts): an arc angle
+# a (radians from forward, negative up) is the weapon direction 90 - a in degrees.
+
+# triple slash: three cuts, each dashing a long way in (advance 18-20 a tick), so deeper lunges
+# than the basic combo, the body thrown flat along the dash
+TRI1 = dict(torso=32, head=8, af=(74, 80, 64), ab=(-60, -40), lf=(64, 16), lb=(-62, -66), root=(32, 0), body=12, robe=10, sash=42, scarf=-10)
+TRI1_HOLD = dict(TRI1, torso=34, af=(66, 70, 54), body=14)
+TRI2 = dict(torso=-16, head=-12, af=(152, 168, 176), ab=(-40, -10), lf=(56, 10), lb=(-56, -56), root=(26, 0), body=6, robe=8, sash=-16, scarf=6)
+TRI2_HOLD = dict(TRI2, af=(160, 176, 186))
+TRI3 = dict(torso=40, head=10, af=(66, 72, 58), ab=(24, 40), lf=(70, 20), lb=(-68, -72), root=(38, 0), body=20, robe=12, sash=50, scarf=-12)
+
+
+def tri():
+    return {
+        # a diagonal cut down from over the shoulder, stepping in as it falls
+        "tri1": once(14, [
+            key(0, pose(**GUARD), "ease-out"),
+            key(1.5, P(TRI1, torso=-12, head=-8, af=(165, 196, 236), ab=(0, 40), lf=(36, 4), lb=(-30, -30), root=(0, 0), body=6, robe=-4, sash=-6), "ease-in"),
+            key(2.5, P(TRI1, torso=14, af=(118, 124, 104), root=(16, 0))),
+            key(3, pose(**TRI1), "ease-out"),
+            key(8, pose(**TRI1_HOLD), "ease-in-out"),
+            key(14, pose(**GUARD)),
+        ]),
+        # the backhand back up, from low behind, the body rearing as it rises
+        "tri2": once(14, [
+            key(0, pose(**TRI1_HOLD), "ease-out"),
+            key(1.5, P(TRI1, torso=30, af=(-20, -6, 12), ab=(-40, -20), root=(20, 0)), "ease-in"),
+            key(2.3, P(TRI2, torso=10, af=(84, 98, 112))),
+            key(3, pose(**TRI2), "ease-out"),
+            key(8, pose(**TRI2_HOLD), "ease-in-out"),
+            key(14, pose(**GUARD)),
+        ]),
+        # the blade carried on up over the head and brought down in the deepest lunge
+        "tri3": once(20, [
+            key(0, pose(**TRI2_HOLD), "ease-out"),
+            key(1.5, P(TRI2, torso=-26, head=-12, af=(196, 216, 252), ab=(100, 130), root=(4, -16), robe=-4, sash=-14), "ease-in"),
+            key(2.5, P(TRI3, torso=12, af=(140, 136, 128), root=(20, -4))),
+            key(3, pose(**TRI3), "ease-out"),
+            key(9, P(TRI3, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
+            key(13, P(TRI3, torso=34, af=(56, 64, 50), body=16), "ease-in-out"),
+            key(20, pose(**GUARD)),
+        ]),
+    }
+
+
+# dragon dashes: three thrusts at a dash (30 a tick), striding alternately like running, the
+# blade chambered between them; the fourth rips up out of the dash and launches
+STAB = dict(torso=36, head=-14, af=(88, 90, 90), ab=(-104, -98), root=(22, 0), body=8, robe=12, sash=54, scarf=-14)
+CHAMBER = dict(torso=20, head=-8, af=(-40, 34, 88), ab=(30, 60), body=8, robe=6, sash=40, scarf=-8)
+
+
+def dragon():
+    out = {}
+    for i in (1, 2, 3):
+        # the front foot leads the first and third, the back foot the second
+        legs = dict(lf=(64, 18), lb=(-66, -76)) if i % 2 else dict(lf=(-58, -70), lb=(62, 14))
+        out[f"dragon{i}"] = once(9, [
+            key(0, P(CHAMBER, **legs) if i > 1 else pose(**GUARD), "ease-in"),
+            key(1, P(CHAMBER, **legs)),
+            key(2, P(STAB, **legs), "ease-out"),
+            key(7, P(STAB, torso=38, af=(86, 88, 86), **legs), "ease-in"),
+            key(9, P(CHAMBER, **legs)),
+        ])
+    # crouched low out of the last dash, then the blade torn up from the floor in front
+    out["dragon4"] = once(20, [
+        key(0, P(CHAMBER, torso=34, head=4, af=(-20, -10, -70), lf=(62, -10), lb=(-44, -66), body=16), "ease-in"),
+        key(1, P(CHAMBER, torso=12, af=(80, 96, 112), lf=(40, 0), lb=(-30, -30), root=(10, -8))),
+        key(2, pose(torso=-20, head=-14, af=(172, 186, 194), ab=(-70, -56), lf=(16, 10), lb=(-34, -44), root=(16, -34), robe=-6, sash=-24, scarf=8), "ease-out"),
+        key(9, pose(torso=-16, head=-12, af=(170, 182, 192), ab=(-60, -50), lf=(14, 10), lb=(-30, -40), root=(16, -14), sash=-14, scarf=4), "ease-in-out"),
+        key(20, pose(**GUARD)),
+    ])
+    return out
+
+
+# crushing blow: a shoulder ram, the blade trailing low behind and the back fist tucked in,
+# then the one-handed rising cut out of the crouch it ends in
+RAM = dict(torso=44, head=12, af=(-36, -24, -96), ab=(36, 80), lf=(66, 16), lb=(-66, -72), root=(18, 0), body=20, robe=10, sash=46, scarf=-10)
+RAM_END = dict(RAM, torso=34, head=6, af=(-24, -10, -80), lf=(64, -14), lb=(-40, -70), root=(10, 0), body=22)
+
+
+def crush():
+    return {
+        "crush1": once(12, [
+            key(0, pose(**GUARD), "ease-out"),
+            key(2, P(RAM, torso=20, head=0, lf=(40, 0), lb=(-30, -40), root=(-8, 0), body=12), "ease-in"),
+            key(4, pose(**RAM), "ease-out"),
+            # a driving stride on the way through
+            key(6, P(RAM, lf=(-40, -60), lb=(56, 10), body=16)),
+            key(8, pose(**RAM), "ease-in-out"),
+            key(12, pose(**RAM_END)),
+        ]),
+        "crush2": once(20, [
+            key(0, pose(**RAM_END), "ease-in"),
+            key(2, pose(torso=10, head=-2, af=(70, 86, 100), ab=(0, 30), lf=(40, 2), lb=(-34, -40), root=(8, -10), body=6)),
+            key(3, pose(torso=-22, head=-16, af=(178, 192, 202), ab=(-84, -70), lf=(12, 10), lb=(-30, -40), root=(12, -38), robe=-6, sash=-26, scarf=8), "ease-out"),
+            key(10, pose(torso=-18, head=-12, af=(176, 188, 198), ab=(-74, -62), lf=(12, 10), lb=(-28, -38), root=(12, -18), sash=-16, scarf=4), "ease-in-out"),
+            key(20, pose(**GUARD)),
+        ]),
+    }
+
+
+# the gathered cut: sinking into a deep crouch with the blade drawn far back and held still
+# (the cue), then one cut over the top and out wide in front, the body flung after it
+GATHER = dict(torso=20, head=-10, af=(-56, -74, 250), ab=(44, 74), lf=(56, -22), lb=(-42, -72), body=24, robe=4, sash=-6, scarf=6)
+IAI = dict(torso=38, head=8, af=(80, 86, 62), ab=(-112, -104), lf=(72, 18), lb=(-72, -76), root=(42, 0), body=20, robe=12, sash=54, scarf=-14)
+
+
+def iai():
+    return once(34, [
+        key(0, pose(**GUARD), "ease-out"),
+        key(7, pose(**GATHER), "ease-in-out"),
+        key(12.5, P(GATHER, torso=24, af=(-60, -80, 256), body=28, sash=-10), "ease-in"),
+        key(13.4, P(IAI, torso=4, head=-6, af=(130, 150, 176), root=(20, 0), body=10)),
+        key(14, pose(**IAI), "ease-out"),
+        key(22, P(IAI, torso=40, af=(76, 82, 54), body=22), "ease-in-out"),
+        key(25, P(IAI, torso=36, af=(70, 80, 60), body=18), "ease-in-out"),
+        key(34, pose(**GUARD)),
+    ])
+
+
+# the phantom dance: eight cuts of 6 ticks from tick 4, down and back up in turn (phantomA,
+# phantomB), shifting its feet a little each time; then over the head for the heavy cut the
+# wave leaves on (tick 56)
+DOWN = dict(torso=26, head=6, af=(70, 76, 52), ab=(-46, -26), lf=(54, 12), lb=(-52, -56), root=(24, 0), body=12, robe=8, sash=36, scarf=-8)
+UP = dict(torso=-14, head=-10, af=(148, 166, 164), ab=(-32, 0), lf=(46, 8), lb=(-46, -46), root=(18, 0), body=6, robe=6, sash=-14, scarf=6)
+HEAVY = dict(TRI3, root=(30, 0))
+
+
+def phantom():
+    keys = [
+        key(0, pose(**GUARD), "ease-out"),
+        key(3, P(UP, af=(150, 170, 160)), "ease-in"),
+    ]
+    # the stance drifts a step in and back, and the lean varies, so the flurry is not a loop
+    shift = [0, 10, 4, 14, 6, 12, 2, 8]
+    lean = [0, 4, -2, 6, 2, -4, 4, 0]
+    for k in range(8):
+        cut = DOWN if k % 2 == 0 else UP
+        at = 4 + 6 * k
+        p = dict(cut, torso=cut["torso"] + lean[k], root=(cut["root"][0] + shift[k], 0))
+        drift = -6 if k % 2 == 0 else 6
+        keys += [
+            key(at + 2, pose(**p), "ease-out"),
+            key(at + 5, pose(**dict(p, af=tuple(a + drift for a in p["af"]))), "ease-in"),
+        ]
+    keys += [
+        key(54, P(UP, torso=-26, head=-12, af=(196, 216, 252), ab=(100, 130), root=(8, -16), sash=-16), "ease-in"),
+        key(55.5, P(HEAVY, torso=12, af=(140, 136, 128))),
+        key(56, pose(**HEAVY), "ease-out"),
+        key(61, P(HEAVY, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
+        key(66, pose(**GUARD)),
+    ]
+    return once(66, keys)
+
+
+def phantom_end():
+    # jumped out of the dance: straight to the heavy cut, the wave leaving on tick 3
+    return once(14, [
+        key(0, P(UP, torso=-24, head=-12, af=(192, 212, 248), ab=(100, 130), root=(4, -14), sash=-14), "ease-in"),
+        key(2, P(HEAVY, torso=12, af=(140, 136, 128))),
+        key(3, pose(**HEAVY), "ease-out"),
+        key(8, P(HEAVY, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
+        key(14, pose(**GUARD)),
+    ])
+
+
+def skills():
+    return {
+        **tri(), **dragon(), **crush(),
+        "iai": iai(),
+        "phantom": phantom(),
+        "phantomEnd": phantom_end(),
+        # the dodge: not played through, the client picks the time from the vertical speed
+        # (0 rising, 1 falling), like the jump. Hopping back, leaning away, the blade kept up in
+        # front and the sash blown forward; then the feet reaching for the floor
+        "backstep": {"duration": 1, "ease": "ease-in-out", "keys": [
+            key(0, pose(torso=-16, head=-4, af=(30, 72, 112), ab=(-64, -36), lf=(44, -14), lb=(8, -54), root=(0, 0), sash=-30, scarf=10, plant=False)),
+            key(1, pose(torso=2, head=-4, af=(22, 66, 108), ab=(-40, -16), lf=(26, 8), lb=(-6, -18), root=(0, 0), sash=-10, scarf=4, plant=False)),
+        ]},
+    }
+
+
 def clips():
     return {
+        **skills(),
         "idle": loop(1.6, [key(0, pose(**GUARD)), key(0.8, pose(**GUARD_IN)), key(1.6, pose(**GUARD))]),
         "walk": walk(),
         "run": run(),
@@ -128,14 +316,6 @@ def clips():
             key(6, pose(torso=-18, head=-12, af=(175, 185, 195), ab=(-60, -50), lf=(14, 10), lb=(-30, -40), root=(0, -30), sash=-20, scarf=6), "ease-out"),
             key(13, pose(torso=-14, head=-10, af=(170, 180, 190), ab=(-55, -45), lf=(14, 10), lb=(-28, -36), root=(0, -10), sash=-12)),
             key(20, pose(**GUARD)),
-        ]),
-        # chamber the blade at the hip, then a flat lunging thrust
-        "dash": once(18, [
-            key(0, pose(**GUARD), "ease-out"),
-            key(2, pose(torso=-6, head=-4, af=(-40, 40, 90), ab=(40, 70), lf=(30, 0), lb=(-20, -20), body=4), "ease-in"),
-            key(3, pose(**THRUST)),
-            key(10, pose(**dict(THRUST, torso=36, sash=50)), "ease-in-out"),
-            key(18, pose(**GUARD)),
         ]),
         # snapped back at the waist, the head whipped, knocked a step back
         "hurt": once(6, [
