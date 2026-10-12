@@ -1,12 +1,13 @@
 import { BODIES, DEFAULT_LOADOUT, DOOR_HALF, DUNGEONS, MOVES, SKILLS, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState, type SkillId } from '@dnf/engine';
 import { SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
-import { Assets, Container, Graphics, Sprite, type Application } from 'pixi.js';
+import { Container, Graphics, type Application } from 'pixi.js';
 import { BodyView, FLASH_SEC } from './bodyView';
 import { ShotView } from './shotView';
 import { Fx } from './fx';
 import { Hud } from './hud';
 import { Keyboard } from './keyboard';
+import { Scenery } from './scenery';
 import { loadRig, loadSprites, type SpriteSet } from './sprites';
 import type { TaoAsset } from './tao/TaoActor';
 import { GROUND_TOP, VIEW_H, VIEW_W, cameraX, floorY } from './layout';
@@ -39,7 +40,7 @@ const CHARGES = new Set(['charge', 'chargeF']);
 
 export class Game {
   private readonly root = new Container();
-  private readonly bg = new Container();
+  private readonly scenery = new Scenery();
   private readonly world = new Container();
   private readonly floor = new Graphics();
   private readonly bodies = new Container();
@@ -48,7 +49,6 @@ export class Game {
   private readonly fx = new Fx();
   private readonly hud = new Hud();
   private readonly keys = new Keyboard();
-  private far?: Sprite;
   private sprites: SpriteSet | null = null;
   /** Skeletons of the rigged kinds; the others show pose paintings. */
   private rigs: Partial<Record<Kind, TaoAsset>> = {};
@@ -63,8 +63,8 @@ export class Game {
     this.debug = params.has('debug');
     this.seed = Number(params.get('seed') ?? 1);
     this.bodies.sortableChildren = true;
-    this.world.addChild(this.floor, this.bodies, this.fx.layer);
-    this.root.addChild(this.bg, this.world, this.hud.layer);
+    this.world.addChild(this.scenery.floor, this.floor, this.bodies, this.fx.layer);
+    this.root.addChild(this.scenery.back, this.world, this.scenery.front, this.hud.layer);
     app.stage.addChild(this.root);
     window.addEventListener('keydown', (ev) => {
       if (ev.code === 'F1') {
@@ -78,15 +78,7 @@ export class Game {
   }
 
   async load(): Promise<void> {
-    const paper = new Graphics().rect(0, 0, VIEW_W, VIEW_H).fill(0xf1ece0);
-    this.bg.addChild(paper);
-    try {
-      this.far = new Sprite(await Assets.load('art/bg_far.jpg'));
-      this.far.y = GROUND_TOP - this.far.height * 0.72;
-      this.bg.addChild(this.far);
-    } catch {
-      // plain paper without the far layer
-    }
+    await this.scenery.load();
     if (!this.params.has('blocks')) {
       const rigged = this.params.has('poses') ? [] : RIGGED;
       const [sprites, ...rigs] = await Promise.all([loadSprites(), ...rigged.map((k) => loadRig(k))]);
@@ -296,7 +288,7 @@ export class Game {
     } else {
       this.world.position.set(-camX + sx, sy);
     }
-    if (this.far) this.far.x = -camX * 0.25;
+    this.scenery.update(s.config.dungeon, s.room, fromFp(s.roomWidth), camX);
     this.drawFloor(s);
     for (const e of s.entities) {
       const v = this.views.get(e.id)!;
@@ -339,11 +331,10 @@ export class Game {
     }
   }
 
-  /** The floor band, its back edge drawn as one ink stroke, and the open doors of a cleared room. */
+  /** The floor's back edge drawn as one ink stroke, the walls, and the open doors of a cleared room. */
   private drawFloor(s: SimState): void {
     const w = fromFp(s.roomWidth);
     const g = this.floor.clear();
-    g.rect(0, GROUND_TOP - 30, w, VIEW_H - GROUND_TOP + 30).fill({ color: 0xe6dfcf, alpha: 0.85 });
     g.rect(0, GROUND_TOP - 32, w, 4).fill({ color: 0x3a3630, alpha: 0.5 });
     g.rect(0, GROUND_TOP - 30, 10, VIEW_H).fill({ color: 0x141317, alpha: 0.6 });
     g.rect(w - 10, GROUND_TOP - 30, 10, VIEW_H).fill({ color: 0x141317, alpha: 0.6 });

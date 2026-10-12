@@ -1,0 +1,180 @@
+{
+ "out": "client/public/art/bg",
+ "layers": {
+  "road_far": {
+   "kind": "far",
+   "src": "road_far.jpg",
+   "height": 1297
+  },
+  "road_mid": {
+   "kind": "cut",
+   "src": "road_mid_t2i.png",
+   "crop": [
+    0,
+    0.15,
+    1,
+    1
+   ],
+   "height": 360,
+   "alpha": 0.75
+  },
+  "road_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    232,
+    225,
+    209
+   ],
+   "ink": [
+    118,
+    108,
+    92
+   ],
+   "wash": 0.05,
+   "streaks": 10,
+   "seed": 1
+  },
+  "road_front": {
+   "kind": "cut",
+   "src": "road_front_t2i.png",
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "fort_far": {
+   "kind": "far",
+   "src": "fort_far_v1.png",
+   "height": 1044
+  },
+  "fort_mid": {
+   "kind": "cut",
+   "src": "fort_mid_t2i.png",
+   "erase": [
+    [
+     0.88,
+     0.88,
+     1,
+     1
+    ]
+   ],
+   "height": 420,
+   "alpha": 0.7
+  },
+  "fort_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    216,
+    209,
+    195
+   ],
+   "ink": [
+    98,
+    92,
+    84
+   ],
+   "wash": 0.05,
+   "streaks": 12,
+   "seed": 2
+  },
+  "fort_front": {
+   "kind": "cut",
+   "src": "fort_front_t2i.png",
+   "height": 210,
+   "alpha": 0.85,
+   "gap": 1.0
+  },
+  "hall_far": {
+   "kind": "far",
+   "src": "hall_far_t2i.png",
+   "erase": [
+    [
+     0.95,
+     0.88,
+     1,
+     1
+    ]
+   ],
+   "lo": [
+    70,
+    74,
+    98
+   ],
+   "hi": [
+    232,
+    228,
+    218
+   ],
+   "height": 1500
+  },
+  "hall_mid": {
+   "kind": "cut",
+   "src": "hall_mid_t2i.png",
+   "erase": [
+    [
+     0,
+     0.9,
+     0.07,
+     1
+    ],
+    [
+     0.9,
+     0.88,
+     1,
+     1
+    ]
+   ],
+   "crop": [
+    0,
+    0,
+    1,
+    0.9
+   ],
+   "height": 660,
+   "alpha": 0.95,
+   "minInk": 0.12,
+   "lo": [
+    60,
+    62,
+    84
+   ],
+   "body": false,
+   "gamma": 0.45
+  },
+  "hall_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    150,
+    151,
+    166
+   ],
+   "ink": [
+    58,
+    60,
+    80
+   ],
+   "wash": 0.05,
+   "boards": 6,
+   "streaks": 6,
+   "seed": 3
+  },
+  "hall_front": {
+   "kind": "cut",
+   "src": "hall_front_t2i.png",
+   "crop": [
+    0.245,
+    0.4,
+    0.835,
+    0.92
+   ],
+   "height": 200,
+   "alpha": 0.85,
+   "gap": 1.0
+  }
+ }
+}
