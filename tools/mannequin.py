@@ -1,5 +1,5 @@
 """Draw the grey A-pose mannequin that FLUX paints the rig character over.
-usage: python -I tools/mannequin.py <out.png> [<joints.json>] [--build lean|stocky]
+usage: python -I tools/mannequin.py <out.png> [<joints.json>] [--build lean|stocky|brute]
 
 The pose comes from code, not from the prompt: FLUX edits keep the silhouette they are given
 but will not move limbs on request, and a faceless grey doll is not a portrait, so the edit is
@@ -11,7 +11,8 @@ from the body and the legs stand apart, so paper shows between every limb and th
 
 Builds: "lean" is the hero (long robe, topknot). "stocky" is the bandit: the same hips, knees
 and feet, so walk cycles carry over, but broad shoulders set wider, thick limbs, a short jerkin
-that stops above the knee and a bare round head without a topknot.
+that stops above the knee and a bare round head without a topknot. "brute" is the chief: the
+same legs' joints again, but heavier still, with a barrel chest and a belly.
 """
 import json
 import math
@@ -35,6 +36,13 @@ BUILDS = {
         "shoulder": 70, "arm": (56, 48), "leg": (66, 52), "arm_out": 32, "hand": (30, 36), "hip": 38, "neck": 30,
         "torso": [(296, 250), (494, 250), (500, 310), (458, 488), (330, 488), (290, 310)],
         "skirt": [(328, 470), (462, 470), (500, 690), (286, 690)],
+        "topknot": False,
+    },
+    "brute": {
+        "shoulder": 84, "arm": (70, 60), "leg": (76, 60), "arm_out": 36, "hand": (36, 42), "hip": 44, "neck": 38,
+        # a barrel chest and a belly pushing out in front (+x)
+        "torso": [(282, 246), (508, 246), (530, 330), (540, 410), (510, 486), (322, 490), (276, 310)],
+        "skirt": [(318, 470), (500, 470), (532, 712), (276, 712)],
         "topknot": False,
     },
 }

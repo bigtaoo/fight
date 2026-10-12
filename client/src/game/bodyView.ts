@@ -18,7 +18,7 @@ const INK = {
   bandit: { body: 0x6f7480, band: 0x34466b },
   archer: { body: 0x6b6a58, band: 0x8a4a2a },
   shield: { body: 0x55595f, band: 0x7a2e24 },
-  chief: { body: 0x3b2c26, band: 0x9a2a1c },
+  chief: { body: 0x48362a, band: 0x2c3a58 },
   dummy: { body: 0x9a8a68, band: 0x6a5c40 },
 } as const;
 
@@ -77,6 +77,7 @@ const RIG_SIZE: Partial<Record<Entity['kind'], { height: number; walk: number; r
   bandit: { height: 250, walk: 141, run: 141 },
   archer: { height: 236, walk: 168, run: 168 },
   shield: { height: 250, walk: 128, run: 128 },
+  chief: { height: 350, walk: 144, run: 144 },
 };
 /** The archer's bow tips in the bow bone's space (skeleton units from the grip), from the
  * tips tools/draw_sword.py prints, turned upright as art/rig_archer/make_split.py places it

@@ -1,6 +1,6 @@
 """Draw a rig weapon, horizontal, tip to the right: the hero's jian, the bandit's dao, the
-shield bearer's shield or the archer's bow.
-usage: python -I tools/draw_sword.py <out.png> [jian|dao|shield|bow]
+shield bearer's shield, the archer's bow or the chief's axe.
+usage: python -I tools/draw_sword.py <out.png> [jian|dao|shield|bow|axe]
 
 Drawn by code because FLUX puts a different sword in every painting and a separate blade is
 what lets the rig swing it. Ink silhouette like the figure: a black blade with one white edge
@@ -10,8 +10,10 @@ an indigo rag at the pommel. The shield is a tall wooden board seen three-quarte
 to the right: iron rim and bands, a boss in the middle where the hand grips it from behind,
 the board's thickness a darker strip along one long edge. The bow is a recurve with its upper
 tip to the right and the belly bulging toward +y (forward, once the rig turns it upright); it
-has no string, which the client draws so it can be pulled. Prints the grip centre, which the
-split spec needs.
+has no string, which the client draws so it can be pulled. The axe is a long-hafted
+broad axe, its head at the tip with the edge toward +y like the dao's, so it leads a chop
+down from overhead; iron grey-indigo on a dark wooden haft, no red. Prints the grip centre,
+which the split spec needs.
 """
 import sys
 
@@ -33,6 +35,8 @@ def main(out, kind="jian"):
         return shield(out)
     if kind == "bow":
         return bow(out)
+    if kind == "axe":
+        return axe(out)
     im = Image.new("RGBA", (L * K, H * K), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
 
@@ -146,6 +150,39 @@ def bow(out):
     im.save(out)
     print(f"grip centre: [{L // 2}, {belly_y}]")
     print(f"tips: [{pts[0][0]:.0f}, {pts[0][1]:.0f}] [{pts[-1][0]:.0f}, {pts[-1][1]:.0f}]")
+
+
+AXE_L, AXE_H = 780, 250
+AXE_WOOD = (78, 60, 46, 255)
+
+
+def axe(out):
+    import math
+    L, H = AXE_L, AXE_H
+    mid = 44  # the haft's line; the head hangs below it, toward the edge
+    im = Image.new("RGBA", (L * K, H * K), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+
+    def poly(pts, fill):
+        d.polygon([(x * K, y * K) for x, y in pts], fill=fill)
+
+    poly([(14, mid - 11), (740, mid - 10), (740, mid + 10), (14, mid + 11)], AXE_WOOD)  # haft
+    poly([(0, mid - 15), (18, mid - 15), (22, mid + 15), (0, mid + 15)], DAO_INK)  # butt cap
+    for x in range(90, 200, 16):  # grip wrap
+        poly([(x, mid - 11), (x + 6, mid - 11), (x + 2, mid + 11), (x - 4, mid + 11)], (40, 38, 42, 255))
+    # the head: a socket round the haft, a narrow neck, then the blade flaring into a wide
+    # crescent edge with horns at both ends, and a short spike forward of the socket
+    edge = [(530 + 234 * u, mid + 168 + 34 * math.sin(math.pi * u)) for u in (i / 16 for i in range(17))]
+    poly([(560, mid - 22), (700, mid - 22), (720, mid - 8), (772, mid), (720, mid + 10), (700, mid + 22),
+          (690, mid + 60), (722, mid + 116), (770, mid + 160)] + edge[::-1] + [(548, mid + 116), (590, mid + 60),
+          (580, mid + 22), (560, mid + 22)], DAO_INK)
+    # the white edge line along the crescent, thinning to the horns
+    poly([(x, y - 4 * math.sin(math.pi * (x - 530) / 234) - 1) for x, y in edge] + [(x, y - 1) for x, y in edge[::-1]], EDGE)
+    for x in (600, 680):  # rivets in the socket
+        d.ellipse([(x - 6) * K, (mid - 6) * K, (x + 6) * K, (mid + 6) * K], fill=(110, 116, 128, 255))
+    im = im.filter(ImageFilter.GaussianBlur(K * 0.4)).resize((L, H), Image.LANCZOS)
+    im.save(out)
+    print(f"grip centre: [140, {mid}]")
 
 
 if __name__ == "__main__":
