@@ -5,7 +5,7 @@ usage: python art/archer3d/blender/pack.py <render dir> <out dir>
 the feet stand at x 192, a tenth of the frame above the bottom. Each frame is trimmed to its
 ink and shelf-packed; frames.json gives each clip's frames as [x, y, w, h, ox, oy] (atlas
 rect, and the rect's top-left relative to the feet in source pixels) and the world units per
-pixel. Looping clips (idle, walk) drop their last frame, which repeats the first.
+pixel. The atlas is lossy WebP (about a fifth of the PNG; frames.json names it). Looping clips (idle, walk) drop their last frame, which repeats the first.
 """
 import json, os, sys
 from PIL import Image, ImageFilter
@@ -20,6 +20,8 @@ WIDTH = 2048
 PAD = 2
 # render.py's hull outline breaks at mesh seams; a 2px ink rim around the silhouette closes it
 INK = (28, 26, 23)
+IMAGE = 'atlas.webp'
+QUALITY = 90
 RIM = 5  # max filter size: 2px each way
 
 frames = []
@@ -47,13 +49,13 @@ for k in order:
     x += w + PAD
     shelf = max(shelf, h)
 atlas = Image.new('RGBA', (WIDTH, y + shelf))
-out = {'scale': SCALE, 'clips': {c: [] for c in CLIPS}}
+out = {'scale': SCALE, 'image': IMAGE, 'clips': {c: [] for c in CLIPS}}
 for k, (clip, i, im, box) in enumerate(frames):
     px, py = place[k]
     atlas.paste(im, (px, py))
     out['clips'][clip].append([px, py, im.width, im.height, round(box[0] - FEET[0], 1), round(box[1] - FEET[1], 1)])
 os.makedirs(OUT, exist_ok=True)
-atlas.save(os.path.join(OUT, 'atlas.png'), optimize=True)
+atlas.save(os.path.join(OUT, IMAGE), quality=QUALITY, alpha_quality=100, method=6)
 with open(os.path.join(OUT, 'frames.json'), 'w') as f:
     json.dump(out, f, separators=(',', ':'))
 print('atlas', atlas.size, {c: len(v) for c, v in out['clips'].items()})

@@ -10,10 +10,13 @@
 ```bash
 B="/c/Program Files/Blender Foundation/Blender 5.2/blender.exe"
 for c in "idle 17" "walk 17" "hit 9" "fall 12" "shoot 0"; do set -- $c; "$B" -b --python art/archer3d/blender/render.py -- $1 <tmp>/$1 $2 384; done
-python art/archer3d/blender/pack.py <tmp> client/public/art/archer3d
+python art/archer3d/blender/pack.py <tmp> client/public/art/archer3d   # atlas.webp, about 0.6 MB
 ```
 
 - 水墨风格（不花积分，全在本地）：`render.py` 把材质换成两阶色块（亮/暗，暗面 0.62，饱和度 0.8，自发光不受环境光），
   反向外壳描边（Solidify 翻法线 + 背面剔除，墨色）；`pack.py` 再沿外轮廓补 2px 墨边，补上网格接缝处的断线。
   Blender 5.2 的 EEVEE 下 Freestyle 画不出线，别用。预览：`model/preview/v3_ink.png`。
+- 手：Tripo 绑骨没有手指骨，手是张开的平板。`render.py` 在编辑模式下给每只手加两节手指骨（按沿手轴的投影切权重），
+  握弓手只弯指（GRIP 85），拉弦手把前臂扭向拇指朝前下再弯指（射箭关键帧里的 `rc`），扭转分摊到前臂两节 twist 骨上。
+  预览：`model/preview/v4_hands.png`。
 - 积分：试验用掉 150，余 190（v2.5 绑骨重定向报错 1004，白花 25；人形要用绑骨 v1.0）。

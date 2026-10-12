@@ -60,13 +60,13 @@ export interface FrameSet {
   clips: Record<string, { tex: Texture; ox: number; oy: number }[]>;
 }
 
-/** Loads a frame set (frames.json + atlas.png under art/<dir>/), or null. */
+/** Loads a frame set (frames.json + the atlas image it names, under art/<dir>/), or null. */
 export async function loadFrames(dir: string): Promise<FrameSet | null> {
   try {
     const res = await fetch(`art/${dir}/frames.json`);
     if (!res.ok) return null;
-    const meta = (await res.json()) as { scale: number; clips: Record<string, number[][]> };
-    const atlas = await Assets.load<Texture>({ src: `art/${dir}/atlas.png`, data: { autoGenerateMipmaps: true } });
+    const meta = (await res.json()) as { scale: number; image?: string; clips: Record<string, number[][]> };
+    const atlas = await Assets.load<Texture>({ src: `art/${dir}/${meta.image ?? 'atlas.png'}`, data: { autoGenerateMipmaps: true } });
     const clips: FrameSet['clips'] = {};
     for (const [name, rects] of Object.entries(meta.clips)) {
       clips[name] = rects.map(([x, y, w, h, ox, oy]) => ({

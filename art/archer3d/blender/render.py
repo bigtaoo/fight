@@ -77,6 +77,49 @@ def ease(t):
     return t * t * (3 - 2 * t)
 
 
+# ---- fingers ---------------------------------------------------------------------------
+# Tripo's rig stops at the wrist and its hands are open and flat, so a bow hand or a drawing
+# hand reads as an empty palm held up. Two finger bones per hand (knuckles, middle joints)
+# take over the hand's weight past the knuckles; bending them closes the hand.
+def add_fingers():
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode='EDIT')
+    eb = arm.data.edit_bones
+    mesh = body[0]
+    toarm = MWi @ mesh.matrix_world
+    for side in 'LR':
+        hb = eb[f'{side}_Hand']
+        h, u = hb.head.copy(), hb.tail - hb.head
+        g = mesh.vertex_groups[f'{side}_Hand']
+        vs = []
+        for v in mesh.data.vertices:
+            w = next((e.weight for e in v.groups if e.group == g.index), 0.0)
+            if w > 0:
+                vs.append((v, w, (toarm @ v.co - h).dot(u) / u.length_squared))
+        tip = max(p for _, w, p in vs if w > 0.3)
+        k1 = 0.53 * tip  # the knuckles: the palm is about half the hand's length
+        k2 = k1 + 0.45 * (tip - k1)
+        prev = hb
+        for i, (a, b) in enumerate(((k1, k2), (k2, tip))):
+            fb = eb.new(f'{side}_Fingers{i + 1}')
+            fb.head, fb.tail = h + u * a, h + u * b
+            fb.roll = hb.roll
+            fb.parent = prev
+            prev = fb
+        groups = [g] + [mesh.vertex_groups.new(name=f'{side}_Fingers{i}') for i in (1, 2)]
+        step = lambda p, k: min(1.0, max(0.0, (p - k) / 0.08 + 0.5))
+        for v, w, p in vs:
+            t1, t2 = step(p, k1), step(p, k2)
+            for grp, x in zip(groups, (1 - t1, t1 - t2, t2)):
+                if x > 0:
+                    grp.add([v.index], w * x, 'REPLACE')
+                elif grp is g:
+                    grp.remove([v.index])
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+add_fingers()
+
 # ---- base pose and measurements --------------------------------------------------------
 act = arm.animation_data.action
 f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
@@ -93,29 +136,59 @@ def fist(side):
     return h + (wpos(f'{side}_Hand', True) - h).normalized() * 0.04 * H
 
 
+# Tripo's hands are open and its arms keep their roll. Closed, the bow hand already wraps the
+# grip thumb up; the drawing hand turns its thumb under the jaw, its palm to the neck. The
+# target leans down and ahead, so it is the thumb ahead when the arm hangs.
+THUMB = Vector((1, 0, -1))
+SIGN = {'L': 1, 'R': -1}  # the palm faces the hand bone's +x on the left, -x on the right
+TWISTED = [f'{s}_{b}' for s in 'LR' for b in ('ForearmTwist01', 'ForearmTwist02', 'Fingers1', 'Fingers2')]
+
+
+def axis(side, i):
+    return (MW @ P[f'{side}_Hand'].matrix).to_3x3().col[i].normalized()
+
+
+def hand(side, turn, curl):
+    """Roll the forearm by `turn` of the way to THUMB (spread along the twist bones), then
+    close the fingers by `curl` degrees at each joint."""
+    e, w = wpos(f'{side}_Forearm'), wpos(f'{side}_Hand')
+    a = (w - e).normalized()
+    n, d = axis(side, 2), THUMB
+    n, d = (n - a * n.dot(a)).normalized(), (d - a * d.dot(a)).normalized()
+    ang = math.atan2(n.cross(d).dot(a), n.dot(d)) * turn
+    rot_about(P[f'{side}_Forearm'], Quaternion(a, ang), e)
+    rot_about(P[f'{side}_ForearmTwist01'], Quaternion(a, -ang * 2 / 3), e)
+    rot_about(P[f'{side}_ForearmTwist02'], Quaternion(a, ang / 3), wpos(f'{side}_ForearmTwist02'))
+    for b in ('Fingers1', 'Fingers2'):
+        name = f'{side}_{b}'
+        u = (wpos(name, True) - wpos(name)).normalized()
+        rot_about(P[name], Quaternion(u.cross(SIGN[side] * axis(side, 0)).normalized(), math.radians(curl)), wpos(name))
+
+
 # ---- the shot, keyed in ticks ----------------------------------------------------------
 # Targets are (anchor, offset in body heights); the anchors move with the body each tick.
 # yaw turns the whole body toward the camera (an archer stands side-on to the lane), head
 # turns the face back to the lane, lean tips the chest back. wl/wr blend the arms from the
-# idle pose to their targets.
+# idle pose to their targets; rc closes the drawing hand's fingers.
 BOW_LEN, BRACE = 0.74, 0.09  # bow length and string-to-grip distance at rest, in body heights
 QUIVER = ('Rsh', (0.0, 0.07, 0.10))
 SHOT = [
-    (0, dict(yaw=0, head=0, lean=0, wl=0, wr=0)),
-    (5, dict(yaw=-65, head=55, lean=0, wl=1, wr=1, L=('Lsh', (0.25, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
+    (0, dict(rc=25, yaw=0, head=0, lean=0, wl=0, wr=0)),
+    (5, dict(rc=60, yaw=-65, head=55, lean=0, wl=1, wr=1, L=('Lsh', (0.25, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
              R=QUIVER, Rp=('Rsh', (-1, 0, -0.4)))),
-    (8, dict(yaw=-70, head=62, lean=0, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
+    (8, dict(rc=80, yaw=-70, head=62, lean=0, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
              R=('nock', (0, 0, 0)), Rp=('Rsh', (-0.2, 0, -1)))),
-    (14, dict(yaw=-72, head=64, lean=-2, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
+    (14, dict(rc=80, yaw=-72, head=64, lean=-2, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
               R=('cheek', (0, 0, 0)), Rp=('Rsh', (-0.5, -1, 0)))),
-    (20, dict(yaw=-74, head=64, lean=-4, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
+    (20, dict(rc=80, yaw=-74, head=64, lean=-4, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
               R=('cheek', (-0.02, 0, 0)), Rp=('Rsh', (-0.6, -1, 0)))),
-    (21, dict(yaw=-74, head=64, lean=-6, wl=1, wr=1, L=('Lsh', (0.30, 0, -0.03)), Lp=('Lsh', (0, 0, -1)),
+    (21, dict(rc=15, yaw=-74, head=64, lean=-6, wl=1, wr=1, L=('Lsh', (0.30, 0, -0.03)), Lp=('Lsh', (0, 0, -1)),
               R=('Rsh', (-0.17, 0, 0.06)), Rp=('Rsh', (0, 0, -1)))),
-    (26, dict(yaw=-72, head=60, lean=-2, wl=1, wr=1, L=('Lsh', (0.28, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
+    (26, dict(rc=25, yaw=-72, head=60, lean=-2, wl=1, wr=1, L=('Lsh', (0.28, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
               R=('Rsh', (-0.15, 0, -0.08)), Rp=('Rsh', (0, 0, -1)))),
-    (34, dict(yaw=0, head=0, lean=0, wl=0, wr=0)),
+    (34, dict(rc=25, yaw=0, head=0, lean=0, wl=0, wr=0)),
 ]
+GRIP = 85  # the bow hand's fingers, closed round the grip, in degrees per joint
 DRAWN = (8, 20)  # ticks the drawing hand holds the string
 ARROW = (6, 20)  # ticks an arrow is in the hand
 
@@ -349,10 +422,16 @@ for i, f in enumerate(frames):
         upd()
         pose_shot(f)
         a, b, t = segment(f)
+        hand('L', 0.0, GRIP)
+        hand('R', lerp(a['wr'], b['wr'], t), lerp(a['rc'], b['rc'], t))
         draw_bow(f, lerp(a['wl'], b['wl'], t))
     else:
+        for n in TWISTED:
+            P[n].matrix_basis = Matrix()
         sc.frame_set(f)
         upd()
+        hand('L', 0.0, GRIP)
+        hand('R', 0.0, 25)
         draw_bow(f, 0.0)
     sc.render.filepath = os.path.join(OUT, f'{i:02d}.png')
     bpy.ops.render.render(write_still=True)
