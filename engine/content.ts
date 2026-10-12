@@ -21,6 +21,8 @@ export const WORLD = {
   getupTicks: ticks(0.33),
   /** A dead monster fades for this long before it leaves the state. */
   fadeTicks: ticks(1.5),
+  /** A hero's combo lapses this long after its last hit. */
+  comboTicks: ticks(1.2),
 };
 
 export interface Body {
@@ -578,6 +580,15 @@ export interface Dungeon {
   boss: number;
   /** For practice: the server gives no loot for clearing it. */
   practice?: boolean;
+  /** What a clear is rated against (see rateRun): the time in ticks, the longest combo and the
+   * hits taken that earn the top marks. */
+  par: Par;
+}
+
+export interface Par {
+  ticks: number;
+  combo: number;
+  hits: number;
 }
 
 export type DungeonId = 'trial' | 'training' | 'heifeng' | 'hall';
@@ -591,6 +602,12 @@ function room(width: number, spawns: [MonsterKind, number, number][], doors: [Si
   };
 }
 
+// pars for the rating: an S wants a clean, quick run with long combos. The bot, which plays
+// safe, takes the fort in about 6 to 7 minutes with a longest combo of 15 to 35 and gets a B or an A
+const PAR_TRIAL: Par = { ticks: ticks(60), combo: 20, hits: 3 };
+const PAR_FORT: Par = { ticks: ticks(240), combo: 30, hits: 10 };
+const PAR_HALL: Par = { ticks: ticks(90), combo: 20, hits: 4 };
+
 export const DUNGEONS: Record<DungeonId, Dungeon> = {
   trial: {
     rooms: [
@@ -598,8 +615,9 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
       room(2200, [['bandit', 900, 200], ['bandit', 1100, 80], ['bandit', 1300, 300], ['bandit', 1500, 160]], [['left', 0]]),
     ],
     boss: 1,
+    par: PAR_TRIAL,
   },
-  training: { rooms: [room(2400, [['dummy', 900, 180], ['dummy', 1300, 120]], [], true)], boss: 0 },
+  training: { rooms: [room(2400, [['dummy', 900, 180], ['dummy', 1300, 120]], [], true)], boss: 0, par: PAR_TRIAL },
   // Black Wind Fort (M2). The layout is final; bandits and archers in the first rooms as planned,
   // shield bearers from the gate on, the chief in the hall, an elite bandit alone in the side room:
   //   0 mountain road > 1 mountain road > 2 gate > 3 inner fort > 5 hall (boss)
@@ -615,9 +633,10 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
       room(2200, [['chief', 1500, 180]], [['left', 3]]),
     ],
     boss: 5,
+    par: PAR_FORT,
   },
   // the fort's hall on its own, to practise on the chief (?dungeon=hall)
-  hall: { rooms: [room(2200, [['chief', 1500, 180]], [])], boss: 0, practice: true },
+  hall: { rooms: [room(2200, [['chief', 1500, 180]], [])], boss: 0, practice: true, par: PAR_HALL },
 };
 
 /** Where heroes stand when they come in through a left-wall door (or start the run). */

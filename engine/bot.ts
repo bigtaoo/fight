@@ -1,17 +1,19 @@
-import { DODGE, DUNGEONS, MONSTERS, MOVES, SHOTS, WORLD, type Door } from './content';
+import { BODIES, DODGE, DUNGEONS, MONSTERS, MOVES, SHOTS, WORLD, type Door } from './content';
 import { BTN } from './input';
 import { toFp } from './math/fixed';
 import type { Entity, SimState } from './state';
 import { armored } from './systems/moves';
 
-// A plain bot for tests and headless runs: lines up with the nearest monster in depth, walks
-// up to it and mashes attack, using the skills when they are ready (pressing on through a skill
-// of several parts); steps out of the lane of an arrow coming at it (or of an archer drawing on
-// it); walks round a shield held at it unless the slot 2 skill (both of which break guards) is
-// ready; against a boss saves the skills for its openings and gets out of the way of its moves
-// (see bossDodge); with the room clear it heads for the door
-// on the shortest way to the boss. It only reads the state and returns buttons, like
-// a player would, so its runs replay like any other.
+// A plain bot for tests and headless runs: lines up with the nearest monster in depth (a boss's
+// summoned help before the boss), walks up to it and mashes attack, using the skills when they
+// are ready (pressing on through a skill of several parts; the ultimate only with no archer
+// about and no boss); steps out of every lane something is about to strike down (arrows,
+// archers drawing, swings winding up, see laneDodge), cutting a swing short instead when it can
+// strike first, and hops back untouchable when too late to step aside; walks round a shield held
+// at it unless the slot 2 skill (both of which break guards) is ready; against a boss saves the
+// skills for its openings and gets out of the way of its moves (see bossDodge); with the room
+// clear it heads for the door on the shortest way to the boss. It only reads the state and
+// returns buttons, like a player would, so its runs replay like any other.
 
 const REACH = toFp(130);
 const ALIGN = toFp(14);
@@ -25,12 +27,14 @@ export function botButtons(s: SimState, owner: number): number {
   const hero = slot && s.entities.find((e) => e.id === slot.hero);
   if (!hero || hero.hp <= 0) return 0;
   let target = undefined as (typeof s.entities)[number] | undefined;
+  // the nearest monster, a boss's summoned help before the boss
+  const rank = (e: Entity) => (e.kind !== 'hero' && MONSTERS[e.kind].boss ? 1 : 0);
   for (const e of s.entities) {
     if (e.team !== 1 || e.hp <= 0) continue;
-    if (!target || Math.abs(e.x - hero.x) < Math.abs(target.x - hero.x)) target = e;
+    if (!target || rank(e) < rank(target) || (rank(e) === rank(target) && Math.abs(e.x - hero.x) < Math.abs(target.x - hero.x))) target = e;
   }
   if (!target) return toDoor(s, hero);
-  const dodge = dodgeButtons(s, hero) || bossDodge(s, hero);
+  const dodge = laneDodge(s, hero) || bossDodge(s, hero);
   if (dodge) return dodge === HOLD ? 0 : dodge;
   let b = 0;
   const dx = target.x - hero.x;
@@ -71,7 +75,7 @@ export function botButtons(s: SimState, owner: number): number {
       if (s.tick % 2 === 0) b |= BTN.SKILL2;
     } else if (chain) {
       if (s.tick % 4 === 0) b |= BTN.SKILL1;
-    } else if (hero.cd[3] === 0 && s.tick % 12 === 0) b |= BTN.ULT;
+    } else if (hero.cd[3] === 0 && s.tick % 12 === 0 && !boss && !s.entities.some((e) => e.hp > 0 && e.kind !== 'hero' && MONSTERS[e.kind].ranged)) b |= BTN.ULT;
     else if (hero.cd[2] === 0 && s.tick % 12 === 3) b |= BTN.SKILL3;
     else if (hero.cd[1] === 0 && s.tick % 12 === 6) b |= BTN.SKILL2;
     else if (hero.cd[0] === 0 && s.tick % 12 === 9) b |= BTN.SKILL1;
@@ -80,24 +84,61 @@ export function botButtons(s: SimState, owner: number): number {
   return b;
 }
 
+/** How far off in depth the hero's plain cut still lands. */
+const CUT_DEPTH = MOVES.atk1.box!.depth - toFp(4);
 /** How far out of a lane the bot steps: past the arrow's reach in depth, with a margin. */
 const LANE = SHOTS.arrow.box.depth + toFp(16);
 const SEEN = toFp(700);
 
-/** UP or DOWN out of the lane of a shot coming at the hero, or of a monster about to shoot at it. */
-function dodgeButtons(s: SimState, hero: Entity): number {
-  let threat: number | undefined;
+/** UP or DOWN to the nearest depth out of every lane that something is about to strike down:
+ * a shot coming at the hero, a monster drawing on it, a monster's swing winding up at it (unless
+ * the hero is free and close enough to cut it first: a plain cut lands in 3 ticks and stuns, but
+ * not through a shield). All at once, so stepping out of one lane never steps into another. */
+function laneDodge(s: SimState, hero: Entity): number {
+  const free = hero.state === 'idle' || hero.state === 'walk' || hero.state === 'run';
+  const lanes: [number, number][] = [];
+  let strike = 0;
+  /** Something lands on the hero within three ticks. */
+  let soon = false;
   for (const p of s.shots) {
     const dx = hero.x - p.x;
-    if (p.team !== hero.team && p.kind !== 'quake' && Math.sign(dx) === Math.sign(p.vx) && Math.abs(dx) < SEEN && Math.abs(p.y - hero.y) < LANE) threat = p.y;
+    if (p.team !== hero.team && p.kind !== 'quake' && Math.sign(dx) === Math.sign(p.vx) && Math.abs(dx) < SEEN) {
+      lanes.push([p.y, LANE]);
+      const box = SHOTS[p.kind].box;
+      if (Math.abs(p.y - hero.y) <= box.depth && Math.abs(dx) < box.x1 + BODIES.hero.halfWidth + 3 * Math.abs(p.vx)) soon = true;
+    }
   }
   for (const m of s.entities) {
-    if (m.team === hero.team || m.state !== 'act' || m.hp <= 0) continue;
-    const f = MOVES[m.move].fire;
+    if (m.team === hero.team || m.state !== 'act' || m.hp <= 0 || m.kind === 'hero') continue;
+    const mv = MOVES[m.move];
     const dx = hero.x - m.x;
-    if (f && f.shot !== 'quake' && m.st < f.at && Math.sign(dx) === m.facing && Math.abs(m.y - hero.y) < LANE) threat = m.y;
+    if (mv.fire && mv.fire.shot !== 'quake' && m.st < mv.fire.at && Math.sign(dx) === m.facing) lanes.push([m.y, LANE]);
+    if (MONSTERS[m.kind].boss || !mv.box || m.st >= mv.active[0]) continue;
+    const ahead = dx * m.facing;
+    const reach = mv.box.x1 + (mv.advance ? (mv.advance.to - mv.advance.from) * mv.advance.speed : 0) + toFp(50);
+    if (ahead < -toFp(40) || ahead > reach) continue;
+    if (m.st >= mv.active[0] - 3 && Math.abs(hero.y - m.y) <= mv.box.depth) soon = true;
+    if (!free) continue;
+    if (!MONSTERS[m.kind].guard && Math.abs(dx) <= REACH && Math.abs(hero.y - m.y) <= CUT_DEPTH && m.st + 5 < mv.active[0]) {
+      // facing it, the cut lands first
+      strike = BTN.ATTACK | ((dx < 0) === (hero.facing < 0) ? (dx < 0 ? BTN.RIGHT : BTN.LEFT) : 0);
+    } else lanes.push([m.y, mv.box.depth + toFp(20)]);
   }
-  return threat === undefined ? 0 : away(hero, threat, LANE);
+  // too late to step aside: the dodge's untouchable hop, from a stand or out of a move's recovery
+  const mv = hero.state === 'act' ? MOVES[hero.move] : undefined;
+  const canDodge = hero.cd[DODGE.slot] === 0 && (free || (!!mv && mv.cancel > 0 && hero.st >= mv.cancel));
+  if (soon && canDodge) return BTN.DODGE;
+  const inside = (y: number) => lanes.some(([ly, w]) => Math.abs(y - ly) < w);
+  if (!inside(hero.y)) return strike;
+  let best: number | undefined;
+  for (const [ly, w] of lanes) {
+    for (const y of [ly - w - toFp(4), ly + w + toFp(4)]) {
+      if (y < 0 || y > WORLD.depth || inside(y)) continue;
+      if (best === undefined || Math.abs(y - hero.y) < Math.abs(best - hero.y)) best = y;
+    }
+  }
+  if (best === undefined) return 0;
+  return best < hero.y ? BTN.UP : BTN.DOWN;
 }
 
 /** Out of the way of a boss's move: out of the lane of a chop or a charge winding up (a hop back
@@ -131,12 +172,17 @@ function bossDodge(s: SimState, hero: Entity): number {
       const b = ay > SLAM_LANE ? HOLD : away(hero, m.y, SLAM_LANE);
       if (!mv.land) return b;
       let landX = m.x;
-      for (let z = m.z, vz = m.vz, n = 0; z > 0 && n < 60; n++) {
+      let n = 0;
+      for (let z = m.z, vz = m.vz; z > 0 && n < 60; n++) {
         vz -= WORLD.gravity;
         z += vz;
         landX += m.vx;
       }
       const off = hero.x - landX;
+      // still under it as it comes down: the dodge's untouchable hop takes the blow and the shockwave
+      const box = MOVES[mv.land].box;
+      const under = box && Math.abs(off) < box.x1 + toFp(60) && ay < box.depth + toFp(30);
+      if (under && n <= 1 && m.z > 0 && hero.cd[DODGE.slot] === 0) return BTN.DODGE;
       return Math.abs(off) > SLAM_ZONE ? b : b | (off >= 0 ? BTN.RIGHT : BTN.LEFT);
     }
   }

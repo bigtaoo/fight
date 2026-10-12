@@ -12,7 +12,9 @@ verifier the server runs itself.
   final frames with the config the server chose and hashes every 30th tick and the last one.
   A client checkpoint that differs flags the run, which then gets nothing.
 - `src/loot.ts`: loot is drawn with `crypto.randomInt` only after the replay cleared the
-  dungeon and every checkpoint matched; the inventory is `data/inventory.json` (not in git).
+  dungeon and every checkpoint matched: each monster the replay saw killed rolls its kind's
+  table, and the clear draws from the table of the replay's rating (`rateRun`); the inventory is
+  `data/inventory.json` (not in git).
 
 The client side is `client/src/net/OnlineSession.ts`: local input applies at once, the session
 stays about a round trip ahead of the frame clock, and it rolls back when a frame disagrees.

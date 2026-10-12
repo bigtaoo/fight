@@ -1,4 +1,4 @@
-import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type Kind, type ShotKind, type SkillId } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type Kind, type MonsterKind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -127,6 +127,12 @@ export interface PlayerSlot {
   bufLeft: number;
   /** The skill in each slot. */
   skills: SkillId[];
+  /** Hits landed in a row, each within WORLD.comboTicks of the last, and ticks before it lapses. */
+  combo: number;
+  comboLeft: number;
+  /** The run's longest combo, and the hits the hero has taken (for the rating). */
+  maxCombo: number;
+  hitsTaken: number;
 }
 
 export type Outcome = 'playing' | 'cleared' | 'failed';
@@ -145,7 +151,12 @@ export interface SimState {
   entities: Entity[];
   shots: Projectile[];
   players: PlayerSlot[];
+  /** Monsters killed, by kind (the server draws their loot once the run is cleared). */
+  kills: Partial<Record<MonsterKind, number>>;
   outcome: Outcome;
+  /** The tick the run was won or lost on, 0 while it is being played (the simulation steps on
+   * after it, for the view). */
+  endTick: number;
 }
 
 export function createState(config: RunConfig): SimState {
@@ -161,7 +172,9 @@ export function createState(config: RunConfig): SimState {
     entities: [],
     shots: [],
     players: [],
+    kills: {},
     outcome: 'playing',
+    endTick: 0,
   };
 }
 

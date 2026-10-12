@@ -4,6 +4,7 @@ export type { SimEvent } from './events';
 export { hashState } from './hash';
 export { BTN, BTN_ALL, LocalInputSource, ReplayInputSource, type InputSource, type PlayerCommand } from './input';
 export { FP, TICK_RATE, fromFp, toFp, ticks } from './math/fixed';
+export { rateRun, type Grade, type Rating } from './rating';
 export { cloneState } from './snapshot';
 export { guarding } from './systems/combat';
 export { armored } from './systems/moves';

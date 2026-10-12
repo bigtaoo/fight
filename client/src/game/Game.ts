@@ -177,7 +177,6 @@ export class Game {
           target.flash = ev.blocked || ev.armor ? 0 : FLASH_SEC;
           target.shake = ev.blocked || ev.armor ? Math.min(2, ev.stop) : ev.stop;
         }
-        const attacker = s.entities.find((e) => e.id === ev.attacker);
         const victim = s.entities.find((e) => e.id === ev.target);
         const h = victim ? fromFp(victim.z) + 120 : 120;
         const x = fromFp(ev.x);
@@ -189,7 +188,7 @@ export class Game {
           this.fx.splash(x, y, ev.dir, ev.stop >= 5);
         }
         this.fx.damage(x, y - 90, ev.dmg, victim?.team === 0, ev.blocked);
-        if (attacker?.team === 0) this.hud.heroHit();
+
         if (ev.stop >= 5 || ev.launch) this.shake = Math.max(this.shake, 0.14);
       } else if (ev.type === 'swing' || ev.type === 'jump' || ev.type === 'land' || ev.type === 'down' || ev.type === 'death' || ev.type === 'rise') {
         const e = s.entities.find((b) => b.id === ev.id);
@@ -297,7 +296,7 @@ export class Game {
     }
     for (const p of s.shots) this.shotViews.get(p.id)!.draw(p, alpha, this.debug);
     this.fx.update(dt);
-    this.hud.update(s, dt, this.session!, this.keys.down);
+    this.hud.update(s, this.session!, this.keys.down);
   }
 
   private syncViews(s: SimState): void {

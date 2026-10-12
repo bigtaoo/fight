@@ -1,4 +1,4 @@
-import { BODIES, MONSTERS, MOVES, type HitBox, type HitData } from '../content';
+import { BODIES, MONSTERS, MOVES, WORLD, type HitBox, type HitData } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randRange } from '../math/prng';
@@ -64,12 +64,14 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     if (chip < t.hp) {
       t.hp -= chip;
       t.stop = m.stop;
+      tally(s, a, t);
       events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false });
       return;
     }
   }
   t.hp -= dmg;
   t.stop = m.stop;
+  tally(s, a, t);
   if (t.hp > 0 && armored(t)) {
     events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: false, armor: true });
     return;
@@ -96,4 +98,18 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
   }
   events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false, armor: false });
   if (kill) events.push(t.team === 0 ? { type: 'heroDown', id: t.id } : { type: 'death', id: t.id });
+}
+
+/** Counts a landed hit for the rating: the striking hero's combo, the struck hero's hits taken,
+ * a monster's death. */
+function tally(s: SimState, a: { id: number; team: number }, t: Entity): void {
+  for (const p of s.players) {
+    if (p.hero === a.id) {
+      p.combo++;
+      p.comboLeft = WORLD.comboTicks;
+      if (p.combo > p.maxCombo) p.maxCombo = p.combo;
+    }
+    if (p.hero === t.id) p.hitsTaken++;
+  }
+  if (t.team === 1 && t.hp <= 0 && t.kind !== 'hero') s.kills[t.kind] = (s.kills[t.kind] ?? 0) + 1;
 }

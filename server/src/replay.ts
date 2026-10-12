@@ -1,4 +1,4 @@
-import { Engine, hashState, type Outcome, type PlayerCommand, type RunConfig } from '@dnf/engine';
+import { Engine, hashState, rateRun, type MonsterKind, type Outcome, type PlayerCommand, type Rating, type RunConfig } from '@dnf/engine';
 import { CHECK_EVERY, type Frame } from '../protocol';
 
 // The verifier's shadow simulation: the same engine source as the client, fed only the frames
@@ -8,7 +8,8 @@ import { CHECK_EVERY, type Frame } from '../protocol';
 
 export type ReplayOut =
   | { type: 'hash'; tick: number; hash: number }
-  | { type: 'end'; tick: number; outcome: Exclude<Outcome, 'playing'> };
+  /** The end of the run, its rating and the monsters killed, as the replay saw them. */
+  | { type: 'end'; tick: number; outcome: Exclude<Outcome, 'playing'>; rating: Rating; kills: Partial<Record<MonsterKind, number>> };
 
 export class Replayer {
   private readonly engine: Engine;
@@ -35,7 +36,7 @@ export class Replayer {
       const outcome = s().outcome;
       if (tick % CHECK_EVERY === 0 || outcome !== 'playing') out.push({ type: 'hash', tick, hash: hashState(s()) });
       if (outcome !== 'playing') {
-        out.push({ type: 'end', tick, outcome });
+        out.push({ type: 'end', tick, outcome, rating: rateRun(s()), kills: { ...s().kills } });
         this.ended = true;
       }
     }

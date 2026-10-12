@@ -22,7 +22,10 @@ the same code and trusts nothing else. Built after `D:\standing\engine` (math, h
 - `SimState` is plain data, PRNG streams included (`math/prng.ts`), so `snapshot()` / `restore()`
   are deep copies: what rollback and reconnects need.
 - `SimEvent`s go to the view; `dungeonClear` is what the server grants loot on (from its own replay).
+- The state counts what a clear is rated on (each player's combo, longest combo and hits taken,
+  the kills by kind, the end tick); `rating.ts` grades it against the dungeon's par.
 - `bot.ts` plays through ordinary buttons, for tests and headless runs.
+- `bench.ts` is the worst-case scene for the performance target (`perf.test.ts`, `?bench`).
 
 ## Rules (enforced by `determinismLint.test.ts` and `Engine.test.ts`)
 

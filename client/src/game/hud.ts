@@ -1,4 +1,4 @@
-import { DUNGEONS, MONSTERS, type Dungeon, type Entity, type SimState } from '@dnf/engine';
+import { DUNGEONS, MONSTERS, TICK_RATE, rateRun, type Dungeon, type Entity, type Rating, type SimState } from '@dnf/engine';
 import { Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { OnlineSession } from '../net/OnlineSession';
 import type { Session } from '../net/Session';
@@ -73,6 +73,9 @@ export class Hud {
   private cells: { dungeon: string; at: [number, number][] } | null = null;
   private readonly combo = new Text({ text: '', style: { ...style(84, 0xc8281e), stroke: { color: 0xf3eee2, width: 8 } } });
   private readonly banner = new Text({ text: '', style: { ...style(110), stroke: { color: 0xf3eee2, width: 10 } } });
+  /** The clear's rating: the grade, and the time, longest combo and hits taken under it. */
+  private readonly grade = new Text({ text: '', style: { ...style(180, 0xc8281e), stroke: { color: 0xf3eee2, width: 12 } } });
+  private readonly stats = new Text({ text: '', style: { ...style(36), stroke: { color: 0xf3eee2, width: 6 } } });
   private readonly verdict = new Text({ text: '', style: { ...style(44), stroke: { color: 0xf3eee2, width: 6 }, align: 'center' } });
   private readonly net = new Text({ text: '', style: style(24, 0x4a4640) });
   private readonly bag = new Text({ text: '', style: { ...style(24, 0x4a4640), align: 'right' } });
@@ -81,8 +84,6 @@ export class Hud {
   /** Why the game is offline, when it tried to go online. */
   offlineNote = '';
   readonly controls = new Controls();
-  private comboCount = 0;
-  private comboTime = 0;
 
   constructor() {
     const help = new Text({ text: '←→↑↓ 移动（双击奔跑）  X 攻击（按住连打）  C 跳  Z 闪避  A S D 技能  F 大招  R 重开  F1 判定框', style: style(22, 0x4a4640) });
@@ -93,25 +94,23 @@ export class Hud {
     this.combo.position.set(VIEW_W - 40, 190);
     this.banner.anchor.set(0.5);
     this.banner.position.set(VIEW_W / 2, VIEW_H * 0.36);
+    this.grade.anchor.set(0, 0.5);
+    this.grade.position.set(VIEW_W / 2 + 170, VIEW_H * 0.36);
+    this.stats.anchor.set(0.5, 0);
+    this.stats.position.set(VIEW_W / 2, VIEW_H * 0.36 + 80);
     this.verdict.anchor.set(0.5, 0);
-    this.verdict.position.set(VIEW_W / 2, VIEW_H * 0.36 + 80);
+    this.verdict.position.set(VIEW_W / 2, VIEW_H * 0.36 + 140);
     this.net.position.set(40, 84);
     this.bag.anchor.set(1, 0);
     this.bag.position.set(VIEW_W - 40, 290);
     this.bossName.position.set(BOSS_LEFT, BOSS_TOP - 40);
     this.bossBars.anchor.set(1, 0);
     this.bossBars.position.set(BOSS_LEFT + BOSS_W, BOSS_TOP - 40);
-    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars);
-  }
-
-  /** A hit by the hero: grows the combo, which lapses after 1.2 s without a hit. */
-  heroHit(): void {
-    this.comboCount++;
-    this.comboTime = 1.2;
+    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.grade, this.stats, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars);
   }
 
   /** `keys`: the keyboard's held buttons, lit on the controls too. */
-  update(s: SimState, dt: number, session: Session, keys: number): void {
+  update(s: SimState, session: Session, keys: number): void {
     const hero = s.entities.find((e) => e.team === 0);
     const g = this.g.clear();
     if (hero) {
@@ -122,13 +121,28 @@ export class Hud {
     this.boss(g, s);
     this.controls.update(s, keys);
     this.minimap(s);
-    this.comboTime -= dt;
-    if (this.comboTime <= 0) this.comboCount = 0;
-    this.combo.text = this.comboCount >= 2 ? `${this.comboCount} 连击` : '';
+    // the simulation counts the combo (it is rated on it)
+    const combo = s.players[0]?.combo ?? 0;
+    this.combo.text = combo >= 2 ? `${combo} 连击` : '';
     this.banner.text = s.outcome === 'cleared' ? '通关' : s.outcome === 'failed' ? '败北' : '';
+    // online, the server's rating once it has replayed the run (it is the same unless the client
+    // was tampered with, which the checkpoints catch first)
+    const r = session instanceof OnlineSession && session.result?.ok ? session.result.rating : null;
+    this.rating(s.outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
     this.net.text = session.status() || this.offlineNote;
     if (session instanceof OnlineSession) this.online(session, s);
     else this.verdict.text = this.bag.text = '';
+  }
+
+  private rating(r: Rating | null): void {
+    this.grade.text = r?.grade ?? '';
+    if (!r) {
+      this.stats.text = '';
+      return;
+    }
+    const sec = Math.floor(r.ticks / TICK_RATE);
+    const time = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    this.stats.text = `用时 ${time}    最大连击 ${r.maxCombo}    被击 ${r.hitsTaken} 次`;
   }
 
   /** The rooms been in (the ones cleared and this one), the rooms their doors lead to as
@@ -201,7 +215,10 @@ export class Hud {
     const r = session.result;
     const why = (reason: string) => REASONS[reason] ?? reason;
     if (session.flag) this.verdict.text = `服务器判定：${why(session.flag.reason)}（第 ${session.flag.tick} 帧）\n本局无掉落`;
-    else if (r?.ok) this.verdict.text = `获得  ${r.loot.name}${r.settleMs !== null ? `\n服务器结算 ${Math.round(r.settleMs)}ms` : ''}`;
+    else if (r?.ok) {
+      const loot = r.loot.length ? `获得  ${r.loot.map((i) => i.name).join('、')}` : '没有掉落';
+      this.verdict.text = `${loot}${r.settleMs !== null ? `\n服务器结算 ${Math.round(r.settleMs)}ms` : ''}`;
+    }
     else if (r) this.verdict.text = `本局无掉落：${why(r.reason)}`;
     else this.verdict.text = s.outcome === 'cleared' ? '等待服务器复算…' : '';
     const items = session.inventory;

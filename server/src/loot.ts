@@ -1,28 +1,75 @@
 import { randomInt } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { DungeonId, Grade, MonsterKind } from '@dnf/engine';
 import type { Item } from '../protocol';
 
-// Loot and the inventory, the server's alone. The simulation only reports that the run was
-// cleared; what drops is drawn here from a secret random source after the verifier agrees, so
-// no client can know or steer it. The inventory is a JSON file for M1 (no database yet).
+// Loot and the inventory, the server's alone. The simulation only reports how the run went (the
+// monsters killed, the rating); what drops is drawn here from a secret random source after the
+// verifier agrees, so no client can know or steer it. Every monster kind has a table and a chance
+// to drop from it; the dungeon's clear (the boss) draws from the table of the rating's tier. The
+// inventory is a JSON file for now (no database yet).
 
-export const ITEMS: readonly (Item & { weight: number })[] = [
-  { id: 'ink_blade', name: '墨痕剑', rarity: 3, weight: 1 },
-  { id: 'cloud_robe', name: '流云袍', rarity: 2, weight: 3 },
-  { id: 'jade_belt', name: '青玉带', rarity: 2, weight: 3 },
-  { id: 'hemp_boots', name: '麻履', rarity: 1, weight: 6 },
-  { id: 'iron_bracer', name: '铁护腕', rarity: 1, weight: 6 },
-];
+const ITEMS = {
+  hemp_boots: { name: '麻履', rarity: 1 },
+  iron_bracer: { name: '铁护腕', rarity: 1 },
+  bandit_scarf: { name: '山贼头巾', rarity: 1 },
+  broken_arrow: { name: '断箭', rarity: 1 },
+  shield_shard: { name: '破盾片', rarity: 1 },
+  cloud_robe: { name: '流云袍', rarity: 2 },
+  jade_belt: { name: '青玉带', rarity: 2 },
+  black_wind_token: { name: '黑风令', rarity: 2 },
+  ink_blade: { name: '墨痕剑', rarity: 3 },
+  tiger_mantle: { name: '虎皮披肩', rarity: 3 },
+  chief_axe: { name: '开山斧', rarity: 3 },
+} satisfies Record<string, Omit<Item, 'id'>>;
 
-export function rollLoot(): Item {
-  const total = ITEMS.reduce((n, it) => n + it.weight, 0);
-  let r = randomInt(total);
-  for (const { weight, ...item } of ITEMS) {
-    if (r < weight) return item;
-    r -= weight;
+type ItemId = keyof typeof ITEMS;
+/** Items and their weights: each is drawn with its weight's share of the total. */
+type Table = readonly (readonly [ItemId, number])[];
+
+/** Each kind's chance in percent to drop something, and from what. */
+export const MONSTER_LOOT: Partial<Record<MonsterKind, { pct: number; table: Table }>> = {
+  bandit: { pct: 20, table: [['bandit_scarf', 6], ['hemp_boots', 3], ['iron_bracer', 3]] },
+  archer: { pct: 25, table: [['broken_arrow', 6], ['hemp_boots', 2], ['cloud_robe', 1]] },
+  shield: { pct: 30, table: [['shield_shard', 6], ['iron_bracer', 3], ['jade_belt', 1]] },
+  elite: { pct: 100, table: [['jade_belt', 3], ['cloud_robe', 3], ['ink_blade', 1]] },
+};
+
+const LOW: Table = [['hemp_boots', 6], ['iron_bracer', 6], ['cloud_robe', 3], ['jade_belt', 3], ['ink_blade', 1]];
+const MID: Table = [['cloud_robe', 3], ['jade_belt', 3], ['black_wind_token', 3], ['ink_blade', 1], ['tiger_mantle', 1]];
+const HIGH: Table = [['black_wind_token', 2], ['ink_blade', 2], ['tiger_mantle', 2], ['chief_axe', 1]];
+
+/** What clearing each dungeon draws, by the rating: how many items and from which table. */
+export const CLEAR_LOOT: Partial<Record<DungeonId, Record<Grade, { draws: number; table: Table }>>> = {
+  trial: { S: { draws: 1, table: LOW }, A: { draws: 1, table: LOW }, B: { draws: 1, table: LOW }, C: { draws: 1, table: LOW } },
+  heifeng: { S: { draws: 2, table: HIGH }, A: { draws: 1, table: HIGH }, B: { draws: 1, table: MID }, C: { draws: 1, table: LOW } },
+};
+
+/** A random integer in [0, n): the server's secret source unless a test passes its own. */
+export type Rand = (n: number) => number;
+
+function draw(table: Table, rand: Rand): Item {
+  const total = table.reduce((n, [, w]) => n + w, 0);
+  let r = rand(total);
+  for (const [id, w] of table) {
+    if (r < w) return { id, ...ITEMS[id] };
+    r -= w;
   }
   throw new Error('unreachable');
+}
+
+/** The loot of a cleared run: each monster killed rolls its kind's chance, then the clear's draws. */
+export function rollLoot(dungeon: DungeonId, kills: Partial<Record<MonsterKind, number>>, grade: Grade, rand: Rand = randomInt): Item[] {
+  const out: Item[] = [];
+  for (const [kind, n] of Object.entries(kills) as [MonsterKind, number][]) {
+    const loot = MONSTER_LOOT[kind];
+    if (!loot) continue;
+    for (let i = 0; i < n; i++) if (rand(100) < loot.pct) out.push(draw(loot.table, rand));
+  }
+  const clear = CLEAR_LOOT[dungeon]?.[grade];
+  if (clear) for (let i = 0; i < clear.draws; i++) out.push(draw(clear.table, rand));
+  return out;
 }
 
 /** A device id from the client: anything else is refused before it reaches the file. */
@@ -41,8 +88,8 @@ export class Inventory {
     return [...(this.bags[device] ?? [])];
   }
 
-  add(device: string, item: Item): Item[] {
-    (this.bags[device] ??= []).push(item);
+  add(device: string, items: readonly Item[]): Item[] {
+    (this.bags[device] ??= []).push(...items);
     this.save();
     return this.get(device);
   }

@@ -72,6 +72,7 @@ export function roomSystem(s: SimState, events: SimEvent[]): void {
   const heroes = s.entities.filter((e) => e.team === 0);
   if (heroes.every((h) => h.state === 'dead')) {
     s.outcome = 'failed';
+    s.endTick = s.tick;
     return;
   }
   const dungeon = DUNGEONS[s.config.dungeon];
@@ -82,6 +83,7 @@ export function roomSystem(s: SimState, events: SimEvent[]): void {
     events.push({ type: 'roomClear', room: s.room });
     if (s.room === dungeon.boss) {
       s.outcome = 'cleared';
+      s.endTick = s.tick;
       events.push({ type: 'dungeonClear', tick: s.tick });
       return;
     }

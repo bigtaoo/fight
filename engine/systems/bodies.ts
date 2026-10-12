@@ -7,8 +7,10 @@ import { mobControl } from './mob';
 // The start of every tick and each body's own step: hitstop, timers, cooldowns, the reaction
 // states shared by heroes and monsters, then the hero's controls or the monster's brain.
 
-/** Remembers where every body was (for interpolation) and freezes the ones in hitstop. */
+/** Remembers where every body was (for interpolation), freezes the ones in hitstop and lets
+ * lapsed combos go. */
 export function prologue(s: SimState): void {
+  for (const p of s.players) if (p.comboLeft > 0 && --p.comboLeft === 0) p.combo = 0;
   for (const e of s.entities) {
     e.px = e.x;
     e.py = e.y;

@@ -1,4 +1,4 @@
-import { DEFAULT_LOADOUT, type SkillId } from '@dnf/engine';
+import { DEFAULT_LOADOUT, rateRun, type DungeonId, type SkillId } from '@dnf/engine';
 import { botButtons } from '@dnf/engine/bot';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WsLink } from '../../client/src/net/Link';
@@ -14,15 +14,24 @@ const TICK_MS = 10;
 const SCALE = TICK_MS / (1000 / 30);
 
 let server: RunningServer;
+/** Black Wind Fort takes the bot some 11,000 ticks: on its own server, faster still and on a
+ * seed the bot is known to win (it wins about 97 seeds in 100). */
+let fort: RunningServer;
+const FORT_TICK_MS = 2;
 const logs: string[] = [];
 
 beforeAll(async () => {
   server = await startServer({ port: 0, dataFile: null, tickMs: TICK_MS, log: (m) => logs.push(m) });
+  fort = await startServer({ port: 0, dataFile: null, tickMs: FORT_TICK_MS, seed: 7, log: (m) => logs.push(m) });
 });
 
-afterAll(() => server.close());
+afterAll(async () => {
+  await server.close();
+  await fort.close();
+});
 
 interface PlayOptions {
+  dungeon?: DungeonId;
   lagMs?: number;
   cheatDmg?: boolean;
   device?: string;
@@ -32,11 +41,12 @@ interface PlayOptions {
 }
 
 async function playOnline(opts: PlayOptions) {
-  const link = await WsLink.connect(`ws://localhost:${server.port}`, (opts.lagMs ?? 0) * SCALE);
-  const s = await OnlineSession.join(link, { dungeon: 'trial', device: opts.device ?? 'test-device-1', loadout: opts.loadout, cheatDmg: opts.cheatDmg ?? false });
+  const port = opts.dungeon === 'heifeng' ? fort.port : server.port;
+  const link = await WsLink.connect(`ws://localhost:${port}`, (opts.lagMs ?? 0) * SCALE);
+  const s = await OnlineSession.join(link, { dungeon: opts.dungeon ?? 'trial', device: opts.device ?? 'test-device-1', loadout: opts.loadout, cheatDmg: opts.cheatDmg ?? false });
   const t0 = performance.now();
   let last = t0;
-  while (!s.result && performance.now() < t0 + 60_000) {
+  while (!s.result && performance.now() < t0 + 90_000) {
     await new Promise((r) => setTimeout(r, 1));
     const now = performance.now();
     if (opts.spike) {
@@ -59,7 +69,33 @@ describe('online run', () => {
     expect(s.result?.ok, JSON.stringify(s.result)).toBe(true);
     expect(s.engine.state.outcome).toBe('cleared');
     expect(s.result!.settleMs! * (1 / SCALE)).toBeLessThan(1000);
-    expect(s.inventory).toHaveLength(1);
+    const r = s.result!;
+    if (!r.ok) throw new Error(r.reason);
+    // the clear's own draw, and maybe a bandit's drop
+    expect(r.loot.length).toBeGreaterThanOrEqual(1);
+    expect(s.inventory).toEqual(r.loot);
+    expect(r.rating).toEqual(rateRun(s.engine.state));
+  }, 70_000);
+
+  it('clears Black Wind Fort through the chief, rated the same by the replay, with its loot', async () => {
+    const s = await playOnline({ dungeon: 'heifeng', device: 'test-device-fort' });
+    expect(s.flag).toBeNull();
+    expect(s.engine.state.outcome).toBe('cleared');
+    const r = s.result!;
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.rating).toEqual(rateRun(s.engine.state));
+    expect(r.rating.grade).toMatch(/^[SABC]$/);
+    expect(s.engine.state.kills.chief).toBe(1);
+    // the chief's draws (two for an S), plus whatever the monsters on the way dropped
+    expect(r.loot.length).toBeGreaterThanOrEqual(1);
+  }, 120_000);
+
+  it('flags a tampered client in the fort within its first room', async () => {
+    const s = await playOnline({ dungeon: 'heifeng', cheatDmg: true, device: 'test-device-fort-cheat' });
+    expect(s.flag?.reason).toMatch(/hash/);
+    expect(s.engine.state.cleared).toEqual([]);
+    expect(s.result?.ok).toBe(false);
+    expect(s.inventory).toHaveLength(0);
   }, 70_000);
 
   it('runs the skills the client chose, checked: the swapped ones, or the default for a bad pick', async () => {

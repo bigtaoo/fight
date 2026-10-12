@@ -10,7 +10,8 @@ import { Verifier } from './Verifier';
 // than real time even solo. A command lands on the tick the client stamped it with if that
 // frame is not final yet, else on the next open one; the client predicts the first case and
 // rolls back on the second. Loot is drawn only when the verifier's replay cleared the dungeon
-// and every checkpoint the client reported on the way matched it (and never for a practice one).
+// and every checkpoint the client reported on the way matched it (and never for a practice one),
+// on the replay's rating and kills.
 
 export interface RunOptions {
   tickMs: number;
@@ -20,6 +21,8 @@ export interface RunOptions {
   settleMs: number;
   /** A run longer than this many frames is abandoned. */
   maxFrames: number;
+  /** Tests only: every run on this seed instead of a random one. */
+  seed?: number;
 }
 
 export const DEFAULT_OPTIONS: RunOptions = { tickMs: 1000 / 30, maxLead: 45, settleMs: 3000, maxFrames: 30 * 60 * 20 };
@@ -53,7 +56,7 @@ export class Run {
     private readonly opts: RunOptions,
     private readonly log: (msg: string) => void,
   ) {
-    this.config = runConfig({ seed: randomInt(1, 2 ** 31 - 1), dungeon, players: 1, heroDamagePct: 100, loadout });
+    this.config = runConfig({ seed: opts.seed ?? randomInt(1, 2 ** 31 - 1), dungeon, players: 1, heroDamagePct: 100, loadout });
     this.verifier = new Verifier(this.config, (out) => this.onVerifier(out), (err) => this.fail(`verifier crashed: ${err.message}`));
     send({ type: 'start', run: this.id, owner: 0, config: this.config, tickMs: opts.tickMs, inventory: inventory.get(device) });
     this.timer = setInterval(() => this.flush(), Math.max(10, Math.min(50, opts.tickMs * 2)));
@@ -154,10 +157,11 @@ export class Run {
     if (DUNGEONS[this.config.dungeon].practice) return this.fail('practice');
     this.settled = true;
     clearTimeout(this.settleTimer);
-    const loot = rollLoot();
+    const { rating, kills } = this.end;
+    const loot = rollLoot(this.config.dungeon, kills, rating.grade);
     const inventory = this.inventory.add(this.device, loot);
-    this.log(`run ${this.id} cleared at tick ${tick}: ${loot.name}`);
-    this.send({ type: 'result', ok: true, tick, loot, inventory });
+    this.log(`run ${this.id} cleared at tick ${tick}, rated ${rating.grade}: ${loot.map((i) => i.name).join(' ') || 'nothing'}`);
+    this.send({ type: 'result', ok: true, tick, rating, loot, inventory });
   }
 
   private fail(reason: string): void {

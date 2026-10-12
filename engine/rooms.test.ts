@@ -41,12 +41,12 @@ describe('rooms', () => {
     }
   });
 
-  // (the bot does not beat the chief yet: its upgrade is M2 step 6)
-  it('the bot takes the shortest way through Black Wind Fort to the boss', () => {
+  it('the bot takes the shortest way through Black Wind Fort and beats the chief', () => {
     const e = newRun({ dungeon: 'heifeng', seed: 7 });
-    const ev = play(e, 30 * 400, (s) => (s.room === 5 ? 0 : bot(s)));
+    const ev = play(e, 30 * 600, bot);
     expect(ev.filter((x) => x.type === 'roomEnter').map((x) => x.type === 'roomEnter' && x.room)).toEqual([1, 2, 3, 5]);
-    expect(e.state.cleared).toEqual([0, 1, 2, 3]);
+    expect(e.state.cleared).toEqual([0, 1, 2, 3, 5]);
+    expect(e.state.outcome).toBe('cleared');
   });
 
   it('a side room is entered through the down door and left through its up door', () => {

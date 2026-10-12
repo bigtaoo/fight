@@ -1,4 +1,4 @@
-import type { DungeonId, RunConfig, SkillId } from '@dnf/engine';
+import type { DungeonId, Rating, RunConfig, SkillId } from '@dnf/engine';
 
 // The wire protocol between the client and the server, JSON over one WebSocket. Types only, so
 // the client imports it as source. JSON is enough for M1 (one player, a few messages a second);
@@ -70,5 +70,6 @@ export type ServerMsg =
   | { type: 'pong'; id: number; slack: number }
   /** The verifier's state differs from the client's: the run gets no loot. */
   | { type: 'flag'; tick: number; reason: string }
-  | { type: 'result'; ok: true; tick: number; loot: Item; inventory: Item[] }
+  /** A clear the verifier agreed with: its rating as the replay computed it, and the loot. */
+  | { type: 'result'; ok: true; tick: number; rating: Rating; loot: Item[]; inventory: Item[] }
   | { type: 'result'; ok: false; tick: number; reason: string };
