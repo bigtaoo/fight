@@ -206,7 +206,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
 };
 
 export const BODIES: Readonly<Record<Kind, Body>> = {
-  hero: { halfWidth: toFp(32), height: toFp(220), hp: 1000 },
+  hero: { halfWidth: toFp(32), height: toFp(220), hp: 1500 },
   bandit: MONSTERS.bandit.body,
   elite: MONSTERS.elite.body,
   archer: MONSTERS.archer.body,
@@ -240,6 +240,8 @@ export const HERO = {
   buffer: 6,
   /** Untouchable this long after a quick rise has got the hero up (on top of the getup itself). */
   riseInv: ticks(0.4),
+  /** Clearing a room (not the last) gives this many percent of the hero's health back. */
+  clearHeal: 30,
 };
 
 /** An attack box relative to the attacker: x forward of its facing, z up from its feet. */
@@ -421,14 +423,14 @@ const MOVE_LIST: Move[] = [
   },
   {
     id: 'slash', total: 40, active: [17, 19], box: box(0, 170, 35, 20, 220),
-    damage: 80, hitstun: 16, stop: 4, push: toFp(8), launch: 0, lift: toFp(8),
+    damage: 60, hitstun: 16, stop: 4, push: toFp(8), launch: 0, lift: toFp(8),
     cancel: 0, advance: { from: 15, to: 18, speed: toFp(4) },
   },
   // the shield bearer: a short step in behind the shield and a shove that throws the hero back;
   // and turning round, slowly, which is when it is open from both sides
   {
     id: 'bash', total: 34, active: [15, 17], box: box(0, 150, 35, 20, 220),
-    damage: 65, hitstun: 18, stop: 5, push: toFp(20), launch: 0, lift: toFp(10),
+    damage: 50, hitstun: 18, stop: 5, push: toFp(20), launch: 0, lift: toFp(10),
     cancel: 0, advance: { from: 12, to: 16, speed: toFp(7) },
   },
   {
@@ -503,7 +505,7 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   // thin in depth and height: stepping out of its lane, or jumping, dodges it
   arrow: {
     speed: toFp(24), life: ticks(2.2), pierce: 1, box: box(-30, 30, 18, -8, 8),
-    damage: 55, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
+    damage: 40, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
   },
   // the phantom dance's sword wave: tall and wide, through everything in its way
   wave: {

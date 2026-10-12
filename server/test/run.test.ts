@@ -50,6 +50,7 @@ async function playOnline(opts: PlayOptions) {
   let last = t0;
   // until the server's result is in and the client has played up to where it ended the run
   let back = 0;
+  let caughtUp = 0;
   while (!(s.result && s.engine.state.tick >= s.result.tick) && performance.now() < t0 + 90_000) {
     await new Promise((r) => setTimeout(r, 1));
     const now = performance.now();
@@ -66,9 +67,11 @@ async function playOnline(opts: PlayOptions) {
     const n = s.ticksFor(now - last);
     last = now;
     for (let i = 0; i < n; i++) s.step(botButtons(s.engine.state, s.owner));
+    // caught up: within half a second of the ticks the wall clock has run since the start
+    if (back && !caughtUp && s.engine.state.tick >= ((now - t0) / SCALE) * 0.03 - 15) caughtUp = now;
   }
   link.close();
-  return Object.assign(s, { caughtUpMs: back ? (performance.now() - back) / SCALE : 0 });
+  return Object.assign(s, { caughtUpMs: back ? ((caughtUp || performance.now()) - back) / SCALE : 0 });
 }
 
 describe('online run', () => {
@@ -151,7 +154,7 @@ describe('online run', () => {
     expect(r.ok || r.reason === 'the hero fell', JSON.stringify(r)).toBe(true);
     expect(r.ok ? 'cleared' : 'failed').toBe(s.engine.state.outcome);
     // the half minute is made up at up to MAX_STEPS ticks a frame (a few seconds in a browser;
-    // here the frames are this loop's turns; some 3.5 s), not dribbled out a ping at a time (8 s)
+    // here the frames are this loop's turns; some 4 s), not dribbled out a ping at a time (8 s)
     expect(s.caughtUpMs).toBeLessThan(6000);
   }, 70_000);
 });

@@ -1,4 +1,4 @@
-import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, MONSTERS, WORLD, type Door, type Room, type Side } from '../content';
+import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, HERO, MONSTERS, WORLD, type Door, type Room, type Side } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randRange } from '../math/prng';
@@ -87,6 +87,7 @@ export function roomSystem(s: SimState, events: SimEvent[]): void {
       events.push({ type: 'dungeonClear', tick: s.tick });
       return;
     }
+    for (const h of heroes) if (h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + Math.trunc((h.maxHp * HERO.clearHeal) / 100));
   }
   if (!s.roomCleared) return;
   for (const h of heroes) {
