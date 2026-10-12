@@ -1,7 +1,7 @@
 import { BODIES, HERO, MONSTERS, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, type Entity } from '@dnf/engine';
 import { ColorMatrixFilter, Container, Graphics, Sprite } from 'pixi.js';
 import { floorY, lerp } from './layout';
-import type { SpriteSet } from './sprites';
+import type { FrameSet, SpriteSet } from './sprites';
 import { TaoActor, type TaoAsset } from './tao/TaoActor';
 
 // One body: a floor shadow, the figure, the brush arc of an active move, a health bar over hurt
@@ -80,6 +80,9 @@ const NOCK_TICK = 8;
 const FADE_MOVE = 0.08;
 const FADE_HURT = 0.05;
 const FADE = 0.12;
+/** Pre-rendered frames: seconds of one idle loop, and ticks the hit reaction plays over. */
+const IDLE_SEC = 2;
+const HIT_TICKS = 12;
 
 /** Pales the figure most of the way to white, for the hit flash. Not all the way: a crowd of
  * monsters stands overlapped, and pure white silhouettes merged into one blob that snapped back
@@ -120,9 +123,16 @@ export class BodyView {
   flash = 0;
   shake = 0;
 
-  /** `tint`: for a kind drawn with another kind's skeleton, to tell it apart. */
-  constructor(readonly id: number, private readonly sprites: SpriteSet | null, rig: TaoAsset | null = null, tint = 0xffffff) {
-    this.actor = rig ? new TaoActor(rig) : null;
+  /** `tint`: for a kind drawn with another kind's skeleton, to tell it apart. `frames`: a body
+   * pre-rendered from 3D, drawn instead of the skeleton (the ?archer3d trial). */
+  constructor(
+    readonly id: number,
+    private readonly sprites: SpriteSet | null,
+    rig: TaoAsset | null = null,
+    tint = 0xffffff,
+    private readonly frames: FrameSet | null = null,
+  ) {
+    this.actor = rig && !frames ? new TaoActor(rig) : null;
     this.rigRoot.tint = tint;
     if (this.actor) this.rigRoot.addChild(this.actor.view);
     this.root.addChild(this.shadow, this.body, this.sprite, this.rigRoot, this.fxg, this.bar);
@@ -148,7 +158,9 @@ export class BodyView {
 
     const g = this.body.clear();
     const fx = this.fxg.clear();
-    if (this.actor) {
+    if (this.frames) {
+      this.drawFrames(this.frames, e, x, y, z, alpha, dt);
+    } else if (this.actor) {
       this.drawRig(this.actor, e, x, y, z, alpha, dt);
     } else if (this.sprites && this.painted(e)) {
       this.drawSprite(e, z, frame, alpha);
@@ -157,7 +169,8 @@ export class BodyView {
       this.drawBlocks(g, e, z, hw, h);
     }
     if (e.kind === 'archer') {
-      if (this.actor) this.drawString(fx, this.actor, e, alpha);
+      if (this.frames) this.drawAim(fx, e, z, alpha);
+      else if (this.actor) this.drawString(fx, this.actor, e, alpha);
       else this.drawBow(fx, e, z, alpha);
     }
     if (e.kind === 'shield' && !this.actor) this.drawShield(fx, e, z, hw, alpha);
@@ -168,7 +181,7 @@ export class BodyView {
       const k = 0.5 + 0.5 * Math.sin(frame / 3);
       fx.ellipse(0, -z - h / 2, hw + 26, h / 2 + 20).stroke({ width: 4 + 3 * k, color: 0xc8281e, alpha: 0.35 + 0.3 * k });
     }
-    if (!this.actor) this.root.alpha *= e.inv > 0 && frame % 4 < 2 ? 0.4 : 1;
+    if (!this.actor && !this.frames) this.root.alpha *= e.inv > 0 && frame % 4 < 2 ? 0.4 : 1;
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
     const bar = this.bar.clear();
@@ -182,17 +195,7 @@ export class BodyView {
 
   private drawRig(actor: TaoActor, e: Entity, x: number, y: number, z: number, alpha: number, dt: number): void {
     this.clock += dt;
-    // a jump of more than a stride between frames is a room change, not a step
-    const moved = this.last ? Math.hypot(x - this.last.x, y - this.last.y) : 0;
-    // backing away while facing the hero (the archer keeping its distance) steps backward
-    const back = this.last !== null && (x - this.last.x) * e.facing < 0 && Math.abs(x - this.last.x) > Math.abs(y - this.last.y);
-    this.last = { x, y };
-    if (moved < 100) this.dist += back ? -moved : moved;
-    // a walk or run started from a stand begins at the clip's first step, not wherever the
-    // distance walked so far happens to fall in the cycle
-    const moving = (s: Entity['state'] | null) => s === 'walk' || s === 'run';
-    if (moving(e.state) && !moving(this.lastState)) this.dist = 0;
-    this.lastState = e.state;
+    this.stride(e, x, y);
     // positions are drawn between the last tick and this one (lerp(px, x, alpha)), so the clip
     // time is too; in hitstop the body holds this tick's pose, which is where it got to, and so
     // a hit freezes the cut instead of throwing it back a tick
@@ -269,6 +272,86 @@ export class BodyView {
     this.rigRoot.alpha = e.inv > 0 && Math.floor(this.clock * 20) % 2 === 0 ? 0.35 : 1;
     // the shield bearer's shield pales while it guards nothing
     if (e.kind === 'shield') actor.setAlpha('shield', guarding(e) ? 1 : 0.55);
+  }
+
+  /** Steps the distance walked (backing away counts down), which drives the walk cycle. */
+  private stride(e: Entity, x: number, y: number): void {
+    // a jump of more than a stride between frames is a room change, not a step
+    const moved = this.last ? Math.hypot(x - this.last.x, y - this.last.y) : 0;
+    // backing away while facing the hero (the archer keeping its distance) steps backward
+    const back = this.last !== null && (x - this.last.x) * e.facing < 0 && Math.abs(x - this.last.x) > Math.abs(y - this.last.y);
+    this.last = { x, y };
+    if (moved < 100) this.dist += back ? -moved : moved;
+    // a walk or run started from a stand begins at the clip's first step
+    const moving = (s: Entity['state'] | null) => s === 'walk' || s === 'run';
+    if (moving(e.state) && !moving(this.lastState)) this.dist = 0;
+    this.lastState = e.state;
+  }
+
+  /** A body pre-rendered from 3D: one frame of a clip, picked like the skeleton's clip time
+   * (the shot frame by frame in ticks, so the release lands on the fire tick; the walk by
+   * distance), the fall played backward to get up. */
+  private drawFrames(set: FrameSet, e: Entity, x: number, y: number, z: number, alpha: number, dt: number): void {
+    this.clock += dt;
+    this.stride(e, x, y);
+    const t = Math.max(0, e.held ? e.st : e.st - 1 + alpha);
+    const size = RIG_SIZE[e.kind] ?? RIG_SIZE.hero!;
+    const pick = (clip: string, u: number, loop = false) => {
+      const fs = set.clips[clip];
+      const n = fs.length;
+      const i = loop ? (((Math.floor(u * n) % n) + n) % n) : Math.min(n - 1, Math.max(0, Math.floor(u * n)));
+      return fs[i];
+    };
+    const last = (clip: string) => set.clips[clip][set.clips[clip].length - 1];
+    let f = pick('idle', this.clock / IDLE_SEC, true);
+    switch (e.state) {
+      case 'walk':
+      case 'run':
+        f = pick('walk', this.dist / size.walk, true);
+        break;
+      case 'act':
+        if (e.move === 'shoot') f = set.clips.shoot[Math.min(set.clips.shoot.length - 1, Math.floor(t))];
+        break;
+      case 'hurt':
+        f = pick('hit', t / HIT_TICKS);
+        break;
+      case 'getup':
+        f = pick('fall', 1 - t / WORLD.getupTicks);
+        break;
+      case 'air':
+        f = z < 30 && e.vz <= 0 ? last('fall') : pick('fall', Math.min(0.75, e.st / 20));
+        break;
+      case 'down':
+      case 'dead':
+        f = last('fall');
+        break;
+    }
+    const sp = this.sprite;
+    sp.visible = true;
+    sp.texture = f.tex;
+    sp.anchor.set(0, 0);
+    const k = set.scale;
+    sp.position.set(e.facing * f.ox * k, -z + f.oy * k);
+    sp.scale.set(e.facing * k, k);
+    sp.rotation = 0;
+    sp.filters = this.flash > 0 ? [WHITE] : [];
+    sp.alpha = e.inv > 0 && Math.floor(this.clock * 20) % 2 === 0 ? 0.35 : 1;
+  }
+
+  /** The pre-rendered archer's aim (its bow and arrow are in the frames): the red glint at
+   * the arrowhead in the last moments of the draw, and the lane marked on the floor. */
+  private drawAim(g: Graphics, e: Entity, z: number, alpha: number): void {
+    const fire = e.state === 'act' ? MOVES[e.move].fire : undefined;
+    const t = e.held ? e.st : e.st - 1 + alpha;
+    if (!fire || t >= fire.at) return;
+    const f = e.facing;
+    const left = fire.at - t;
+    if (left <= 7) {
+      const k = 1 - left / 7;
+      g.circle(f * fromFp(fire.x) * 1.2, -z - fromFp(fire.z), 6 + 10 * k).fill({ color: 0xc8281e, alpha: 0.25 + 0.5 * k });
+    }
+    const lane = Math.min(1, t / fire.at);
+    g.rect(f > 0 ? 40 : -40 - 700 * lane, -2, 700 * lane, 4).fill({ color: 0xc8281e, alpha: 0.18 * lane });
   }
 
   /** Whether this kind has paintings; one without (a monster not drawn yet) shows ink blocks. */

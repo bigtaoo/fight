@@ -9,7 +9,7 @@ import { Fx } from './fx';
 import { Hud } from './hud';
 import { Keyboard } from './keyboard';
 import { Scenery } from './scenery';
-import { loadRig, loadSprites, type SpriteSet } from './sprites';
+import { loadFrames, loadRig, loadSprites, type FrameSet, type SpriteSet } from './sprites';
 import type { TaoAsset } from './tao/TaoActor';
 import { GROUND_TOP, VIEW_H, VIEW_W, cameraX, floorY } from './layout';
 import { WsLink } from '../net/Link';
@@ -24,10 +24,11 @@ const BORROWED: Partial<Record<Kind, { rig: Kind; tint: number }>> = { elite: { 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable; from an https page, the deployed server) drawn every frame with interpolation
 // between ticks. URL switches: ?offline (no server), ?server=ws://host:port, ?lag=N (ms added
-// each way), ?dungeon=trial (or training, or hall: the chief alone; the fort by default), ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
+// each way), ?dungeon=trial (or training, or hall: the chief alone; the fort by default), ?seed=N (offline), ?bot (the engine's bot plays), ?notutorial (no advice lines in the fort), ?debug (hit
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
-// skeleton), ?zoom=N (a close-up that follows the hero), ?loadout=dragon,crush (skills swapped
+// skeleton), ?zoom=N (a close-up that follows the hero), ?archer3d (the archer
+// pre-rendered from 3D, art/archer3d, instead of its skeleton), ?loadout=dragon,crush (skills swapped
 // into their slots over the default ones).
 /** Colour of the loose ink each kind of body throws. */
 const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, elite: 0x4a2420, archer: 0x4a4636, shield: 0x3d4148, chief: 0x3b2420, dummy: 0x6a5c40 } as const;
@@ -49,11 +50,13 @@ export class Game {
   private readonly shotViews = new Map<number, ShotView>();
   private readonly itemViews = new Map<number, ItemView>();
   private readonly fx = new Fx();
-  private readonly hud = new Hud();
+  private readonly hud: Hud;
   private readonly keys = new Keyboard();
   private sprites: SpriteSet | null = null;
   /** Skeletons of the rigged kinds; the others show pose paintings. */
   private rigs: Partial<Record<Kind, TaoAsset>> = {};
+  /** The archer pre-rendered from 3D (?archer3d), drawn instead of its skeleton. */
+  private archer3d: FrameSet | null = null;
   private session: Session | null = null;
   private link: WsLink | null = null;
   private frame = 0;
@@ -63,6 +66,7 @@ export class Game {
 
   constructor(private readonly app: Application, private readonly params: URLSearchParams) {
     this.debug = params.has('debug');
+    this.hud = new Hud(!params.has('notutorial'));
     this.seed = Number(params.get('seed') ?? 1);
     this.bodies.sortableChildren = true;
     this.world.addChild(this.scenery.floor, this.floor, this.bodies, this.fx.layer);
@@ -89,6 +93,7 @@ export class Game {
         const rig = rigs[i];
         if (rig) this.rigs[k] = rig;
       });
+      if (this.params.has('archer3d')) this.archer3d = await loadFrames('archer3d');
     }
     this.link = await this.connect();
     await this.start(this.seed);
@@ -324,7 +329,7 @@ export class Game {
     for (const e of s.entities) {
       if (this.views.has(e.id)) continue;
       const borrowed = BORROWED[e.kind];
-      const v = new BodyView(e.id, this.sprites, this.rigs[borrowed?.rig ?? e.kind] ?? null, borrowed?.tint);
+      const v = new BodyView(e.id, this.sprites, this.rigs[borrowed?.rig ?? e.kind] ?? null, borrowed?.tint, e.kind === 'archer' ? this.archer3d : null);
       this.views.set(e.id, v);
       this.bodies.addChild(v.root);
     }

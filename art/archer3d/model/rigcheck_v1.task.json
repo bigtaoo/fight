@@ -1,0 +1,1 @@
+{"code":0,"status":"success","data":{"type":"animate_prerigcheck","status":"success","progress":100,"input":{"original_model_id":"52c3efc0-24fa-4d6b-9e75-8c504b134e89"},"output":{"riggable":true,"rig_type":"biped"},"task_id":"18222c9c-dff1-4f71-855d-a9ed7173d06f","created_at":"2026-10-12T12:21:46.466122Z","completed_at":"2026-10-12T12:21:47.057743Z","credits_consumed":0.00}}

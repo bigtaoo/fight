@@ -3,6 +3,7 @@ import { Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { OnlineSession } from '../net/OnlineSession';
 import type { Session } from '../net/Session';
 import { Controls } from './controls';
+import { Tutorial } from './tutorial';
 import { VIEW_H, VIEW_W } from './layout';
 
 // Screen-space overlay: health, a boss's health in bars across the top, the on-screen controls with the cooldowns, the room, the combo
@@ -85,7 +86,11 @@ export class Hud {
   offlineNote = '';
   readonly controls = new Controls();
 
-  constructor() {
+  private readonly tutorial: Tutorial;
+
+  /** `tutorial`: the advice lines in Black Wind Fort (off with ?notutorial). */
+  constructor(tutorial = true) {
+    this.tutorial = new Tutorial(tutorial);
     const help = new Text({ text: '←→↑↓ 移动（双击奔跑）  X 攻击（按住连打）  C 跳  Z 闪避  A S D 技能  F 大招  R 重开  F1 判定框', style: style(22, 0x4a4640) });
     help.position.set(40, 124);
     this.room.anchor.set(1, 0);
@@ -106,7 +111,7 @@ export class Hud {
     this.bossName.position.set(BOSS_LEFT, BOSS_TOP - 40);
     this.bossBars.anchor.set(1, 0);
     this.bossBars.position.set(BOSS_LEFT + BOSS_W, BOSS_TOP - 40);
-    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.grade, this.stats, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars);
+    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.grade, this.stats, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars, this.tutorial.text);
   }
 
   /** `keys`: the keyboard's held buttons, lit on the controls too. */
@@ -121,6 +126,7 @@ export class Hud {
     this.boss(g, s);
     this.controls.update(s, keys);
     this.minimap(s);
+    this.tutorial.update(s);
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
     this.combo.text = combo >= 2 ? `${combo} 连击` : '';

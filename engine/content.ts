@@ -442,14 +442,14 @@ const MOVE_LIST: Move[] = [
   },
   {
     id: 'slash', total: 40, active: [17, 19], box: box(0, 170, 35, 20, 220),
-    damage: 60, hitstun: 16, stop: 4, push: toFp(8), launch: 0, lift: toFp(8),
+    damage: 30, hitstun: 16, stop: 4, push: toFp(8), launch: 0, lift: toFp(8),
     cancel: 0, advance: { from: 15, to: 18, speed: toFp(4) },
   },
   // the shield bearer: a short step in behind the shield and a shove that throws the hero back;
   // and turning round, slowly, which is when it is open from both sides
   {
     id: 'bash', total: 34, active: [15, 17], box: box(0, 150, 35, 20, 220),
-    damage: 50, hitstun: 18, stop: 5, push: toFp(20), launch: 0, lift: toFp(10),
+    damage: 25, hitstun: 18, stop: 5, push: toFp(20), launch: 0, lift: toFp(10),
     cancel: 0, advance: { from: 12, to: 16, speed: toFp(7) },
   },
   {
@@ -480,12 +480,12 @@ function chiefMoves(sfx: string, pct: number): Move[] {
   return [
     {
       id: `chop${sfx}`, total: chopW + 4 + t(28), active: [chopW + 1, chopW + 4], box: box(0, 260, 60, 0, 280),
-      damage: 150, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
+      damage: 75, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
       cancel: 0, advance: { from: chopW - 2, to: chopW + 2, speed: toFp(6) }, armor: [1, chopW + 4],
     },
     {
       id: `charge${sfx}`, total: chargeW + dash + t(26), active: [chargeW + 1, chargeW + dash], box: box(-20, 120, 40, 0, 80),
-      damage: 110, hitstun: 20, stop: 4, push: toFp(20), launch: toFp(18), lift: toFp(14),
+      damage: 55, hitstun: 20, stop: 4, push: toFp(20), launch: toFp(18), lift: toFp(14),
       cancel: 0, advance: { from: chargeW + 1, to: chargeW + dash, speed: toFp(30) }, armor: [1, chargeW + dash],
     },
     {
@@ -500,7 +500,7 @@ function chiefMoves(sfx: string, pct: number): Move[] {
     },
     {
       id: `slamLand${sfx}`, total: t(30), active: [1, 2], box: box(-140, 140, 70, 0, 180),
-      damage: 120, hitstun: 20, stop: 5, push: toFp(16), launch: toFp(18), lift: toFp(14),
+      damage: 60, hitstun: 20, stop: 5, push: toFp(16), launch: toFp(18), lift: toFp(14),
       cancel: 0, armor: [1, 2], fire: { at: 1, shot: 'quake', x: toFp(60), z: 0, twin: true },
     },
   ];
@@ -524,7 +524,7 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   // thin in depth and height: stepping out of its lane, or jumping, dodges it
   arrow: {
     speed: toFp(24), life: ticks(2.2), pierce: 1, box: box(-30, 30, 18, -8, 8),
-    damage: 40, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
+    damage: 20, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
   },
   // the phantom dance's sword wave: tall and wide, through everything in its way
   wave: {
@@ -534,7 +534,7 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   // the chief's shockwave, running along the floor from where it lands: low, so a jump clears it
   quake: {
     speed: toFp(20), life: ticks(0.6), pierce: 1, box: box(-40, 40, 100, 0, 45),
-    damage: 90, hitstun: 18, stop: 4, push: toFp(12), launch: toFp(14), lift: toFp(10),
+    damage: 45, hitstun: 18, stop: 4, push: toFp(12), launch: toFp(14), lift: toFp(10),
   },
 };
 

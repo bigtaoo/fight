@@ -1,4 +1,4 @@
-import { Assets, type Texture } from 'pixi.js';
+import { Assets, Rectangle, Texture } from 'pixi.js';
 import { sliceAtlas, type TaoAsset } from './tao/TaoActor';
 import type { TaoSkeleton } from './tao/types';
 
@@ -47,6 +47,35 @@ export async function loadRig(dir: string): Promise<TaoAsset | null> {
     // alias into flickering specks.
     const atlas = await Assets.load<Texture>({ src: `art/${dir}/atlas.png`, data: { autoGenerateMipmaps: true } });
     return sliceAtlas(skeleton, atlas);
+  } catch {
+    return null;
+  }
+}
+
+/** A body pre-rendered from 3D as frames per clip (art/archer3d/blender/pack.py): each frame's
+ * texture and the top-left of its trimmed rect from the feet, in source pixels. */
+export interface FrameSet {
+  /** World units per source pixel. */
+  scale: number;
+  clips: Record<string, { tex: Texture; ox: number; oy: number }[]>;
+}
+
+/** Loads a frame set (frames.json + atlas.png under art/<dir>/), or null. */
+export async function loadFrames(dir: string): Promise<FrameSet | null> {
+  try {
+    const res = await fetch(`art/${dir}/frames.json`);
+    if (!res.ok) return null;
+    const meta = (await res.json()) as { scale: number; clips: Record<string, number[][]> };
+    const atlas = await Assets.load<Texture>({ src: `art/${dir}/atlas.png`, data: { autoGenerateMipmaps: true } });
+    const clips: FrameSet['clips'] = {};
+    for (const [name, rects] of Object.entries(meta.clips)) {
+      clips[name] = rects.map(([x, y, w, h, ox, oy]) => ({
+        tex: new Texture({ source: atlas.source, frame: new Rectangle(x, y, w, h) }),
+        ox,
+        oy,
+      }));
+    }
+    return { scale: meta.scale, clips };
   } catch {
     return null;
   }
