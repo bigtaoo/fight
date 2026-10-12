@@ -8,4 +8,4 @@ export { rateRun, type Grade, type Rating } from './rating';
 export { cloneState } from './snapshot';
 export { guarding } from './systems/combat';
 export { armored } from './systems/moves';
-export { runConfig, type BodyState, type Entity, type Outcome, type PlayerSlot, type Projectile, type RunConfig, type SimState } from './state';
+export { runConfig, type BodyState, type Entity, type Item, type Outcome, type PlayerSlot, type Projectile, type RunConfig, type SimState } from './state';

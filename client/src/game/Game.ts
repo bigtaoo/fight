@@ -3,6 +3,7 @@ import { PUBLIC_SERVER_URL, SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Container, Graphics, type Application } from 'pixi.js';
 import { BodyView, FLASH_SEC } from './bodyView';
+import { ItemView } from './itemView';
 import { ShotView } from './shotView';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -46,6 +47,7 @@ export class Game {
   private readonly bodies = new Container();
   private readonly views = new Map<number, BodyView>();
   private readonly shotViews = new Map<number, ShotView>();
+  private readonly itemViews = new Map<number, ItemView>();
   private readonly fx = new Fx();
   private readonly hud = new Hud();
   private readonly keys = new Keyboard();
@@ -212,6 +214,16 @@ export class Game {
           const floor = GROUND_TOP + fromFp(e.y);
           this.fx.burst(fromFp(e.x), floor - 200, floor, { n: 26, dir: -Math.PI / 2, spread: 3.2, speed: [200, 600], r: [3, 9], color: DROP_INK[e.kind], jitter: [40, 80] });
         }
+      } else if (ev.type === 'pickup') {
+        // a potion drunk: a green number and a puff of red ink where it lay
+        const it = this.itemViews.get(ev.item);
+        const e = s.entities.find((b) => b.id === ev.id);
+        if (e) {
+          const floor = GROUND_TOP + fromFp(e.y);
+          this.fx.heal(fromFp(e.x), floor - fromFp(e.z) - 210, ev.heal);
+          const px = it ? it.root.x : fromFp(e.x);
+          this.fx.burst(px, floor - 20, floor, { n: 8, dir: -Math.PI / 2, spread: 1.2, speed: [80, 260], r: [2.4, 5], g: 600, color: 0xc8281e });
+        }
       } else if (ev.type === 'roomEnter') {
         for (const v of this.views.values()) v.root.destroy();
         this.views.clear();
@@ -296,6 +308,7 @@ export class Game {
       v.frame(dt);
     }
     for (const p of s.shots) this.shotViews.get(p.id)!.draw(p, alpha, this.debug);
+    for (const it of s.items) this.itemViews.get(it.id)!.draw(it, dt);
     this.fx.update(dt);
     this.hud.update(s, this.session!, this.keys.down);
   }
@@ -327,6 +340,20 @@ export class Game {
       if (this.shotViews.has(p.id)) continue;
       const v = new ShotView();
       this.shotViews.set(p.id, v);
+      this.bodies.addChild(v.root);
+    }
+    // and potions on the floor
+    const lying = new Set(s.items.map((i) => i.id));
+    for (const [id, v] of this.itemViews) {
+      if (!lying.has(id)) {
+        v.root.destroy();
+        this.itemViews.delete(id);
+      }
+    }
+    for (const it of s.items) {
+      if (this.itemViews.has(it.id)) continue;
+      const v = new ItemView();
+      this.itemViews.set(it.id, v);
       this.bodies.addChild(v.root);
     }
   }

@@ -1,7 +1,7 @@
 import { BODIES, MONSTERS, MOVES, WORLD, type HitBox, type HitData } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
-import { randRange } from '../math/prng';
+import { randInt, randRange } from '../math/prng';
 import { hittable, setState, type Entity, type SimState } from '../state';
 import { armored } from './moves';
 
@@ -111,5 +111,9 @@ function tally(s: SimState, a: { id: number; team: number }, t: Entity): void {
     }
     if (p.hero === t.id) p.hitsTaken++;
   }
-  if (t.team === 1 && t.hp <= 0 && t.kind !== 'hero') s.kills[t.kind] = (s.kills[t.kind] ?? 0) + 1;
+  if (t.team === 1 && t.hp <= 0 && t.kind !== 'hero') {
+    s.kills[t.kind] = (s.kills[t.kind] ?? 0) + 1;
+    const drop = MONSTERS[t.kind].drop;
+    if (drop && randInt(s.rng, 'drop', 100) < drop.pct) s.items.push({ id: s.nextId++, kind: drop.item, x: t.x, y: t.y, tick: s.tick });
+  }
 }

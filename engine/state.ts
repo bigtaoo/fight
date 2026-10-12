@@ -1,4 +1,4 @@
-import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type Kind, type MonsterKind, type ShotKind, type SkillId } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type ItemKind, type Kind, type MonsterKind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -135,6 +135,15 @@ export interface PlayerSlot {
   hitsTaken: number;
 }
 
+/** An item on the floor (see ITEMS), dropped on `tick`. */
+export interface Item {
+  id: number;
+  kind: ItemKind;
+  x: number;
+  y: number;
+  tick: number;
+}
+
 export type Outcome = 'playing' | 'cleared' | 'failed';
 
 export interface SimState {
@@ -150,6 +159,8 @@ export interface SimState {
   cleared: number[];
   entities: Entity[];
   shots: Projectile[];
+  /** Items lying on the floor of this room. */
+  items: Item[];
   players: PlayerSlot[];
   /** Monsters killed, by kind (the server draws their loot once the run is cleared). */
   kills: Partial<Record<MonsterKind, number>>;
@@ -171,6 +182,7 @@ export function createState(config: RunConfig): SimState {
     cleared: [],
     entities: [],
     shots: [],
+    items: [],
     players: [],
     kills: {},
     outcome: 'playing',

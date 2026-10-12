@@ -1,4 +1,4 @@
-import { BODIES, DODGE, DUNGEONS, MONSTERS, MOVES, SHOTS, WORLD, type Door } from './content';
+import { BODIES, DODGE, DUNGEONS, MONSTERS, MOVES, PICKUP, SHOTS, WORLD, type Door } from './content';
 import { BTN } from './input';
 import { toFp } from './math/fixed';
 import type { Entity, SimState } from './state';
@@ -22,6 +22,19 @@ const BEHIND = toFp(100);
 /** How far out of a shield bearer's lane the bot passes it. */
 const SIDESTEP = toFp(80);
 
+/** Walks to the nearest item on the floor when below `pct` percent health; 0: none to go for. */
+function toPotion(s: SimState, hero: Entity, pct: number): number {
+  if (!s.items.length || hero.hp * 100 >= hero.maxHp * pct) return 0;
+  let best = s.items[0];
+  for (const it of s.items) if (Math.abs(it.x - hero.x) < Math.abs(best.x - hero.x)) best = it;
+  const dx = best.x - hero.x;
+  const dy = best.y - hero.y;
+  let b = 0;
+  if (Math.abs(dx) > PICKUP.x / 2) b |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
+  if (Math.abs(dy) > PICKUP.y / 2) b |= dy > 0 ? BTN.DOWN : BTN.UP;
+  return b; // 0 only when already on it, and then it is drunk this tick
+}
+
 export function botButtons(s: SimState, owner: number): number {
   const slot = s.players.find((p) => p.owner === owner);
   const hero = slot && s.entities.find((e) => e.id === slot.hero);
@@ -33,9 +46,12 @@ export function botButtons(s: SimState, owner: number): number {
     if (e.team !== 1 || e.hp <= 0) continue;
     if (!target || rank(e) < rank(target) || (rank(e) === rank(target) && Math.abs(e.x - hero.x) < Math.abs(target.x - hero.x))) target = e;
   }
-  if (!target) return toDoor(s, hero);
+  // a potion on the floor: once the room is clear, if hurt at all; in a fight, if badly hurt
+  const potion = toPotion(s, hero, target ? 40 : 100);
+  if (!target) return potion || toDoor(s, hero);
   const dodge = laneDodge(s, hero) || bossDodge(s, hero);
   if (dodge) return dodge === HOLD ? 0 : dodge;
+  if (potion) return potion;
   let b = 0;
   const dx = target.x - hero.x;
   const dy = target.y - hero.y;

@@ -9,12 +9,15 @@ export interface Rng {
   ai: number;
   /** Damage rolls. */
   combat: number;
+  /** What fallen monsters leave behind. */
+  drop: number;
 }
 
 export function seedRng(seed: number): Rng {
   return {
     ai: mix32((seed ^ 0xa1a1a1a1) >>> 0) || 1,
     combat: mix32((seed ^ 0x5eed1234) >>> 0) || 1,
+    drop: mix32((seed ^ 0xd209d209) >>> 0) || 1,
   };
 }
 

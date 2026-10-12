@@ -107,7 +107,22 @@ export interface Monster {
    * (the default: 12, 30). */
   juggle?: { decay: number; floor: number };
   boss?: Boss;
+  /** What it may leave behind when it dies: `item`, `pct` percent of the time. */
+  drop?: { item: ItemKind; pct: number };
 }
+
+export type ItemKind = 'potion' | 'bigPotion';
+
+/** Healing left on the floor by fallen monsters: a hurt hero who walks over one drinks it and
+ * gets `heal` percent of their health back (one at full health leaves it lying for later). A
+ * room's items are gone once the heroes leave it. */
+export const ITEMS: Readonly<Record<ItemKind, { heal: number }>> = {
+  potion: { heal: 20 },
+  bigPotion: { heal: 50 },
+};
+
+/** A hero this close to an item in x and depth picks it up. */
+export const PICKUP = { x: toFp(60), y: toFp(40) };
 
 export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy';
 export type Kind = 'hero' | MonsterKind;
@@ -123,6 +138,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     attack: 'slash',
     cooldown: [ticks(1.3), ticks(2.7)],
     firstCooldown: [ticks(0.7), ticks(1.7)],
+    drop: { item: 'potion', pct: 15 },
   },
   // the side room's elite bandit: the bandit's cut, but tougher, quicker on its feet, swinging
   // twice as often and harder to keep in the air
@@ -137,6 +153,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     cooldown: [ticks(0.6), ticks(1.4)],
     firstCooldown: [ticks(0.4), ticks(0.9)],
     juggle: { decay: 25, floor: 20 },
+    drop: { item: 'bigPotion', pct: 100 },
   },
   archer: {
     body: { halfWidth: toFp(38), height: toFp(225), hp: 340 },
@@ -149,6 +166,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     cooldown: [ticks(1.6), ticks(2.8)],
     firstCooldown: [ticks(1), ticks(2)],
     ranged: { keep: toFp(420), flee: toFp(230), fleeY: toFp(70), backstep: 'hop', backstepCd: ticks(2.5) },
+    drop: { item: 'potion', pct: 15 },
   },
   shield: {
     body: { halfWidth: toFp(50), height: toFp(235), hp: 700 },
@@ -161,6 +179,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     cooldown: [ticks(1.8), ticks(3)],
     firstCooldown: [ticks(1), ticks(2)],
     guard: { pct: 15, turn: 'turn' },
+    drop: { item: 'potion', pct: 30 },
   },
   // the fort's chief: half as big again, in super armour except in the recovery of a move,
   // and quickly out of a juggle

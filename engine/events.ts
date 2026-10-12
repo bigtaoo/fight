@@ -1,3 +1,5 @@
+import type { ItemKind } from './content';
+
 // Everything the view (and the server's verifier) learns from a step, besides reading the state.
 
 export type SimEvent =
@@ -22,4 +24,6 @@ export type SimEvent =
   | { type: 'roomClear'; room: number }
   /** The last room is clear: the run is won. The server grants the loot on this, from its own replay. */
   | { type: 'dungeonClear'; tick: number }
-  | { type: 'heroDown'; id: number };
+  | { type: 'heroDown'; id: number }
+  /** Hero `id` drank an item off the floor and got `heal` health back. */
+  | { type: 'pickup'; id: number; item: number; kind: ItemKind; heal: number };

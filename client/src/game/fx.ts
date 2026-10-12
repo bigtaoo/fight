@@ -133,6 +133,24 @@ export class Fx {
     this.nums.push({ t, age: 0, life: 0.8, y0: t.y });
   }
 
+  /** Health back from a potion: a green "+n" rising off the hero. */
+  heal(x: number, y: number, value: number): void {
+    const t = new Text({
+      text: `+${value}`,
+      style: {
+        fontFamily: 'Georgia, "Songti SC", "SimSun", serif',
+        fontSize: 48,
+        fontWeight: 'bold',
+        fill: 0x2f8a3a,
+        stroke: { color: 0xf3eee2, width: 6 },
+      },
+    });
+    t.anchor.set(0.5, 1);
+    t.position.set(x, y);
+    this.layer.addChild(t);
+    this.nums.push({ t, age: 0, life: 1, y0: t.y });
+  }
+
   update(dt: number): void {
     const g = this.dropG.clear();
     this.drops = this.drops.filter((d) => {

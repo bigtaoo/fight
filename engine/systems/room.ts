@@ -19,6 +19,7 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
   s.roomCleared = s.cleared.includes(index);
   s.entities = s.entities.filter((e) => e.team === 0);
   s.shots = [];
+  s.items = [];
   const twin = room.doors.find((d) => d.side === via && d.to === from);
   s.entities.forEach((e, i) => {
     place(e, room, via, twin, i);
