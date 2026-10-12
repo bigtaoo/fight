@@ -107,7 +107,7 @@ export interface Monster {
   boss?: Boss;
 }
 
-export type MonsterKind = 'bandit' | 'archer' | 'shield' | 'chief' | 'dummy';
+export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -121,6 +121,20 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     attack: 'slash',
     cooldown: [ticks(1.3), ticks(2.7)],
     firstCooldown: [ticks(0.7), ticks(1.7)],
+  },
+  // the side room's elite bandit: the bandit's cut, but tougher, quicker on its feet, swinging
+  // twice as often and harder to keep in the air
+  elite: {
+    body: { halfWidth: toFp(50), height: toFp(260), hp: 1800 },
+    brain: 'melee',
+    walkX: toFp(4.8),
+    walkY: toFp(3.4),
+    range: toFp(160),
+    alignY: toFp(24),
+    attack: 'slash',
+    cooldown: [ticks(0.6), ticks(1.4)],
+    firstCooldown: [ticks(0.4), ticks(0.9)],
+    juggle: { decay: 25, floor: 20 },
   },
   archer: {
     body: { halfWidth: toFp(38), height: toFp(225), hp: 340 },
@@ -192,6 +206,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
 export const BODIES: Readonly<Record<Kind, Body>> = {
   hero: { halfWidth: toFp(32), height: toFp(220), hp: 1000 },
   bandit: MONSTERS.bandit.body,
+  elite: MONSTERS.elite.body,
   archer: MONSTERS.archer.body,
   shield: MONSTERS.shield.body,
   chief: MONSTERS.chief.body,
@@ -586,8 +601,7 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
   },
   training: { rooms: [room(2400, [['dummy', 900, 180], ['dummy', 1300, 120]], [], true)], boss: 0 },
   // Black Wind Fort (M2). The layout is final; bandits and archers in the first rooms as planned,
-  // shield bearers from the gate on, the chief in the hall; the side room is a placeholder until
-  // the elite exists:
+  // shield bearers from the gate on, the chief in the hall, an elite bandit alone in the side room:
   //   0 mountain road > 1 mountain road > 2 gate > 3 inner fort > 5 hall (boss)
   //                                         v
   //                                    4 side room (elite, optional)
@@ -597,7 +611,7 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
       room(2400, [['bandit', 1000, 100], ['bandit', 1200, 260], ['archer', 1800, 180], ['archer', 2000, 40]], [['left', 0], ['right', 2]]),
       room(2600, [['bandit', 1000, 200], ['shield', 1400, 120], ['archer', 2000, 280]], [['left', 1], ['right', 3], ['down', 4, 1300]]),
       room(2400, [['bandit', 900, 120], ['shield', 1200, 260], ['archer', 1700, 200], ['archer', 1900, 60]], [['left', 2], ['right', 5]]),
-      room(1800, [['bandit', 1100, 180]], [['up', 2, 900]]),
+      room(1800, [['elite', 1100, 180]], [['up', 2, 900]]),
       room(2200, [['chief', 1500, 180]], [['left', 3]]),
     ],
     boss: 5,

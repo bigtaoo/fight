@@ -16,6 +16,8 @@ import { OfflineSession, type Session } from '../net/Session';
 
 /** The kinds drawn with a skeleton (client/public/art/<kind>/); ?poses shows paintings instead. */
 const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield', 'chief'];
+/** Kinds drawn with another kind's skeleton, and the tint that tells them apart. */
+const BORROWED: Partial<Record<Kind, { rig: Kind; tint: number }>> = { elite: { rig: 'bandit', tint: 0xb06850 } };
 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
 // the server's metronome unless that is not reachable) drawn every frame with interpolation
@@ -26,7 +28,7 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield', 'chief'];
 // skeleton), ?zoom=N (a close-up that follows the hero), ?loadout=dragon,crush (skills swapped
 // into their slots over the default ones).
 /** Colour of the loose ink each kind of body throws. */
-const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, archer: 0x4a4636, shield: 0x3d4148, chief: 0x3b2420, dummy: 0x6a5c40 } as const;
+const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, elite: 0x4a2420, archer: 0x4a4636, shield: 0x3d4148, chief: 0x3b2420, dummy: 0x6a5c40 } as const;
 /** Moves that throw a heavy splash of ink as they start, and those that cut upward. */
 const HEAVY = new Set(['atk3', 'upper', 'slash', 'bash', 'tri3', 'dragon4', 'crush2', 'iai', 'phantom', 'chop', 'chopF', 'roar']);
 const RISING = new Set(['upper', 'crush2', 'dragon4']);
@@ -316,7 +318,8 @@ export class Game {
     }
     for (const e of s.entities) {
       if (this.views.has(e.id)) continue;
-      const v = new BodyView(e.id, this.sprites, this.rigs[e.kind] ?? null);
+      const borrowed = BORROWED[e.kind];
+      const v = new BodyView(e.id, this.sprites, this.rigs[borrowed?.rig ?? e.kind] ?? null, borrowed?.tint);
       this.views.set(e.id, v);
       this.bodies.addChild(v.root);
     }

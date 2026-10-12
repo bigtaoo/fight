@@ -16,13 +16,14 @@ import { TaoActor, type TaoAsset } from './tao/TaoActor';
 const INK = {
   hero: { body: 0x17161a, band: 0xc8281e },
   bandit: { body: 0x6f7480, band: 0x34466b },
+  elite: { body: 0x4a3c3c, band: 0x8a2a22 },
   archer: { body: 0x6b6a58, band: 0x8a4a2a },
   shield: { body: 0x55595f, band: 0x7a2e24 },
   chief: { body: 0x48362a, band: 0x2c3a58 },
   dummy: { body: 0x9a8a68, band: 0x6a5c40 },
 } as const;
 
-const PREFIX = { hero: 'hero', bandit: 'mob', archer: 'archer', shield: 'shield', chief: 'chief', dummy: 'dummy' } as const;
+const PREFIX = { hero: 'hero', bandit: 'mob', elite: 'mob', archer: 'archer', shield: 'shield', chief: 'chief', dummy: 'dummy' } as const;
 
 /** Brush arc of each move in a right-facing frame: angles in radians from forward (negative is
  * up), centre height above the feet, radius as a share of the box reach. */
@@ -58,6 +59,8 @@ const DANCE_CUT = 6;
 const RIG_SIZE: Partial<Record<Entity['kind'], { height: number; walk: number; run: number }>> = {
   hero: { height: 240, walk: 176, run: 250 },
   bandit: { height: 250, walk: 141, run: 141 },
+  // the bandit's rig, a size up (its body is 260 high to the bandit's 235)
+  elite: { height: 277, walk: 156, run: 156 },
   archer: { height: 236, walk: 168, run: 168 },
   shield: { height: 250, walk: 128, run: 128 },
   chief: { height: 350, walk: 144, run: 144 },
@@ -117,8 +120,10 @@ export class BodyView {
   flash = 0;
   shake = 0;
 
-  constructor(readonly id: number, private readonly sprites: SpriteSet | null, rig: TaoAsset | null = null) {
+  /** `tint`: for a kind drawn with another kind's skeleton, to tell it apart. */
+  constructor(readonly id: number, private readonly sprites: SpriteSet | null, rig: TaoAsset | null = null, tint = 0xffffff) {
     this.actor = rig ? new TaoActor(rig) : null;
+    this.rigRoot.tint = tint;
     if (this.actor) this.rigRoot.addChild(this.actor.view);
     this.root.addChild(this.shadow, this.body, this.sprite, this.rigRoot, this.fxg, this.bar);
   }
@@ -428,7 +433,7 @@ export class BodyView {
       case 'act': {
         const m = MOVES[e.move];
         const windup = e.st < m.active[0];
-        if (e.kind === 'bandit') {
+        if (e.kind === 'bandit' || e.kind === 'elite') {
           l.name = windup ? `${p}_windup` : `${p}_slash`;
           if (windup) l.rot = -0.1 * (t / m.active[0]);
         } else {

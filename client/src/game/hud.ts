@@ -1,4 +1,4 @@
-import { DUNGEONS, MONSTERS, type Entity, type SimState } from '@dnf/engine';
+import { DUNGEONS, MONSTERS, type Dungeon, type Entity, type SimState } from '@dnf/engine';
 import { Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { OnlineSession } from '../net/OnlineSession';
 import type { Session } from '../net/Session';
@@ -29,6 +29,37 @@ const REASONS: Record<string, string> = {
   practice: '练习关卡',
 };
 
+/** The minimap's room cells, the gap between them (where the doors' links are), and its
+ * top-right corner. */
+const CELL_W = 56;
+const CELL_H = 36;
+const CELL_GAP = 20;
+const MAP_RIGHT = VIEW_W - 40;
+const MAP_TOP = 36;
+const STEP: Record<string, [number, number]> = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
+
+/** Grid cells for a dungeon's rooms, walked out from room 0 along the doors (a left door leads
+ * one cell left, an up door one cell up), shifted so the top-left one is at 0, 0. */
+function layout(d: Dungeon): [number, number][] {
+  const at: ([number, number] | undefined)[] = d.rooms.map(() => undefined);
+  at[0] = [0, 0];
+  const queue = [0];
+  while (queue.length) {
+    const i = queue.shift()!;
+    const [x, y] = at[i]!;
+    for (const door of d.rooms[i].doors) {
+      if (at[door.to]) continue;
+      const [dx, dy] = STEP[door.side];
+      at[door.to] = [x + dx, y + dy];
+      queue.push(door.to);
+    }
+  }
+  const cells = at.map((c) => c ?? [0, 0]);
+  const minX = Math.min(...cells.map((c) => c[0]));
+  const minY = Math.min(...cells.map((c) => c[1]));
+  return cells.map(([x, y]) => [x - minX, y - minY]);
+}
+
 const BOSS_W = 900;
 const BOSS_LEFT = (VIEW_W - BOSS_W) / 2;
 const BOSS_TOP = 200;
@@ -37,6 +68,9 @@ export class Hud {
   readonly layer = new Container();
   private readonly g = new Graphics();
   private readonly room = new Text({ text: '', style: style(34) });
+  private readonly map = new Graphics();
+  private readonly bossMark = new Text({ text: '王', style: style(24, 0xf3eee2) });
+  private cells: { dungeon: string; at: [number, number][] } | null = null;
   private readonly combo = new Text({ text: '', style: { ...style(84, 0xc8281e), stroke: { color: 0xf3eee2, width: 8 } } });
   private readonly banner = new Text({ text: '', style: { ...style(110), stroke: { color: 0xf3eee2, width: 10 } } });
   private readonly verdict = new Text({ text: '', style: { ...style(44), stroke: { color: 0xf3eee2, width: 6 }, align: 'center' } });
@@ -53,21 +87,21 @@ export class Hud {
   constructor() {
     const help = new Text({ text: '←→↑↓ 移动（双击奔跑）  X 攻击（按住连打）  C 跳  Z 闪避  A S D 技能  F 大招  R 重开  F1 判定框', style: style(22, 0x4a4640) });
     help.position.set(40, 124);
-    this.room.position.set(VIEW_W - 40, 36);
     this.room.anchor.set(1, 0);
+    this.bossMark.anchor.set(0.5);
     this.combo.anchor.set(1, 0);
-    this.combo.position.set(VIEW_W - 40, 90);
+    this.combo.position.set(VIEW_W - 40, 190);
     this.banner.anchor.set(0.5);
     this.banner.position.set(VIEW_W / 2, VIEW_H * 0.36);
     this.verdict.anchor.set(0.5, 0);
     this.verdict.position.set(VIEW_W / 2, VIEW_H * 0.36 + 80);
     this.net.position.set(40, 84);
     this.bag.anchor.set(1, 0);
-    this.bag.position.set(VIEW_W - 40, 200);
+    this.bag.position.set(VIEW_W - 40, 290);
     this.bossName.position.set(BOSS_LEFT, BOSS_TOP - 40);
     this.bossBars.anchor.set(1, 0);
     this.bossBars.position.set(BOSS_LEFT + BOSS_W, BOSS_TOP - 40);
-    this.layer.addChild(this.g, this.controls.layer, this.room, this.combo, this.banner, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars);
+    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.verdict, this.net, this.bag, help, this.bossName, this.bossBars);
   }
 
   /** A hit by the hero: grows the combo, which lapses after 1.2 s without a hit. */
@@ -87,9 +121,7 @@ export class Hud {
     }
     this.boss(g, s);
     this.controls.update(s, keys);
-    const dungeon = DUNGEONS[s.config.dungeon];
-    const open = s.roomCleared && s.room !== dungeon.boss ? '   → 前进' : '';
-    this.room.text = s.config.dungeon === 'training' ? '训练场' : `房间 ${s.room + 1} / ${dungeon.rooms.length}${open}`;
+    this.minimap(s);
     this.comboTime -= dt;
     if (this.comboTime <= 0) this.comboCount = 0;
     this.combo.text = this.comboCount >= 2 ? `${this.comboCount} 连击` : '';
@@ -97,6 +129,53 @@ export class Hud {
     this.net.text = session.status() || this.offlineNote;
     if (session instanceof OnlineSession) this.online(session, s);
     else this.verdict.text = this.bag.text = '';
+  }
+
+  /** The rooms been in (the ones cleared and this one), the rooms their doors lead to as
+   * outlines, the boss's room marked from the start, and where the heroes are; under it, a
+   * pointer onward once this room is clear. */
+  private minimap(s: SimState): void {
+    const m = this.map.clear();
+    this.bossMark.visible = false;
+    const dungeon = DUNGEONS[s.config.dungeon];
+    if (s.config.dungeon === 'training' || s.room < 0) {
+      this.room.text = s.config.dungeon === 'training' ? '训练场' : '';
+      this.room.position.set(MAP_RIGHT, MAP_TOP);
+      return;
+    }
+    if (this.cells?.dungeon !== s.config.dungeon) this.cells = { dungeon: s.config.dungeon, at: layout(dungeon) };
+    const at = this.cells.at;
+    const cols = Math.max(...at.map((c) => c[0])) + 1;
+    const rows = Math.max(...at.map((c) => c[1])) + 1;
+    const left = MAP_RIGHT - cols * CELL_W - (cols - 1) * CELL_GAP;
+    const pos = (i: number) => ({ x: left + at[i][0] * (CELL_W + CELL_GAP), y: MAP_TOP + at[i][1] * (CELL_H + CELL_GAP) });
+    const been = new Set([...s.cleared, s.room]);
+    const known = new Set(been);
+    for (const i of been) for (const d of dungeon.rooms[i].doors) known.add(d.to);
+    known.add(dungeon.boss);
+    m.roundRect(left - 10, MAP_TOP - 10, MAP_RIGHT - left + 20, rows * CELL_H + (rows - 1) * CELL_GAP + 20, 8).fill({ color: 0xf3eee2, alpha: 0.6 });
+    // the links between rooms, once one end has been visited
+    for (const i of been) {
+      const a = pos(i);
+      for (const d of dungeon.rooms[i].doors) {
+        const b = pos(d.to);
+        m.moveTo(a.x + CELL_W / 2, a.y + CELL_H / 2).lineTo(b.x + CELL_W / 2, b.y + CELL_H / 2).stroke({ width: 5, color: 0x4a4640 });
+      }
+    }
+    for (const i of known) {
+      const { x, y } = pos(i);
+      const here = i === s.room;
+      if (been.has(i)) m.rect(x, y, CELL_W, CELL_H).fill(here ? 0xc8281e : 0x6f6a60);
+      else m.rect(x, y, CELL_W, CELL_H).fill(0xe6dfcf);
+      m.rect(x, y, CELL_W, CELL_H).stroke({ width: 3, color: 0x141317 });
+      if (i === dungeon.boss && !here) {
+        this.bossMark.visible = true;
+        this.bossMark.style.fill = been.has(i) ? 0xf3eee2 : 0xc8281e;
+        this.bossMark.position.set(x + CELL_W / 2, y + CELL_H / 2);
+      }
+    }
+    this.room.text = s.roomCleared && s.room !== dungeon.boss ? '→ 前进' : '';
+    this.room.position.set(MAP_RIGHT, MAP_TOP + rows * CELL_H + (rows - 1) * CELL_GAP + 18);
   }
 
   /** The boss's bars, while one is in the room: the top bar over the one under it, the count of

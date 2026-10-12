@@ -5,9 +5,11 @@ import { BTN } from './input';
 import { toFp } from './math/fixed';
 import { hero, newRun, play } from './testUtil';
 import type { Engine } from './Engine';
+import { enterRoom } from './systems/room';
 
 // The dungeon as a graph of rooms: every door has a twin back, the bot finds its way to the boss,
-// a side room is entered and left through its up/down doors, and a cleared room stays empty.
+// a side room is entered and left through its up/down doors (its elite is beatable), and a
+// cleared room stays empty.
 
 const OPPOSITE: Record<Side, Side> = { left: 'right', right: 'left', up: 'down', down: 'up' };
 const bot = (s: Parameters<typeof botButtons>[0]) => botButtons(s, 0);
@@ -73,6 +75,20 @@ describe('rooms', () => {
     expect(e.state.roomCleared).toBe(true);
     expect(e.state.entities.filter((x) => x.team === 1)).toHaveLength(0);
     expect(e.state.cleared).toEqual([0, 1, 2, 4]);
+  });
+
+  // a bandit takes the bot about 7 s on its own and never lands a hit; the elite about 24 s
+  it("the side room's elite bandit is a longer fight than a bandit, but the bot wins it", () => {
+    for (const seed of [1, 2, 3]) {
+      const e = newRun({ dungeon: 'heifeng', seed });
+      play(e, 1, () => 0);
+      enterRoom(e.state, 4, [], 'up', 2);
+      expect(e.state.entities.filter((x) => x.team === 1).map((x) => x.kind)).toEqual(['elite']);
+      let t = 0;
+      for (; t < 30 * 60 && !e.state.roomCleared && hero(e.state).hp > 0; t++) play(e, 1, bot);
+      expect(e.state.roomCleared, `seed ${seed}`).toBe(true);
+      expect(t, `seed ${seed}`).toBeGreaterThan(30 * 15);
+    }
   });
 
   it('doors stay shut until the room is clear', () => {
