@@ -1,15 +1,17 @@
 name: ci
 
-# Every push and pull request runs `npm run check` (typecheck, tests, the web build). A push to
-# main that passes then publishes the web build to Cloudflare at f.gamestao.com
-# (wrangler/web.jsonc). Adapted from D:\standing's ci.yml; there is no server deploy yet, so the
-# web build plays offline.
+# Every push and pull request runs `npm run check` (typecheck, tests, the web and server builds).
+# A push to main that passes then ships the server to blightbloom (wss://fs.gamestao.com,
+# server/README.md "Deploy") and publishes the web build to Cloudflare at f.gamestao.com
+# (wrangler/web.jsonc). Adapted from D:\standing's ci.yml.
 #
-# The deploy needs, in Settings -> Secrets and variables -> Actions:
+# The deploys need, in Settings -> Secrets and variables -> Actions:
 #   Secrets    CLOUDFLARE_API_TOKEN   gamestao.com account, at least Workers Scripts:Edit
 #              CLOUDFLARE_ACCOUNT_ID
-#   Variables  WEB_DEPLOY_ENABLED = true   (unset: the deploy is skipped, so CI stays green
-#                                          before the secrets are in)
+#              SERVER_DEPLOY_KEY      ssh key whose only command on the box is ci-deploy.sh
+#   Variables  WEB_DEPLOY_ENABLED = true, SERVER_DEPLOY_ENABLED = true   (unset: that deploy is
+#                                          skipped, so CI stays green before the secrets are in)
+#              SERVER_SSH_KNOWN_HOSTS  the box's host key line
 
 on:
   push:
@@ -40,11 +42,56 @@ jobs:
           name: web-dist
           path: client/dist
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        with:
+          name: server-dist
+          path: server/dist
+          retention-days: 7
 
-  deploy-web:
+  deploy-server:
     needs: check
     runs-on: ubuntu-latest
-    if: ${{ vars.WEB_DEPLOY_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    if: ${{ vars.SERVER_DEPLOY_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    concurrency:
+      group: server-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-dist
+          path: server/dist
+      - name: deploy over ssh
+        env:
+          DEPLOY_KEY: ${{ secrets.SERVER_DEPLOY_KEY }}
+          SSH_KNOWN_HOSTS: ${{ vars.SERVER_SSH_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          install -m 700 -d ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # pinned, never StrictHostKeyChecking=no: the key and payload go only to this box
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cp server/deploy/Dockerfile server/deploy/docker-compose.yml server/dist/
+          # the forced command on the box reads this tar.gz from stdin (server/deploy/ci-deploy.sh)
+          tar czf - -C server/dist server.mjs verifierWorker.mjs Dockerfile docker-compose.yml |
+            ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes deploy@62.238.1.182
+      - name: verify from the outside
+        run: |
+          set -eu
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 10 https://fs.gamestao.com/health; then echo; exit 0; fi
+            sleep 3
+          done
+          echo "fs.gamestao.com/health did not answer" >&2
+          exit 1
+
+  deploy-web:
+    needs: [check, deploy-server]
+    runs-on: ubuntu-latest
+    # runs when the server deploy succeeded or was switched off, never after it failed
+    if: ${{ !cancelled() && needs.check.result == 'success' && contains(fromJSON('["success","skipped"]'), needs.deploy-server.result) && vars.WEB_DEPLOY_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     concurrency:
       group: web-deploy
       cancel-in-progress: true

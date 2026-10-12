@@ -1,4 +1,5 @@
 import { DEFAULT_LOADOUT, DUNGEONS, validLoadout, type DungeonId } from '@dnf/engine';
+import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ClientMsg, ServerMsg } from '../protocol';
 import { Inventory, validDevice } from './loot';
@@ -6,6 +7,8 @@ import { DEFAULT_OPTIONS, Run, type RunOptions } from './Run';
 
 // The M1 server: one WebSocket per player, at most one run per socket (a new join ends the
 // old run). Everything else, gateway, matchmaking, verifier pool, database, comes later.
+// Plain HTTP on the same port answers GET /health (the deploy's healthcheck); anything else
+// that is not a WebSocket upgrade gets a 404.
 
 export interface ServerOptions extends Partial<RunOptions> {
   port: number;
@@ -23,7 +26,12 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const runOpts: RunOptions = { ...DEFAULT_OPTIONS, ...opts };
   const log = opts.log ?? ((m: string) => console.log(m));
   const inventory = new Inventory(opts.dataFile);
-  const wss = new WebSocketServer({ port: opts.port, maxPayload: 4096 });
+  const http = createServer((req, res) => {
+    const ok = req.method === 'GET' && req.url === '/health';
+    res.writeHead(ok ? 200 : 404, { 'content-type': 'application/json' });
+    res.end(ok ? '{"ok":true,"service":"dnf"}' : '{"ok":false}');
+  });
+  const wss = new WebSocketServer({ server: http, maxPayload: 4096 });
   wss.on('connection', (ws: WebSocket) => {
     let run: Run | null = null;
     const send = (msg: ServerMsg) => {
@@ -46,14 +54,14 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
     ws.on('close', () => run?.close());
   });
   return new Promise((resolve) => {
-    wss.on('listening', () => {
-      const addr = wss.address();
+    http.listen(opts.port, () => {
+      const addr = http.address();
       resolve({
         port: addr && typeof addr === 'object' ? addr.port : opts.port,
         close: () =>
           new Promise<void>((done) => {
             for (const c of wss.clients) c.terminate();
-            wss.close(() => done());
+            wss.close(() => http.close(() => done()));
           }),
       });
     });

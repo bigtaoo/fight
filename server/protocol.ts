@@ -10,6 +10,9 @@ import type { DungeonId, Rating, RunConfig, SkillId } from '@dnf/engine';
 /** Default WebSocket port of the dev server. */
 export const SERVER_PORT = 5181;
 
+/** The deployed server (server/README.md "Deploy"), which a page served over https connects to. */
+export const PUBLIC_SERVER_URL = 'wss://fs.gamestao.com';
+
 /** A client reports the hash of its state on every tick that is a multiple of this, and on the
  * tick the run ends. */
 export const CHECK_EVERY = 30;

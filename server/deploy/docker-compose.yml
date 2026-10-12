@@ -1,0 +1,43 @@
+# The game server on the box daydayup owns (blightbloom, 62.238.1.182), next to Holy Kicker and
+# apart from both: its own compose project in /home/deploy/fight, its own network. The box's
+# ports 80/443 are daydayup's Caddy, so this publishes none; `tunnel` (cloudflared) dials out to
+# Cloudflare, which serves wss://fs.gamestao.com and sends its requests down that connection to
+# `server`. Same shape as D:\standing's server/deploy.
+name: fight
+
+services:
+  server:
+    build: .
+    image: fight-server
+    container_name: fight-server
+    restart: unless-stopped
+    mem_limit: 256m
+    volumes:
+      # the inventory file (deploy user = uid 1000 = the image's `node`)
+      - ./data:/app/data
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5181/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # A remotely managed tunnel: its route (fs.gamestao.com -> http://server:5181) is set on
+  # Cloudflare's side; the token in .env is all it needs here.
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    container_name: fight-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${FIGHT_TUNNEL_TOKEN:?FIGHT_TUNNEL_TOKEN missing from .env}
+    depends_on:
+      server:
+        condition: service_healthy
+    mem_limit: 128m
+    logging: *logging

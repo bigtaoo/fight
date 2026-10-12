@@ -1,5 +1,5 @@
 import { BODIES, DEFAULT_LOADOUT, DOOR_HALF, DUNGEONS, MOVES, SKILLS, WORLD, fromFp, runConfig, type DungeonId, type Entity, type Kind, type RunConfig, type SimEvent, type SimState, type SkillId } from '@dnf/engine';
-import { SERVER_PORT } from '@dnf/server/protocol';
+import { PUBLIC_SERVER_URL, SERVER_PORT } from '@dnf/server/protocol';
 import { botButtons } from '@dnf/engine/bot';
 import { Container, Graphics, type Application } from 'pixi.js';
 import { BodyView, FLASH_SEC } from './bodyView';
@@ -21,7 +21,7 @@ const RIGGED: readonly Kind[] = ['hero', 'bandit', 'archer', 'shield', 'chief'];
 const BORROWED: Partial<Record<Kind, { rig: Kind; tint: number }>> = { elite: { rig: 'bandit', tint: 0xb06850 } };
 
 // The game: a session (the engine stepped at a fixed 30 Hz from the keyboard, online against
-// the server's metronome unless that is not reachable) drawn every frame with interpolation
+// the server's metronome unless that is not reachable; from an https page, the deployed server) drawn every frame with interpolation
 // between ticks. URL switches: ?offline (no server), ?server=ws://host:port, ?lag=N (ms added
 // each way), ?dungeon=trial (or training, or hall: the chief alone; the fort by default), ?seed=N (offline), ?bot (the engine's bot plays), ?debug (hit
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
@@ -96,7 +96,8 @@ export class Game {
   /** The link to the server, or null to play offline. */
   private async connect(): Promise<WsLink | null> {
     if (this.params.has('offline')) return null;
-    const url = this.params.get('server') ?? `ws://${location.hostname}:${SERVER_PORT}`;
+    // the deployed page (https) plays against the deployed server; a dev page against its own host
+    const url = this.params.get('server') ?? (location.protocol === 'https:' ? PUBLIC_SERVER_URL : `ws://${location.hostname}:${SERVER_PORT}`);
     try {
       return await WsLink.connect(url, Number(this.params.get('lag') ?? 0));
     } catch {
