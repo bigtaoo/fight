@@ -132,15 +132,15 @@ print('H', round(H, 3), 'hand', round((wpos('L_Hand', True) - wpos('L_Hand')).le
 
 
 def fist(side):
-    h = wpos(f'{side}_Hand')
-    return h + (wpos(f'{side}_Hand', True) - h).normalized() * 0.04 * H
+    """The hollow of the hand: halfway from the knuckles to the fingertips (closed, inside the fist)."""
+    return (wpos(f'{side}_Fingers1') + wpos(f'{side}_Fingers2', True)) / 2
 
 
-# Tripo's hands are open and its arms keep their roll. Closed, the bow hand already wraps the
-# grip thumb up; the drawing hand turns its thumb under the jaw, its palm to the neck. The
-# target leans down and ahead, so it is the thumb ahead when the arm hangs.
-THUMB = Vector((1, 0, -1))
-SIGN = {'L': 1, 'R': -1}  # the palm faces the hand bone's +x on the left, -x on the right
+# Tripo's hands are open and its arms keep their roll. The bow hand, aiming, turns its palm to
+# the archer's front so the fingers close round the upright grip, thumb on top; the drawing
+# hand turns its palm to the neck, the back of the hand to the camera.
+PALM = {'L': Vector((0, -1, 0)), 'R': Vector((0, 1, 0))}
+SIGN = {'L': -1, 'R': 1}  # the palm faces the hand bone's -x on the left, +x on the right
 TWISTED = [f'{s}_{b}' for s in 'LR' for b in ('ForearmTwist01', 'ForearmTwist02', 'Fingers1', 'Fingers2')]
 
 
@@ -149,11 +149,11 @@ def axis(side, i):
 
 
 def hand(side, turn, curl):
-    """Roll the forearm by `turn` of the way to THUMB (spread along the twist bones), then
+    """Roll the forearm by `turn` of the way to PALM (spread along the twist bones), then
     close the fingers by `curl` degrees at each joint."""
     e, w = wpos(f'{side}_Forearm'), wpos(f'{side}_Hand')
     a = (w - e).normalized()
-    n, d = axis(side, 2), THUMB
+    n, d = SIGN[side] * axis(side, 0), PALM[side]
     n, d = (n - a * n.dot(a)).normalized(), (d - a * d.dot(a)).normalized()
     ang = math.atan2(n.cross(d).dot(a), n.dot(d)) * turn
     rot_about(P[f'{side}_Forearm'], Quaternion(a, ang), e)
@@ -179,13 +179,13 @@ SHOT = [
     (8, dict(rc=80, yaw=-70, head=62, lean=0, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
              R=('nock', (0, 0, 0)), Rp=('Rsh', (-0.2, 0, -1)))),
     (14, dict(rc=80, yaw=-72, head=64, lean=-2, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
-              R=('cheek', (0, 0, 0)), Rp=('Rsh', (-0.5, -1, 0)))),
+              R=('cheek', (0, 0, 0)), Rp=('Rsh', (-1, 0.2, 0.05)))),
     (20, dict(rc=80, yaw=-74, head=64, lean=-4, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
-              R=('cheek', (-0.02, 0, 0)), Rp=('Rsh', (-0.6, -1, 0)))),
-    (21, dict(rc=15, yaw=-74, head=64, lean=-6, wl=1, wr=1, L=('Lsh', (0.30, 0, -0.03)), Lp=('Lsh', (0, 0, -1)),
-              R=('Rsh', (-0.17, 0, 0.06)), Rp=('Rsh', (0, 0, -1)))),
-    (26, dict(rc=25, yaw=-72, head=60, lean=-2, wl=1, wr=1, L=('Lsh', (0.28, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
-              R=('Rsh', (-0.15, 0, -0.08)), Rp=('Rsh', (0, 0, -1)))),
+              R=('cheek', (-0.02, 0, 0)), Rp=('Rsh', (-1, 0.2, 0.05)))),
+    (21, dict(rc=40, yaw=-74, head=64, lean=-6, wl=1, wr=1, L=('Lsh', (0.30, 0, -0.03)), Lp=('Lsh', (0, 0, -1)),
+              R=('cheek', (-0.12, 0.02, 0)), Rp=('Rsh', (-1, 0.2, 0)))),
+    (26, dict(rc=60, yaw=-72, head=60, lean=-2, wl=1, wr=1, L=('Lsh', (0.28, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
+              R=('Rsh', (-0.06, 0.03, -0.24)), Rp=('Rsh', (-0.6, 0.2, -1)))),
     (34, dict(rc=25, yaw=0, head=0, lean=0, wl=0, wr=0)),
 ]
 GRIP = 85  # the bow hand's fingers, closed round the grip, in degrees per joint
@@ -408,11 +408,17 @@ co.location = GROUND + Vector((0, -5, 0.6 * H))
 co.rotation_euler = (math.radians(90), 0, 0)
 sc.camera = co
 os.makedirs(OUT, exist_ok=True)
+# debugging close-ups: ARCHER_FOCUS=<bone> frames that bone at a tenth of the scale, seen
+# from ARCHER_VIEW degrees round Z (0 is the game camera); ARCHER_TICKS=a,b,.. picks shot ticks
+FOCUS = os.environ.get('ARCHER_FOCUS')
+VIEW = math.radians(float(os.environ.get('ARCHER_VIEW', '0')))
 
 if CLIP == 'shoot':
     base = {pb.name: pb.matrix_basis.copy() for pb in P}
     arm.animation_data.action = None
     frames = range(0, SHOT[-1][0] + 1)
+    if os.environ.get('ARCHER_TICKS'):
+        frames = [int(t) for t in os.environ['ARCHER_TICKS'].split(',')]
 else:
     frames = [f0 + round((f1 - f0) * i / max(1, NFRAMES - 1)) for i in range(NFRAMES)]
 for i, f in enumerate(frames):
@@ -422,7 +428,7 @@ for i, f in enumerate(frames):
         upd()
         pose_shot(f)
         a, b, t = segment(f)
-        hand('L', 0.0, GRIP)
+        hand('L', lerp(a['wl'], b['wl'], t), GRIP)
         hand('R', lerp(a['wr'], b['wr'], t), lerp(a['rc'], b['rc'], t))
         draw_bow(f, lerp(a['wl'], b['wl'], t))
     else:
@@ -433,6 +439,12 @@ for i, f in enumerate(frames):
         hand('L', 0.0, GRIP)
         hand('R', 0.0, 25)
         draw_bow(f, 0.0)
+    if FOCUS:
+        c = wpos(FOCUS)
+        cam.ortho_scale = 0.25 * H
+        cam.clip_start = 5 - 0.12 * H
+        co.rotation_euler = (math.radians(90), 0, VIEW)
+        co.location = c + Quaternion(Z, VIEW) @ Vector((0, -5, 0))
     sc.render.filepath = os.path.join(OUT, f'{i:02d}.png')
     bpy.ops.render.render(write_still=True)
 print('frames', len(frames))
