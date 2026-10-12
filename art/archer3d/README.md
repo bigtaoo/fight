@@ -21,4 +21,7 @@ python art/archer3d/blender/pack.py <tmp> client/public/art/archer3d   # atlas.w
 - 手指方向：手掌朝骨骼左 -x、右 +x（拇指在掌侧）；v4（`model/preview/v4_hands.png`）弄反了，手指往手背弯，握不住弓。
   握弓手瞄准时把掌心转向身前，四指竖着绕过弓把；拉弦手掌心朝脖子；拉满时手肘抬在身后、和箭一线。
   调试特写：`ARCHER_FOCUS=L_Hand ARCHER_VIEW=90 ARCHER_TICKS=8,20`（骨骼、镜头绕 Z 的角度、射箭帧）。预览：`model/preview/v5_grip.png`。
+- 站立、行走时空手握成松拳（`REST`），手腕顺着前臂伸直：Tripo 的手往前翘、手指张开，看着像掌心朝前托着东西。
+  Tripo 的手是两面都有皮肤的扁片，绕前臂转 180° 看起来几乎一样，所以改掌心朝向没用，要靠握拳和直手腕。
+  预览 `model/preview/v6_rest.png`（上排旧、下排新）。
 - 积分：试验用掉 150，余 190（v2.5 绑骨重定向报错 1004，白花 25；人形要用绑骨 v1.0）。

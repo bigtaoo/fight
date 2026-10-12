@@ -148,21 +148,37 @@ def axis(side, i):
     return (MW @ P[f'{side}_Hand'].matrix).to_3x3().col[i].normalized()
 
 
+def inward(side):
+    """At rest the palm faces the thigh: across the body, from this shoulder to the other."""
+    d = wpos(f"{'R' if side == 'L' else 'L'}_Upperarm") - wpos(f'{side}_Upperarm')
+    d.z = 0
+    return d
+
+
 def hand(side, turn, curl):
-    """Roll the forearm by `turn` of the way to PALM (spread along the twist bones), then
-    close the fingers by `curl` degrees at each joint."""
+    """Roll the forearm so the palm faces the thigh, then by `turn` of the way on to PALM
+    (each roll spread along the twist bones), then close the fingers by `curl` degrees at
+    each joint. At rest the wrist straightens too: Tripo's hands tip forward, palm up."""
+    e, w = wpos(f'{side}_Forearm'), wpos(f'{side}_Hand')
+    h = (wpos(f'{side}_Hand', True) - w).normalized()
+    rot_about(P[f'{side}_Hand'], Quaternion().slerp(h.rotation_difference((w - e).normalized()), 1 - turn), w)
+    roll(side, 1.0, inward(side))
+    roll(side, turn, PALM[side])
+    for b in ('Fingers1', 'Fingers2'):
+        name = f'{side}_{b}'
+        u = (wpos(name, True) - wpos(name)).normalized()
+        rot_about(P[name], Quaternion(u.cross(SIGN[side] * axis(side, 0)).normalized(), math.radians(curl)), wpos(name))
+
+
+def roll(side, turn, d):
     e, w = wpos(f'{side}_Forearm'), wpos(f'{side}_Hand')
     a = (w - e).normalized()
-    n, d = SIGN[side] * axis(side, 0), PALM[side]
+    n = SIGN[side] * axis(side, 0)
     n, d = (n - a * n.dot(a)).normalized(), (d - a * d.dot(a)).normalized()
     ang = math.atan2(n.cross(d).dot(a), n.dot(d)) * turn
     rot_about(P[f'{side}_Forearm'], Quaternion(a, ang), e)
     rot_about(P[f'{side}_ForearmTwist01'], Quaternion(a, -ang * 2 / 3), e)
     rot_about(P[f'{side}_ForearmTwist02'], Quaternion(a, ang / 3), wpos(f'{side}_ForearmTwist02'))
-    for b in ('Fingers1', 'Fingers2'):
-        name = f'{side}_{b}'
-        u = (wpos(name, True) - wpos(name)).normalized()
-        rot_about(P[name], Quaternion(u.cross(SIGN[side] * axis(side, 0)).normalized(), math.radians(curl)), wpos(name))
 
 
 # ---- the shot, keyed in ticks ----------------------------------------------------------
@@ -170,10 +186,11 @@ def hand(side, turn, curl):
 # yaw turns the whole body toward the camera (an archer stands side-on to the lane), head
 # turns the face back to the lane, lean tips the chest back. wl/wr blend the arms from the
 # idle pose to their targets; rc closes the drawing hand's fingers.
+REST = 70  # the free hand at rest, a loose fist: open, its palm reads as held out to the camera
 BOW_LEN, BRACE = 0.74, 0.09  # bow length and string-to-grip distance at rest, in body heights
 QUIVER = ('Rsh', (0.0, 0.07, 0.10))
 SHOT = [
-    (0, dict(rc=25, yaw=0, head=0, lean=0, wl=0, wr=0)),
+    (0, dict(rc=REST, yaw=0, head=0, lean=0, wl=0, wr=0)),
     (5, dict(rc=60, yaw=-65, head=55, lean=0, wl=1, wr=1, L=('Lsh', (0.25, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
              R=QUIVER, Rp=('Rsh', (-1, 0, -0.4)))),
     (8, dict(rc=80, yaw=-70, head=62, lean=0, wl=1, wr=1, L=('Lsh', (0.29, 0, 0)), Lp=('Lsh', (0, 0, -1)),
@@ -186,7 +203,7 @@ SHOT = [
               R=('cheek', (-0.12, 0.02, 0)), Rp=('Rsh', (-1, 0.2, 0)))),
     (26, dict(rc=60, yaw=-72, head=60, lean=-2, wl=1, wr=1, L=('Lsh', (0.28, 0, -0.04)), Lp=('Lsh', (0, 0, -1)),
               R=('Rsh', (-0.06, 0.03, -0.24)), Rp=('Rsh', (-0.6, 0.2, -1)))),
-    (34, dict(rc=25, yaw=0, head=0, lean=0, wl=0, wr=0)),
+    (34, dict(rc=REST, yaw=0, head=0, lean=0, wl=0, wr=0)),
 ]
 GRIP = 85  # the bow hand's fingers, closed round the grip, in degrees per joint
 DRAWN = (8, 20)  # ticks the drawing hand holds the string
@@ -437,7 +454,7 @@ for i, f in enumerate(frames):
         sc.frame_set(f)
         upd()
         hand('L', 0.0, GRIP)
-        hand('R', 0.0, 25)
+        hand('R', 0.0, REST)
         draw_bow(f, 0.0)
     if FOCUS:
         c = wpos(FOCUS)
