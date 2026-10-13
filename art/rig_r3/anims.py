@@ -54,15 +54,19 @@ def walk():
 
 def run():
     # root as given: the body rises in the flight phase instead of keeping a foot down. Leaning
-    # into the run, the sword hand trails behind the hip with the blade back and a little down,
-    # the arm reaching back so the blade does not seem to come out of the waist; the arms pump
-    # against the legs, the sword arm only a little
+    # into the run, the sword is carried low in front, the arm nearly straight and the blade
+    # slanting forward with its tip just off the ground (trailed behind, the arm folded up);
+    # the back arm pumps against the legs, the sword arm only sways a little
     common = dict(torso=22, head=-16, plant=False)
-    a = dict(common, lf=(42, 22), lb=(-32, -72), root=(0, -6), af=(-52, -78, -100), ab=(28, 70), sash=26, scarf=-6)
-    b = dict(common, lf=(12, -18), lb=(10, -60), root=(0, 18), af=(-46, -72, -96), ab=(0, 40), sash=32, scarf=-4)
-    c = dict(common, lf=(-32, -72), lb=(42, 22), root=(0, -6), af=(-40, -66, -92), ab=(-40, -10), sash=26, scarf=-6)
-    d = dict(common, lf=(10, -60), lb=(12, -18), root=(0, 18), af=(-46, -72, -96), ab=(0, 40), sash=32, scarf=-4)
+    a = dict(common, lf=(42, 22), lb=(-32, -72), root=(0, -6), af=SWORD_LOW[0], ab=(28, 70), sash=26, scarf=-6)
+    b = dict(common, lf=(12, -18), lb=(10, -60), root=(0, 18), af=SWORD_LOW[1], ab=(0, 40), sash=32, scarf=-4)
+    c = dict(common, lf=(-32, -72), lb=(42, 22), root=(0, -6), af=SWORD_LOW[2], ab=(-40, -10), sash=26, scarf=-6)
+    d = dict(common, lf=(10, -60), lb=(12, -18), root=(0, 18), af=SWORD_LOW[1], ab=(0, 40), sash=32, scarf=-4)
     return loop(1.0, [key(0, pose(**a)), key(0.25, pose(**b)), key(0.5, pose(**c)), key(0.75, pose(**d)), key(1.0, pose(**a))], ease="linear")
+
+
+# the running sword arm through a stride: (upper, forearm, sword) at the two extremes and between
+SWORD_LOW = [(8, 18, 50), (12, 22, 53), (16, 26, 56)]
 
 
 JUMP_UP = dict(torso=6, head=-4, lf=(40, -5), lb=(-10, -60), af=(60, 100, 125), ab=(-40, -20), sash=22, scarf=-6, plant=False)

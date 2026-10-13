@@ -28,8 +28,8 @@ const BORROWED: Partial<Record<Kind, { rig: Kind; tint: number }>> = { elite: { 
 // boxes, also F1), ?cheat=dmg (hero damage x10 locally, which the server must catch), ?blocks
 // (ink blocks instead of the pose paintings), ?poses (the hero's pose paintings instead of its
 // skeleton), ?zoom=N (a close-up that follows the hero), ?archer3d (the archer
-// pre-rendered from 3D, art/archer3d, instead of its skeleton), ?rig3d (the archer's skeleton
-// cut from the 3D model, art/rig_archer3d), ?loadout=dragon,crush (skills swapped
+// pre-rendered from 3D, art/archer3d, instead of its skeleton), ?rig3d (the archer's and the hero's skeletons
+// cut from their 3D models, art/rig_archer3d and art/rig_hero3d), ?loadout=dragon,crush (skills swapped
 // into their slots over the default ones).
 /** Colour of the loose ink each kind of body throws. */
 const DROP_INK = { hero: 0x111014, bandit: 0x2f3d5c, elite: 0x4a2420, archer: 0x4a4636, shield: 0x3d4148, chief: 0x3b2420, dummy: 0x6a5c40 } as const;
@@ -88,7 +88,7 @@ export class Game {
     await this.scenery.load();
     if (!this.params.has('blocks')) {
       const rigged = this.params.has('poses') ? [] : RIGGED;
-      const [sprites, ...rigs] = await Promise.all([loadSprites(), ...rigged.map((k) => loadRig(k === 'archer' && this.params.has('rig3d') ? 'archer_rig3d' : k))]);
+      const [sprites, ...rigs] = await Promise.all([loadSprites(), ...rigged.map((k) => loadRig((k === 'archer' || k === 'hero') && this.params.has('rig3d') ? `${k}_rig3d` : k))]);
       this.sprites = sprites;
       rigged.forEach((k, i) => {
         const rig = rigs[i];
