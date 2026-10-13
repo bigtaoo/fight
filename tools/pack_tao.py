@@ -12,6 +12,7 @@ spec.json (paths relative to the spec file):
     "origin": [x, y],                    # source pixel that becomes (0, 0): between the feet
     "scale": 0.35,                       # source px -> exported px (atlas resolution)
     "variants": {"face": ["face_hurt"]}, # extra images a slot can swap to
+    "points": {"nock": {"parent": "hand", "at": [x, y]}},  # slotless bones at source px
     "animations": {
       "run": {"duration": 0.6, "loop": true, "ease": "ease-in-out",
               "keys": [{"t": 0, "rotate": {"torso": -4}, "translate": {"root": [0, -10]},
@@ -101,6 +102,12 @@ def build(spec_path):
             bones.append({"id": p["name"], "parent": par,
                           "x": rnd((p["pivot"][0] - px) * s), "y": rnd((p["pivot"][1] - py) * s)})
             done.add(p["name"])
+    # points: slotless bones the client reads positions from (a bow's tips, a nock)
+    for name, pt in spec.get("points", {}).items():
+        par = pt["parent"]
+        px, py = by_name[par]["pivot"] if par != "root" else (ox, oy)
+        bones.append({"id": name, "parent": par,
+                      "x": rnd((pt["at"][0] - px) * s), "y": rnd((pt["at"][1] - py) * s)})
 
     # images at export scale; a variant shares its part's rectangle and offset
     names = [p["name"] for p in parts]

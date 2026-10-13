@@ -424,44 +424,46 @@ sc.collection.objects.link(co)
 co.location = GROUND + Vector((0, -5, 0.6 * H))
 co.rotation_euler = (math.radians(90), 0, 0)
 sc.camera = co
-os.makedirs(OUT, exist_ok=True)
-# debugging close-ups: ARCHER_FOCUS=<bone> frames that bone at a tenth of the scale, seen
-# from ARCHER_VIEW degrees round Z (0 is the game camera); ARCHER_TICKS=a,b,.. picks shot ticks
-FOCUS = os.environ.get('ARCHER_FOCUS')
-VIEW = math.radians(float(os.environ.get('ARCHER_VIEW', '0')))
+# imported by rig2d.py for the setup above, the clips rendered only when run directly
+if __name__ == '__main__':
+    os.makedirs(OUT, exist_ok=True)
+    # debugging close-ups: ARCHER_FOCUS=<bone> frames that bone at a tenth of the scale, seen
+    # from ARCHER_VIEW degrees round Z (0 is the game camera); ARCHER_TICKS=a,b,.. picks shot ticks
+    FOCUS = os.environ.get('ARCHER_FOCUS')
+    VIEW = math.radians(float(os.environ.get('ARCHER_VIEW', '0')))
 
-if CLIP == 'shoot':
-    base = {pb.name: pb.matrix_basis.copy() for pb in P}
-    arm.animation_data.action = None
-    frames = range(0, SHOT[-1][0] + 1)
-    if os.environ.get('ARCHER_TICKS'):
-        frames = [int(t) for t in os.environ['ARCHER_TICKS'].split(',')]
-else:
-    frames = [f0 + round((f1 - f0) * i / max(1, NFRAMES - 1)) for i in range(NFRAMES)]
-for i, f in enumerate(frames):
     if CLIP == 'shoot':
-        for pb in P:
-            pb.matrix_basis = base[pb.name]
-        upd()
-        pose_shot(f)
-        a, b, t = segment(f)
-        hand('L', lerp(a['wl'], b['wl'], t), GRIP)
-        hand('R', lerp(a['wr'], b['wr'], t), lerp(a['rc'], b['rc'], t))
-        draw_bow(f, lerp(a['wl'], b['wl'], t))
+        base = {pb.name: pb.matrix_basis.copy() for pb in P}
+        arm.animation_data.action = None
+        frames = range(0, SHOT[-1][0] + 1)
+        if os.environ.get('ARCHER_TICKS'):
+            frames = [int(t) for t in os.environ['ARCHER_TICKS'].split(',')]
     else:
-        for n in TWISTED:
-            P[n].matrix_basis = Matrix()
-        sc.frame_set(f)
-        upd()
-        hand('L', 0.0, GRIP)
-        hand('R', 0.0, REST)
-        draw_bow(f, 0.0)
-    if FOCUS:
-        c = wpos(FOCUS)
-        cam.ortho_scale = 0.25 * H
-        cam.clip_start = 5 - 0.12 * H
-        co.rotation_euler = (math.radians(90), 0, VIEW)
-        co.location = c + Quaternion(Z, VIEW) @ Vector((0, -5, 0))
-    sc.render.filepath = os.path.join(OUT, f'{i:02d}.png')
-    bpy.ops.render.render(write_still=True)
-print('frames', len(frames))
+        frames = [f0 + round((f1 - f0) * i / max(1, NFRAMES - 1)) for i in range(NFRAMES)]
+    for i, f in enumerate(frames):
+        if CLIP == 'shoot':
+            for pb in P:
+                pb.matrix_basis = base[pb.name]
+            upd()
+            pose_shot(f)
+            a, b, t = segment(f)
+            hand('L', lerp(a['wl'], b['wl'], t), GRIP)
+            hand('R', lerp(a['wr'], b['wr'], t), lerp(a['rc'], b['rc'], t))
+            draw_bow(f, lerp(a['wl'], b['wl'], t))
+        else:
+            for n in TWISTED:
+                P[n].matrix_basis = Matrix()
+            sc.frame_set(f)
+            upd()
+            hand('L', 0.0, GRIP)
+            hand('R', 0.0, REST)
+            draw_bow(f, 0.0)
+        if FOCUS:
+            c = wpos(FOCUS)
+            cam.ortho_scale = 0.25 * H
+            cam.clip_start = 5 - 0.12 * H
+            co.rotation_euler = (math.radians(90), 0, VIEW)
+            co.location = c + Quaternion(Z, VIEW) @ Vector((0, -5, 0))
+        sc.render.filepath = os.path.join(OUT, f'{i:02d}.png')
+        bpy.ops.render.render(write_still=True)
+    print('frames', len(frames))

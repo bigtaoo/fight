@@ -365,8 +365,10 @@ export class BodyView {
   private drawString(g: Graphics, actor: TaoActor, e: Entity, alpha: number): void {
     if (e.state === 'down' || e.state === 'dead') return;
     const to = (p: { x: number; y: number }) => g.toLocal(p, actor.view);
-    const top = to(actor.pointIn('bow', BOW_TIPS[0].x, BOW_TIPS[0].y));
-    const bottom = to(actor.pointIn('bow', BOW_TIPS[1].x, BOW_TIPS[1].y));
+    // a rig cut from 3D (art/rig_archer3d) carries its bow's tips and nock as point bones
+    const marked = actor.has('nock');
+    const top = to(marked ? actor.point('bow_top') : actor.pointIn('bow', BOW_TIPS[0].x, BOW_TIPS[0].y));
+    const bottom = to(marked ? actor.point('bow_bottom') : actor.pointIn('bow', BOW_TIPS[1].x, BOW_TIPS[1].y));
     const ink = 0x2b2620;
     const fire = e.state === 'act' ? MOVES[e.move].fire : undefined;
     const t = e.held ? e.st : e.st - 1 + alpha;
@@ -374,7 +376,7 @@ export class BodyView {
       g.moveTo(top.x, top.y).lineTo(bottom.x, bottom.y).stroke({ width: 1.5, color: ink, alpha: 0.8 });
       return;
     }
-    const nock = to(actor.point('hand_b'));
+    const nock = to(actor.point(marked ? 'nock' : 'hand_b'));
     const grip = to(actor.point('bow'));
     g.moveTo(top.x, top.y).lineTo(nock.x, nock.y).lineTo(bottom.x, bottom.y).stroke({ width: 1.5, color: ink, alpha: 0.8 });
     // the arrow from the nock through the grip and a little past it

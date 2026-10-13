@@ -116,6 +116,11 @@ export class TaoActor {
     this.aimed = { chain, angle, weight: Math.min(1, weight) };
   }
 
+  /** Whether the skeleton has this bone (e.g. a point bone only some rigs carry). */
+  has(bone: string): boolean {
+    return this.world.has(bone);
+  }
+
   /** A bone's pivot in the view's space, as of the last update. */
   point(bone: string): { x: number; y: number } {
     return this.pointIn(bone, 0, 0);
