@@ -358,7 +358,9 @@ def px(p):
 # ---- parts: the mesh cut by vertex groups, colour and position -----------------------------
 SIDES = {'b': 'L', 'f': 'R'}
 GROUPS = {
-    'torso': ['Hip', 'Pelvis', 'Waist', 'Spine01', 'Spine02', 'L_Clavicle', 'R_Clavicle'],
+    # the trunk in two, so the spine can bend: the waist (hips to the lower ribs) and the chest
+    'torso': ['Hip', 'Pelvis', 'Waist', 'Spine01'],
+    'chest': ['Spine02', 'L_Clavicle', 'R_Clavicle'],
     'head': ['NeckTwist01', 'NeckTwist02', 'Head'],
 }
 for s, S in SIDES.items():
@@ -375,6 +377,7 @@ def bones2d():
     """Each part's pivot and a second point that gives its angle."""
     out = {
         'torso': (wpos('Waist'), wpos('NeckTwist01')),
+        'chest': (wpos('Spine02'), wpos('NeckTwist01')),
         'robe': (wpos('Waist'), (wpos('L_Calf') + wpos('R_Calf')) / 2),
         'head': (wpos('NeckTwist01'), wpos('Head', True)),
         'scarf': (wpos('NeckTwist01'), wpos('Head', True)),
@@ -483,7 +486,8 @@ def cut_parts(pos, col):
             for i, p in enumerate(pos):
                 if keep[i] and seg_dist(p, a, b) > r * H:
                     keep[i] = False
-                    owned.setdefault('torso', set()).add(i)
+                    trunk = 'chest' if p.z > wpos('Spine02').z else 'torso'
+                    owned.setdefault(trunk, set()).add(i)
         owned[part] = owned.get(part, set()) | {i for i, k in enumerate(keep) if k}
     objs = {}
     for part, keep in owned.items():

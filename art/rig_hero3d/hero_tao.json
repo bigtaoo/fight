@@ -16,9 +16,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -44,6 +46,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -51,9 +57,11 @@
     {
      "t": 1.5,
      "rotate": {
-      "torso": -12,
+      "torso": 4,
       "head": -8,
-      "robe": -4,
+      "robe": 9.5,
+      "chest": -16,
+      "robe_f": -40.0,
       "sash": -6,
       "scarf": -10,
       "hand_f": 0,
@@ -79,6 +87,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -86,9 +98,11 @@
     {
      "t": 2.5,
      "rotate": {
-      "torso": 14,
+      "torso": 18,
       "head": 8,
-      "robe": 10,
+      "robe": 37.9,
+      "chest": -4,
+      "robe_f": -54.0,
       "sash": 42,
       "scarf": -10,
       "hand_f": 0,
@@ -114,15 +128,21 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      }
     },
     {
      "t": 3,
      "rotate": {
-      "torso": 32,
+      "torso": 14.4,
       "head": 8,
-      "robe": 10,
+      "robe": 37.9,
+      "chest": 17.6,
+      "robe_f": -54.0,
       "sash": 42,
       "scarf": -10,
       "hand_f": 0,
@@ -148,6 +168,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-out"
@@ -155,9 +179,11 @@
     {
      "t": 8,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 8,
-      "robe": 10,
+      "robe": 37.9,
+      "chest": 18.7,
+      "robe_f": -54.0,
       "sash": 42,
       "scarf": -10,
       "hand_f": 0,
@@ -183,6 +209,10 @@
       "robe": [
        0,
        14
+      ],
+      "robe_f": [
+       0,
+       14
       ]
      },
      "ease": "ease-in-out"
@@ -190,9 +220,11 @@
     {
      "t": 14,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -218,6 +250,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -231,9 +267,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 8,
-      "robe": 10,
+      "robe": 37.9,
+      "chest": 18.7,
+      "robe_f": -54.0,
       "sash": 42,
       "scarf": -10,
       "hand_f": 0,
@@ -259,6 +297,10 @@
       "robe": [
        0,
        14
+      ],
+      "robe_f": [
+       0,
+       14
       ]
      },
      "ease": "ease-out"
@@ -266,9 +308,11 @@
     {
      "t": 1.5,
      "rotate": {
-      "torso": 30,
+      "torso": 13.5,
       "head": 8,
-      "robe": 10,
+      "robe": 37.9,
+      "chest": 16.5,
+      "robe_f": -54.0,
       "sash": 42,
       "scarf": -10,
       "hand_f": 0,
@@ -294,6 +338,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -301,9 +349,11 @@
     {
      "t": 2.3,
      "rotate": {
-      "torso": 10,
+      "torso": 4.5,
       "head": -12,
-      "robe": 8,
+      "robe": 33.2,
+      "chest": 5.5,
+      "robe_f": -48.0,
       "sash": -16,
       "scarf": 6,
       "hand_f": 0,
@@ -329,15 +379,21 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      }
     },
     {
      "t": 3,
      "rotate": {
-      "torso": -16,
+      "torso": -7.2,
       "head": -12,
-      "robe": 8,
+      "robe": 33.2,
+      "chest": -8.8,
+      "robe_f": -48.0,
       "sash": -16,
       "scarf": 6,
       "hand_f": 0,
@@ -363,6 +419,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -370,9 +430,11 @@
     {
      "t": 8,
      "rotate": {
-      "torso": -16,
+      "torso": -7.2,
       "head": -12,
-      "robe": 8,
+      "robe": 33.2,
+      "chest": -8.8,
+      "robe_f": -48.0,
       "sash": -16,
       "scarf": 6,
       "hand_f": 0,
@@ -398,6 +460,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in-out"
@@ -405,9 +471,11 @@
     {
      "t": 14,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -433,6 +501,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -446,9 +518,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": -16,
+      "torso": -7.2,
       "head": -12,
-      "robe": 8,
+      "robe": 33.2,
+      "chest": -8.8,
+      "robe_f": -48.0,
       "sash": -16,
       "scarf": 6,
       "hand_f": 0,
@@ -474,6 +548,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -481,9 +559,11 @@
     {
      "t": 1.5,
      "rotate": {
-      "torso": -26,
+      "torso": 0,
       "head": -12,
-      "robe": -4,
+      "robe": 21.2,
+      "chest": -26,
+      "robe_f": -60.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -509,6 +589,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -516,9 +600,11 @@
     {
      "t": 2.5,
      "rotate": {
-      "torso": 12,
+      "torso": 5.4,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 6.6,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -544,15 +630,21 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      }
     },
     {
      "t": 3,
      "rotate": {
-      "torso": 40,
+      "torso": 18.0,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 22.0,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -578,6 +670,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-out"
@@ -585,9 +681,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": 42,
+      "torso": 18.9,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 23.1,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -613,6 +711,10 @@
       "robe": [
        0,
        22
+      ],
+      "robe_f": [
+       0,
+       22
       ]
      },
      "ease": "ease-in-out"
@@ -620,9 +722,11 @@
     {
      "t": 13,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 18.7,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -648,6 +752,10 @@
       "robe": [
        0,
        16
+      ],
+      "robe_f": [
+       0,
+       16
       ]
      },
      "ease": "ease-in-out"
@@ -655,9 +763,11 @@
     {
      "t": 20,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -681,6 +791,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]
@@ -696,9 +810,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -724,6 +840,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-in"
@@ -731,9 +851,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 35.7,
+      "chest": 11.0,
+      "robe_f": -58.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -759,15 +881,21 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      }
     },
     {
      "t": 2,
      "rotate": {
-      "torso": 36,
+      "torso": 16.2,
       "head": -14,
-      "robe": 12,
+      "robe": 41.7,
+      "chest": 19.8,
+      "robe_f": -52.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -793,6 +921,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-out"
@@ -800,9 +932,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": 38,
+      "torso": 17.1,
       "head": -14,
-      "robe": 12,
+      "robe": 41.7,
+      "chest": 20.9,
+      "robe_f": -52.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -828,6 +962,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-in"
@@ -835,9 +973,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 35.7,
+      "chest": 11.0,
+      "robe_f": -58.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -861,6 +1001,10 @@
        8
       ],
       "robe": [
+       0,
+       8
+      ],
+      "robe_f": [
        0,
        8
       ]
@@ -876,9 +1020,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 32.1,
+      "chest": 11.0,
+      "robe_f": -56.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -902,6 +1048,10 @@
        8
       ],
       "robe": [
+       0,
+       8
+      ],
+      "robe_f": [
        0,
        8
       ]
@@ -911,9 +1061,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 32.1,
+      "chest": 11.0,
+      "robe_f": -56.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -939,15 +1091,21 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      }
     },
     {
      "t": 2,
      "rotate": {
-      "torso": 36,
+      "torso": 16.2,
       "head": -14,
-      "robe": 12,
+      "robe": 38.1,
+      "chest": 19.8,
+      "robe_f": -50.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -973,6 +1131,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-out"
@@ -980,9 +1142,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": 38,
+      "torso": 17.1,
       "head": -14,
-      "robe": 12,
+      "robe": 38.1,
+      "chest": 20.9,
+      "robe_f": -50.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -1008,6 +1172,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-in"
@@ -1015,9 +1183,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 32.1,
+      "chest": 11.0,
+      "robe_f": -56.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1041,6 +1211,10 @@
        8
       ],
       "robe": [
+       0,
+       8
+      ],
+      "robe_f": [
        0,
        8
       ]
@@ -1056,9 +1230,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 35.7,
+      "chest": 11.0,
+      "robe_f": -58.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1082,6 +1258,10 @@
        8
       ],
       "robe": [
+       0,
+       8
+      ],
+      "robe_f": [
        0,
        8
       ]
@@ -1091,9 +1271,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 35.7,
+      "chest": 11.0,
+      "robe_f": -58.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1119,15 +1301,21 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      }
     },
     {
      "t": 2,
      "rotate": {
-      "torso": 36,
+      "torso": 16.2,
       "head": -14,
-      "robe": 12,
+      "robe": 41.7,
+      "chest": 19.8,
+      "robe_f": -52.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -1153,6 +1341,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-out"
@@ -1160,9 +1352,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": 38,
+      "torso": 17.1,
       "head": -14,
-      "robe": 12,
+      "robe": 41.7,
+      "chest": 20.9,
+      "robe_f": -52.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -1188,6 +1382,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      },
      "ease": "ease-in"
@@ -1195,9 +1393,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -8,
-      "robe": 6,
+      "robe": 35.7,
+      "chest": 11.0,
+      "robe_f": -58.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1223,6 +1423,10 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      }
     }
@@ -1236,9 +1440,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 4,
-      "robe": 6,
+      "robe": 25.8,
+      "chest": 18.7,
+      "robe_f": -56.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1264,6 +1470,10 @@
       "robe": [
        0,
        16
+      ],
+      "robe_f": [
+       0,
+       16
       ]
      },
      "ease": "ease-in"
@@ -1271,9 +1481,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": 12,
+      "torso": 5.4,
       "head": -8,
-      "robe": 6,
+      "robe": 19.5,
+      "chest": 6.6,
+      "robe_f": -34.0,
       "sash": 40,
       "scarf": -8,
       "hand_f": 0,
@@ -1299,15 +1511,21 @@
       "robe": [
        0,
        8
+      ],
+      "robe_f": [
+       0,
+       8
       ]
      }
     },
     {
      "t": 2,
      "rotate": {
-      "torso": -20,
+      "torso": -9.0,
       "head": -14,
-      "robe": -6,
+      "robe": 9.3,
+      "chest": -11.0,
+      "robe_f": -22.0,
       "sash": -24,
       "scarf": 8,
       "hand_f": 0,
@@ -1333,6 +1551,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-out"
@@ -1340,9 +1562,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": -16,
+      "torso": -7.2,
       "head": -12,
-      "robe": 0,
+      "robe": 13.5,
+      "chest": -8.8,
+      "robe_f": -14.0,
       "sash": -14,
       "scarf": 4,
       "hand_f": 0,
@@ -1368,6 +1592,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-in-out"
@@ -1375,9 +1603,11 @@
     {
      "t": 20,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -1401,6 +1631,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]
@@ -1416,9 +1650,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -1444,6 +1680,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -1451,9 +1691,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": 0,
-      "robe": 10,
+      "robe": 23.5,
+      "chest": 11.0,
+      "robe_f": -30.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1479,6 +1721,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -1486,9 +1732,11 @@
     {
      "t": 4,
      "rotate": {
-      "torso": 44,
+      "torso": 19.8,
       "head": 12,
-      "robe": 10,
+      "robe": 39.7,
+      "chest": 24.2,
+      "robe_f": -56.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1514,6 +1762,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-out"
@@ -1521,9 +1773,11 @@
     {
      "t": 6,
      "rotate": {
-      "torso": 44,
+      "torso": 19.8,
       "head": 12,
-      "robe": 10,
+      "robe": 28.0,
+      "chest": 24.2,
+      "robe_f": -46.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1549,15 +1803,21 @@
       "robe": [
        0,
        16
+      ],
+      "robe_f": [
+       0,
+       16
       ]
      }
     },
     {
      "t": 8,
      "rotate": {
-      "torso": 44,
+      "torso": 19.8,
       "head": 12,
-      "robe": 10,
+      "robe": 39.7,
+      "chest": 24.2,
+      "robe_f": -56.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1583,6 +1843,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-in-out"
@@ -1590,9 +1854,11 @@
     {
      "t": 12,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 6,
-      "robe": 10,
+      "robe": 28.0,
+      "chest": 18.7,
+      "robe_f": -54.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1616,6 +1882,10 @@
        22
       ],
       "robe": [
+       0,
+       22
+      ],
+      "robe_f": [
        0,
        22
       ]
@@ -1631,9 +1901,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 6,
-      "robe": 10,
+      "robe": 28.0,
+      "chest": 18.7,
+      "robe_f": -54.0,
       "sash": 46,
       "scarf": -10,
       "hand_f": 0,
@@ -1659,6 +1931,10 @@
       "robe": [
        0,
        22
+      ],
+      "robe_f": [
+       0,
+       22
       ]
      },
      "ease": "ease-in"
@@ -1666,9 +1942,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": 10,
+      "torso": 4.5,
       "head": -2,
-      "robe": 0,
+      "robe": 15.3,
+      "chest": 5.5,
+      "robe_f": -40.0,
       "sash": 0,
       "scarf": 0,
       "hand_f": 0,
@@ -1694,15 +1972,21 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      }
     },
     {
      "t": 3,
      "rotate": {
-      "torso": -22,
+      "torso": -9.9,
       "head": -16,
-      "robe": -6,
+      "robe": 7.5,
+      "chest": -12.1,
+      "robe_f": -18.0,
       "sash": -26,
       "scarf": 8,
       "hand_f": 0,
@@ -1728,6 +2012,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-out"
@@ -1735,9 +2023,11 @@
     {
      "t": 10,
      "rotate": {
-      "torso": -18,
+      "torso": -8.1,
       "head": -12,
-      "robe": 0,
+      "robe": 12.6,
+      "chest": -9.9,
+      "robe_f": -12.0,
       "sash": -16,
       "scarf": 4,
       "hand_f": 0,
@@ -1763,6 +2053,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-in-out"
@@ -1770,9 +2064,11 @@
     {
      "t": 20,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -1796,6 +2092,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]
@@ -1811,9 +2111,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -1839,6 +2141,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -1846,9 +2152,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": 20,
+      "torso": 9.0,
       "head": -10,
-      "robe": 4,
+      "robe": 22.9,
+      "chest": 11.0,
+      "robe_f": -52.0,
       "sash": -6,
       "scarf": 6,
       "hand_f": 0,
@@ -1874,6 +2182,10 @@
       "robe": [
        0,
        24
+      ],
+      "robe_f": [
+       0,
+       24
       ]
      },
      "ease": "ease-in-out"
@@ -1881,9 +2193,11 @@
     {
      "t": 12.5,
      "rotate": {
-      "torso": 24,
+      "torso": 6,
       "head": -10,
-      "robe": 4,
+      "robe": 22.9,
+      "chest": 18,
+      "robe_f": -52.0,
       "sash": -10,
       "scarf": 6,
       "hand_f": 0,
@@ -1909,6 +2223,10 @@
       "robe": [
        0,
        28
+      ],
+      "robe_f": [
+       0,
+       28
       ]
      },
      "ease": "ease-in"
@@ -1916,9 +2234,11 @@
     {
      "t": 13.4,
      "rotate": {
-      "torso": 4,
+      "torso": 16,
       "head": -6,
-      "robe": 12,
+      "robe": 44.4,
+      "chest": -12,
+      "robe_f": -60.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -1944,15 +2264,21 @@
       "robe": [
        0,
        10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      }
     },
     {
      "t": 14,
      "rotate": {
-      "torso": 38,
+      "torso": 17.1,
       "head": 8,
-      "robe": 12,
+      "robe": 44.4,
+      "chest": 20.9,
+      "robe_f": -60.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -1978,6 +2304,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-out"
@@ -1985,9 +2315,11 @@
     {
      "t": 22,
      "rotate": {
-      "torso": 40,
+      "torso": 18.0,
       "head": 8,
-      "robe": 12,
+      "robe": 44.4,
+      "chest": 22.0,
+      "robe_f": -60.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -2013,6 +2345,10 @@
       "robe": [
        0,
        22
+      ],
+      "robe_f": [
+       0,
+       22
       ]
      },
      "ease": "ease-in-out"
@@ -2020,9 +2356,11 @@
     {
      "t": 25,
      "rotate": {
-      "torso": 36,
+      "torso": 16.2,
       "head": 8,
-      "robe": 12,
+      "robe": 44.4,
+      "chest": 19.8,
+      "robe_f": -60.0,
       "sash": 54,
       "scarf": -14,
       "hand_f": 0,
@@ -2048,6 +2386,10 @@
       "robe": [
        0,
        18
+      ],
+      "robe_f": [
+       0,
+       18
       ]
      },
      "ease": "ease-in-out"
@@ -2055,9 +2397,11 @@
     {
      "t": 34,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -2081,6 +2425,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]
@@ -2096,9 +2444,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -2124,6 +2474,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -2131,9 +2485,11 @@
     {
      "t": 3,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -7.7,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2159,6 +2515,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2166,9 +2526,11 @@
     {
      "t": 6,
      "rotate": {
-      "torso": 26,
+      "torso": 11.7,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 14.3,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2194,6 +2556,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-out"
@@ -2201,9 +2567,11 @@
     {
      "t": 9,
      "rotate": {
-      "torso": 26,
+      "torso": 11.7,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 14.3,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2229,6 +2597,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -2236,9 +2608,11 @@
     {
      "t": 12,
      "rotate": {
-      "torso": -10,
+      "torso": -4.5,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -5.5,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2264,6 +2638,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -2271,9 +2649,11 @@
     {
      "t": 15,
      "rotate": {
-      "torso": -10,
+      "torso": -4.5,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -5.5,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2299,6 +2679,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2306,9 +2690,11 @@
     {
      "t": 18,
      "rotate": {
-      "torso": 24,
+      "torso": 10.8,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 13.2,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2334,6 +2720,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-out"
@@ -2341,9 +2731,11 @@
     {
      "t": 21,
      "rotate": {
-      "torso": 24,
+      "torso": 10.8,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 13.2,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2369,6 +2761,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -2376,9 +2772,11 @@
     {
      "t": 24,
      "rotate": {
-      "torso": -8,
+      "torso": -3.6,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -4.4,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2404,6 +2802,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -2411,9 +2813,11 @@
     {
      "t": 27,
      "rotate": {
-      "torso": -8,
+      "torso": -3.6,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -4.4,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2439,6 +2843,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2446,9 +2854,11 @@
     {
      "t": 30,
      "rotate": {
-      "torso": 28,
+      "torso": 12.6,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 15.4,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2474,6 +2884,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-out"
@@ -2481,9 +2895,11 @@
     {
      "t": 33,
      "rotate": {
-      "torso": 28,
+      "torso": 12.6,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 15.4,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2509,6 +2925,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -2516,9 +2936,11 @@
     {
      "t": 36,
      "rotate": {
-      "torso": -18,
+      "torso": -8.1,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -9.9,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2544,6 +2966,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -2551,9 +2977,11 @@
     {
      "t": 39,
      "rotate": {
-      "torso": -18,
+      "torso": -8.1,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -9.9,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2579,6 +3007,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2586,9 +3018,11 @@
     {
      "t": 42,
      "rotate": {
-      "torso": 30,
+      "torso": 13.5,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 16.5,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2614,6 +3048,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-out"
@@ -2621,9 +3059,11 @@
     {
      "t": 45,
      "rotate": {
-      "torso": 30,
+      "torso": 13.5,
       "head": 6,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 16.5,
+      "robe_f": -46.0,
       "sash": 36,
       "scarf": -8,
       "hand_f": 0,
@@ -2649,6 +3089,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -2656,9 +3100,11 @@
     {
      "t": 48,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -7.7,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2684,6 +3130,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-out"
@@ -2691,9 +3141,11 @@
     {
      "t": 51,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -7.7,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2719,6 +3171,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2726,9 +3182,11 @@
     {
      "t": 54,
      "rotate": {
-      "torso": -26,
+      "torso": 0,
       "head": -12,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -26,
+      "robe_f": -40.0,
       "sash": -16,
       "scarf": 6,
       "hand_f": 0,
@@ -2754,6 +3212,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2761,9 +3223,11 @@
     {
      "t": 55.5,
      "rotate": {
-      "torso": 12,
+      "torso": 5.4,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 6.6,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -2789,15 +3253,21 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      }
     },
     {
      "t": 56,
      "rotate": {
-      "torso": 40,
+      "torso": 18.0,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 22.0,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -2823,6 +3293,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-out"
@@ -2830,9 +3304,11 @@
     {
      "t": 61,
      "rotate": {
-      "torso": 42,
+      "torso": 18.9,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 23.1,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -2858,6 +3334,10 @@
       "robe": [
        0,
        22
+      ],
+      "robe_f": [
+       0,
+       22
       ]
      },
      "ease": "ease-in-out"
@@ -2865,9 +3345,11 @@
     {
      "t": 66,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -2893,6 +3375,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -2906,9 +3392,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": -24,
+      "torso": 0,
       "head": -12,
-      "robe": 6,
+      "robe": 26.7,
+      "chest": -24,
+      "robe_f": -40.0,
       "sash": -14,
       "scarf": 6,
       "hand_f": 0,
@@ -2934,6 +3422,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -2941,9 +3433,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": 12,
+      "torso": 5.4,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 6.6,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -2969,15 +3463,21 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      }
     },
     {
      "t": 3,
      "rotate": {
-      "torso": 40,
+      "torso": 18.0,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 22.0,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -3003,6 +3503,10 @@
       "robe": [
        0,
        20
+      ],
+      "robe_f": [
+       0,
+       20
       ]
      },
      "ease": "ease-out"
@@ -3010,9 +3514,11 @@
     {
      "t": 8,
      "rotate": {
-      "torso": 42,
+      "torso": 18.9,
       "head": 10,
-      "robe": 12,
+      "robe": 42.6,
+      "chest": 23.1,
+      "robe_f": -58.0,
       "sash": 50,
       "scarf": -12,
       "hand_f": 0,
@@ -3038,6 +3544,10 @@
       "robe": [
        0,
        22
+      ],
+      "robe_f": [
+       0,
+       22
       ]
      },
      "ease": "ease-in-out"
@@ -3045,9 +3555,11 @@
     {
      "t": 14,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -3073,6 +3585,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -3085,9 +3601,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": -16,
+      "torso": -7.2,
       "head": -4,
-      "robe": 0,
+      "robe": 0.0,
+      "chest": -8.8,
+      "robe_f": -44.0,
       "sash": -30,
       "scarf": 10,
       "hand_f": 0,
@@ -3113,15 +3631,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 1,
      "rotate": {
-      "torso": 2,
+      "torso": 0.9,
       "head": -4,
-      "robe": 0,
+      "robe": 2.7,
+      "chest": 1.1,
+      "robe_f": -26.0,
       "sash": -10,
       "scarf": 4,
       "hand_f": 0,
@@ -3147,6 +3671,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     }
@@ -3160,9 +3688,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -3188,15 +3718,21 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     },
     {
      "t": 0.8,
      "rotate": {
-      "torso": 10,
+      "torso": 4.5,
       "head": -5,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 5.5,
+      "robe_f": -24.0,
       "sash": 7,
       "scarf": 2,
       "hand_f": 0,
@@ -3222,15 +3758,21 @@
       "robe": [
        0,
        9
+      ],
+      "robe_f": [
+       0,
+       9
       ]
      }
     },
     {
      "t": 1.6,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -3256,6 +3798,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -3267,172 +3813,682 @@
    "ease": "linear",
    "keys": [
     {
-     "t": 0,
+     "t": 0.0,
      "rotate": {
-      "torso": 5,
-      "head": -2,
-      "robe": -2,
-      "sash": 6,
-      "scarf": 0,
+      "torso": 20.2,
+      "head": -30.0,
+      "robe": 0.0,
+      "chest": 24.1,
+      "robe_f": -34.0,
+      "sash": 0.0,
+      "scarf": -4.8,
       "hand_f": 0,
-      "arm_f_upper": 5.0,
-      "arm_f_lower": -28.0,
-      "sword": 20.0,
-      "arm_b_upper": -44.0,
-      "arm_b_lower": -15.0,
-      "leg_f_thigh": -22.0,
-      "leg_f_shin": 8.0,
-      "leg_b_thigh": 20.0,
-      "leg_b_shin": 18.0
+      "arm_f_upper": -20.8,
+      "arm_f_lower": -119.4,
+      "sword": -10.4,
+      "arm_b_upper": -53.6,
+      "arm_b_lower": -110.6,
+      "leg_f_thigh": -34.0,
+      "leg_f_shin": 29.3,
+      "leg_b_thigh": -8.9,
+      "leg_b_shin": 69.1
      },
      "translate": {
       "root": [
        0,
-       30.1
+       44.4
       ],
       "torso": [
        0,
-       0
+       6.3
       ],
       "robe": [
        0,
-       0
+       6.3
+      ],
+      "robe_f": [
+       0,
+       6.3
+      ]
+     }
+    },
+    {
+     "t": 0.0625,
+     "rotate": {
+      "torso": 20.4,
+      "head": -30.4,
+      "robe": -0.8,
+      "chest": 24.5,
+      "robe_f": -34.6,
+      "sash": 2.3,
+      "scarf": -2.5,
+      "hand_f": 0,
+      "arm_f_upper": -21.8,
+      "arm_f_lower": -118.9,
+      "sword": -9.7,
+      "arm_b_upper": -54.4,
+      "arm_b_lower": -110.4,
+      "leg_f_thigh": -33.8,
+      "leg_f_shin": 39.0,
+      "leg_b_thigh": -12.2,
+      "leg_b_shin": 73.5
+     },
+     "translate": {
+      "root": [
+       0,
+       46.0
+      ],
+      "torso": [
+       0,
+       7.2
+      ],
+      "robe": [
+       0,
+       7.2
+      ],
+      "robe_f": [
+       0,
+       7.2
+      ]
+     }
+    },
+    {
+     "t": 0.125,
+     "rotate": {
+      "torso": 20.5,
+      "head": -30.5,
+      "robe": -1.4,
+      "chest": 24.5,
+      "robe_f": -32.3,
+      "sash": 4.2,
+      "scarf": -0.6,
+      "hand_f": 0,
+      "arm_f_upper": -21.8,
+      "arm_f_lower": -118.7,
+      "sword": -9.5,
+      "arm_b_upper": -54.4,
+      "arm_b_lower": -110.2,
+      "leg_f_thigh": -30.9,
+      "leg_f_shin": 43.5,
+      "leg_b_thigh": -19.2,
+      "leg_b_shin": 77.9
+     },
+     "translate": {
+      "root": [
+       0,
+       44.1
+      ],
+      "torso": [
+       0,
+       7.5
+      ],
+      "robe": [
+       0,
+       7.5
+      ],
+      "robe_f": [
+       0,
+       7.5
+      ]
+     }
+    },
+    {
+     "t": 0.1875,
+     "rotate": {
+      "torso": 20.2,
+      "head": -30.4,
+      "robe": -1.8,
+      "chest": 24.3,
+      "robe_f": -30.5,
+      "sash": 5.5,
+      "scarf": -0.0,
+      "hand_f": 0,
+      "arm_f_upper": -20.8,
+      "arm_f_lower": -119.0,
+      "sword": -9.8,
+      "arm_b_upper": -53.4,
+      "arm_b_lower": -110.5,
+      "leg_f_thigh": -28.7,
+      "leg_f_shin": 49.5,
+      "leg_b_thigh": -27.1,
+      "leg_b_shin": 77.4
+     },
+     "translate": {
+      "root": [
+       0,
+       39.8
+      ],
+      "torso": [
+       0,
+       6.8
+      ],
+      "robe": [
+       0,
+       6.8
+      ],
+      "robe_f": [
+       0,
+       6.8
       ]
      }
     },
     {
      "t": 0.25,
      "rotate": {
-      "torso": 6,
-      "head": -2,
-      "robe": 0,
-      "sash": 0,
-      "scarf": 0,
+      "torso": 19.8,
+      "head": -30.0,
+      "robe": -2.0,
+      "chest": 23.9,
+      "robe_f": -34.5,
+      "sash": 6.0,
+      "scarf": -1.2,
       "hand_f": 0,
-      "arm_f_upper": -4.0,
-      "arm_f_lower": -27.0,
-      "sword": 22.0,
-      "arm_b_upper": -20.0,
-      "arm_b_lower": -10.0,
-      "leg_f_thigh": 0.0,
-      "leg_f_shin": 0.0,
-      "leg_b_thigh": -5.0,
-      "leg_b_shin": 35.0
+      "arm_f_upper": -19.3,
+      "arm_f_lower": -119.5,
+      "sword": -10.6,
+      "arm_b_upper": -52.2,
+      "arm_b_lower": -110.7,
+      "leg_f_thigh": -27.1,
+      "leg_f_shin": 57.3,
+      "leg_b_thigh": -32.5,
+      "leg_b_shin": 68.8
      },
      "translate": {
       "root": [
        0,
-       0.0
+       35.6
       ],
       "torso": [
        0,
-       0
+       5.7
       ],
       "robe": [
        0,
-       0
+       5.7
+      ],
+      "robe_f": [
+       0,
+       5.7
+      ]
+     }
+    },
+    {
+     "t": 0.3125,
+     "rotate": {
+      "torso": 19.6,
+      "head": -29.6,
+      "robe": -1.8,
+      "chest": 23.5,
+      "robe_f": -33.3,
+      "sash": 5.5,
+      "scarf": -3.5,
+      "hand_f": 0,
+      "arm_f_upper": -18.3,
+      "arm_f_lower": -120.0,
+      "sword": -11.3,
+      "arm_b_upper": -51.4,
+      "arm_b_lower": -111.0,
+      "leg_f_thigh": -24.5,
+      "leg_f_shin": 63.6,
+      "leg_b_thigh": -31.5,
+      "leg_b_shin": 49.5
+     },
+     "translate": {
+      "root": [
+       0,
+       34.0
+      ],
+      "torso": [
+       0,
+       4.8
+      ],
+      "robe": [
+       0,
+       4.8
+      ],
+      "robe_f": [
+       0,
+       4.8
+      ]
+     }
+    },
+    {
+     "t": 0.375,
+     "rotate": {
+      "torso": 19.5,
+      "head": -29.5,
+      "robe": -1.4,
+      "chest": 23.5,
+      "robe_f": -34.8,
+      "sash": 4.2,
+      "scarf": -5.4,
+      "hand_f": 0,
+      "arm_f_upper": -18.3,
+      "arm_f_lower": -120.2,
+      "sword": -11.5,
+      "arm_b_upper": -51.4,
+      "arm_b_lower": -111.1,
+      "leg_f_thigh": -20.6,
+      "leg_f_shin": 68.0,
+      "leg_b_thigh": -33.4,
+      "leg_b_shin": 39.9
+     },
+     "translate": {
+      "root": [
+       0,
+       35.9
+      ],
+      "torso": [
+       0,
+       4.5
+      ],
+      "robe": [
+       0,
+       4.5
+      ],
+      "robe_f": [
+       0,
+       4.5
+      ]
+     }
+    },
+    {
+     "t": 0.4375,
+     "rotate": {
+      "torso": 19.8,
+      "head": -29.6,
+      "robe": -0.8,
+      "chest": 23.7,
+      "robe_f": -34.7,
+      "sash": 2.3,
+      "scarf": -6.0,
+      "hand_f": 0,
+      "arm_f_upper": -19.3,
+      "arm_f_lower": -119.9,
+      "sword": -11.2,
+      "arm_b_upper": -52.4,
+      "arm_b_lower": -110.9,
+      "leg_f_thigh": -15.4,
+      "leg_f_shin": 70.1,
+      "leg_b_thigh": -33.9,
+      "leg_b_shin": 32.2
+     },
+     "translate": {
+      "root": [
+       0,
+       40.2
+      ],
+      "torso": [
+       0,
+       5.2
+      ],
+      "robe": [
+       0,
+       5.2
+      ],
+      "robe_f": [
+       0,
+       5.2
       ]
      }
     },
     {
      "t": 0.5,
      "rotate": {
-      "torso": 5,
-      "head": -2,
-      "robe": 2,
-      "sash": -6,
-      "scarf": 0,
+      "torso": 20.2,
+      "head": -30.0,
+      "robe": 0.0,
+      "chest": 24.1,
+      "robe_f": -34.0,
+      "sash": 0.0,
+      "scarf": -4.8,
       "hand_f": 0,
-      "arm_f_upper": -11.0,
-      "arm_f_lower": -27.0,
-      "sword": 25.0,
-      "arm_b_upper": 6.0,
-      "arm_b_lower": -5.0,
-      "leg_f_thigh": 20.0,
-      "leg_f_shin": 18.0,
-      "leg_b_thigh": -22.0,
-      "leg_b_shin": 8.0
+      "arm_f_upper": -20.8,
+      "arm_f_lower": -119.4,
+      "sword": -10.4,
+      "arm_b_upper": -53.6,
+      "arm_b_lower": -110.6,
+      "leg_f_thigh": -8.9,
+      "leg_f_shin": 69.1,
+      "leg_b_thigh": -34.0,
+      "leg_b_shin": 29.3
      },
      "translate": {
       "root": [
        0,
-       30.1
+       44.4
       ],
       "torso": [
        0,
-       0
+       6.3
       ],
       "robe": [
        0,
-       0
+       6.3
+      ],
+      "robe_f": [
+       0,
+       6.3
+      ]
+     }
+    },
+    {
+     "t": 0.5625,
+     "rotate": {
+      "torso": 20.4,
+      "head": -30.4,
+      "robe": 0.8,
+      "chest": 24.5,
+      "robe_f": -33.0,
+      "sash": -2.3,
+      "scarf": -2.5,
+      "hand_f": 0,
+      "arm_f_upper": -21.8,
+      "arm_f_lower": -118.9,
+      "sword": -9.7,
+      "arm_b_upper": -54.4,
+      "arm_b_lower": -110.4,
+      "leg_f_thigh": -12.2,
+      "leg_f_shin": 73.5,
+      "leg_b_thigh": -33.8,
+      "leg_b_shin": 39.0
+     },
+     "translate": {
+      "root": [
+       0,
+       46.0
+      ],
+      "torso": [
+       0,
+       7.2
+      ],
+      "robe": [
+       0,
+       7.2
+      ],
+      "robe_f": [
+       0,
+       7.2
+      ]
+     }
+    },
+    {
+     "t": 0.625,
+     "rotate": {
+      "torso": 20.5,
+      "head": -30.5,
+      "robe": 1.4,
+      "chest": 24.5,
+      "robe_f": -29.5,
+      "sash": -4.2,
+      "scarf": -0.6,
+      "hand_f": 0,
+      "arm_f_upper": -21.8,
+      "arm_f_lower": -118.7,
+      "sword": -9.5,
+      "arm_b_upper": -54.4,
+      "arm_b_lower": -110.2,
+      "leg_f_thigh": -19.2,
+      "leg_f_shin": 77.9,
+      "leg_b_thigh": -30.9,
+      "leg_b_shin": 43.5
+     },
+     "translate": {
+      "root": [
+       0,
+       44.1
+      ],
+      "torso": [
+       0,
+       7.5
+      ],
+      "robe": [
+       0,
+       7.5
+      ],
+      "robe_f": [
+       0,
+       7.5
+      ]
+     }
+    },
+    {
+     "t": 0.6875,
+     "rotate": {
+      "torso": 20.2,
+      "head": -30.4,
+      "robe": 1.8,
+      "chest": 24.3,
+      "robe_f": -26.9,
+      "sash": -5.5,
+      "scarf": -0.0,
+      "hand_f": 0,
+      "arm_f_upper": -20.8,
+      "arm_f_lower": -119.0,
+      "sword": -9.8,
+      "arm_b_upper": -53.4,
+      "arm_b_lower": -110.5,
+      "leg_f_thigh": -27.1,
+      "leg_f_shin": 77.4,
+      "leg_b_thigh": -28.7,
+      "leg_b_shin": 49.5
+     },
+     "translate": {
+      "root": [
+       0,
+       39.8
+      ],
+      "torso": [
+       0,
+       6.8
+      ],
+      "robe": [
+       0,
+       6.8
+      ],
+      "robe_f": [
+       0,
+       6.8
       ]
      }
     },
     {
      "t": 0.75,
      "rotate": {
-      "torso": 6,
-      "head": -2,
-      "robe": 0,
-      "sash": 0,
-      "scarf": 0,
+      "torso": 19.8,
+      "head": -30.0,
+      "robe": 2.0,
+      "chest": 23.9,
+      "robe_f": -30.5,
+      "sash": -6.0,
+      "scarf": -1.2,
       "hand_f": 0,
-      "arm_f_upper": -4.0,
-      "arm_f_lower": -27.0,
-      "sword": 22.0,
-      "arm_b_upper": -20.0,
-      "arm_b_lower": -10.0,
-      "leg_f_thigh": -5.0,
-      "leg_f_shin": 35.0,
-      "leg_b_thigh": 0.0,
-      "leg_b_shin": 0.0
+      "arm_f_upper": -19.3,
+      "arm_f_lower": -119.5,
+      "sword": -10.6,
+      "arm_b_upper": -52.2,
+      "arm_b_lower": -110.7,
+      "leg_f_thigh": -32.5,
+      "leg_f_shin": 68.8,
+      "leg_b_thigh": -27.1,
+      "leg_b_shin": 57.3
      },
      "translate": {
       "root": [
        0,
-       0.0
+       35.6
       ],
       "torso": [
        0,
-       0
+       5.7
       ],
       "robe": [
        0,
-       0
+       5.7
+      ],
+      "robe_f": [
+       0,
+       5.7
+      ]
+     }
+    },
+    {
+     "t": 0.8125,
+     "rotate": {
+      "torso": 19.6,
+      "head": -29.6,
+      "robe": 1.8,
+      "chest": 23.5,
+      "robe_f": -29.7,
+      "sash": -5.5,
+      "scarf": -3.5,
+      "hand_f": 0,
+      "arm_f_upper": -18.3,
+      "arm_f_lower": -120.0,
+      "sword": -11.3,
+      "arm_b_upper": -51.4,
+      "arm_b_lower": -111.0,
+      "leg_f_thigh": -31.5,
+      "leg_f_shin": 49.5,
+      "leg_b_thigh": -24.5,
+      "leg_b_shin": 63.6
+     },
+     "translate": {
+      "root": [
+       0,
+       34.0
+      ],
+      "torso": [
+       0,
+       4.8
+      ],
+      "robe": [
+       0,
+       4.8
+      ],
+      "robe_f": [
+       0,
+       4.8
+      ]
+     }
+    },
+    {
+     "t": 0.875,
+     "rotate": {
+      "torso": 19.5,
+      "head": -29.5,
+      "robe": 1.4,
+      "chest": 23.5,
+      "robe_f": -32.0,
+      "sash": -4.2,
+      "scarf": -5.4,
+      "hand_f": 0,
+      "arm_f_upper": -18.3,
+      "arm_f_lower": -120.2,
+      "sword": -11.5,
+      "arm_b_upper": -51.4,
+      "arm_b_lower": -111.1,
+      "leg_f_thigh": -33.4,
+      "leg_f_shin": 39.9,
+      "leg_b_thigh": -20.6,
+      "leg_b_shin": 68.0
+     },
+     "translate": {
+      "root": [
+       0,
+       35.9
+      ],
+      "torso": [
+       0,
+       4.5
+      ],
+      "robe": [
+       0,
+       4.5
+      ],
+      "robe_f": [
+       0,
+       4.5
+      ]
+     }
+    },
+    {
+     "t": 0.9375,
+     "rotate": {
+      "torso": 19.8,
+      "head": -29.6,
+      "robe": 0.8,
+      "chest": 23.7,
+      "robe_f": -33.1,
+      "sash": -2.3,
+      "scarf": -6.0,
+      "hand_f": 0,
+      "arm_f_upper": -19.3,
+      "arm_f_lower": -119.9,
+      "sword": -11.2,
+      "arm_b_upper": -52.4,
+      "arm_b_lower": -110.9,
+      "leg_f_thigh": -33.9,
+      "leg_f_shin": 32.2,
+      "leg_b_thigh": -15.4,
+      "leg_b_shin": 70.1
+     },
+     "translate": {
+      "root": [
+       0,
+       40.2
+      ],
+      "torso": [
+       0,
+       5.2
+      ],
+      "robe": [
+       0,
+       5.2
+      ],
+      "robe_f": [
+       0,
+       5.2
       ]
      }
     },
     {
      "t": 1.0,
      "rotate": {
-      "torso": 5,
-      "head": -2,
-      "robe": -2,
-      "sash": 6,
-      "scarf": 0,
+      "torso": 20.2,
+      "head": -30.0,
+      "robe": 0.0,
+      "chest": 24.1,
+      "robe_f": -34.0,
+      "sash": 0.0,
+      "scarf": -4.8,
       "hand_f": 0,
-      "arm_f_upper": 5.0,
-      "arm_f_lower": -28.0,
-      "sword": 20.0,
-      "arm_b_upper": -44.0,
-      "arm_b_lower": -15.0,
-      "leg_f_thigh": -22.0,
-      "leg_f_shin": 8.0,
-      "leg_b_thigh": 20.0,
-      "leg_b_shin": 18.0
+      "arm_f_upper": -20.8,
+      "arm_f_lower": -119.4,
+      "sword": -10.4,
+      "arm_b_upper": -53.6,
+      "arm_b_lower": -110.6,
+      "leg_f_thigh": -34.0,
+      "leg_f_shin": 29.3,
+      "leg_b_thigh": -8.9,
+      "leg_b_shin": 69.1
      },
      "translate": {
       "root": [
        0,
-       30.1
+       44.4
       ],
       "torso": [
        0,
-       0
+       6.3
       ],
       "robe": [
        0,
-       0
+       6.3
+      ],
+      "robe_f": [
+       0,
+       6.3
       ]
      }
     }
@@ -3446,17 +4502,19 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 22,
-      "head": -16,
-      "robe": 0,
-      "sash": 26,
-      "scarf": -6,
+      "torso": 14,
+      "head": -24,
+      "robe": 28.4,
+      "chest": 18,
+      "robe_f": -28.0,
+      "sash": 22,
+      "scarf": -8,
       "hand_f": 0,
-      "arm_f_upper": -8.0,
+      "arm_f_upper": -18.0,
       "arm_f_lower": -5.0,
       "sword": 13.0,
-      "arm_b_upper": -69.0,
-      "arm_b_lower": -42.0,
+      "arm_b_upper": -85.0,
+      "arm_b_lower": -46.0,
       "leg_f_thigh": -42.0,
       "leg_f_shin": 20.0,
       "leg_b_thigh": 32.0,
@@ -3465,31 +4523,37 @@
      "translate": {
       "root": [
        0,
-       -6
+       -2
       ],
       "torso": [
        0,
-       0
+       10
       ],
       "robe": [
        0,
-       0
+       10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      }
     },
     {
      "t": 0.25,
      "rotate": {
-      "torso": 22,
+      "torso": 16,
       "head": -16,
-      "robe": 0,
-      "sash": 32,
-      "scarf": -4,
+      "robe": 22.0,
+      "chest": 8,
+      "robe_f": 10.0,
+      "sash": 34,
+      "scarf": -2,
       "hand_f": 0,
-      "arm_f_upper": -12.0,
+      "arm_f_upper": -14.0,
       "arm_f_lower": -5.0,
       "sword": 14.0,
-      "arm_b_upper": -41.0,
+      "arm_b_upper": -43.0,
       "arm_b_lower": -40.0,
       "leg_f_thigh": -12.0,
       "leg_f_shin": 30.0,
@@ -3499,32 +4563,38 @@
      "translate": {
       "root": [
        0,
-       18
+       20
       ],
       "torso": [
        0,
-       0
+       -4
       ],
       "robe": [
        0,
-       0
+       -4
+      ],
+      "robe_f": [
+       0,
+       -4
       ]
      }
     },
     {
      "t": 0.5,
      "rotate": {
-      "torso": 22,
-      "head": -16,
-      "robe": 0,
-      "sash": 26,
-      "scarf": -6,
+      "torso": 14,
+      "head": -24,
+      "robe": 28.4,
+      "chest": 18,
+      "robe_f": -28.0,
+      "sash": 22,
+      "scarf": -8,
       "hand_f": 0,
-      "arm_f_upper": -16.0,
+      "arm_f_upper": -26.0,
       "arm_f_lower": -5.0,
       "sword": 15.0,
-      "arm_b_upper": -1.0,
-      "arm_b_lower": -30.0,
+      "arm_b_upper": -3.0,
+      "arm_b_lower": -28.0,
       "leg_f_thigh": 32.0,
       "leg_f_shin": 40.0,
       "leg_b_thigh": -42.0,
@@ -3533,31 +4603,37 @@
      "translate": {
       "root": [
        0,
-       -6
+       -2
       ],
       "torso": [
        0,
-       0
+       10
       ],
       "robe": [
        0,
-       0
+       10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      }
     },
     {
      "t": 0.75,
      "rotate": {
-      "torso": 22,
+      "torso": 16,
       "head": -16,
-      "robe": 0,
-      "sash": 32,
-      "scarf": -4,
+      "robe": 22.0,
+      "chest": 8,
+      "robe_f": 10.0,
+      "sash": 34,
+      "scarf": -2,
       "hand_f": 0,
-      "arm_f_upper": -12.0,
+      "arm_f_upper": -14.0,
       "arm_f_lower": -5.0,
       "sword": 14.0,
-      "arm_b_upper": -41.0,
+      "arm_b_upper": -43.0,
       "arm_b_lower": -40.0,
       "leg_f_thigh": -10.0,
       "leg_f_shin": 70.0,
@@ -3567,32 +4643,38 @@
      "translate": {
       "root": [
        0,
-       18
+       20
       ],
       "torso": [
        0,
-       0
+       -4
       ],
       "robe": [
        0,
-       0
+       -4
+      ],
+      "robe_f": [
+       0,
+       -4
       ]
      }
     },
     {
      "t": 1.0,
      "rotate": {
-      "torso": 22,
-      "head": -16,
-      "robe": 0,
-      "sash": 26,
-      "scarf": -6,
+      "torso": 14,
+      "head": -24,
+      "robe": 28.4,
+      "chest": 18,
+      "robe_f": -28.0,
+      "sash": 22,
+      "scarf": -8,
       "hand_f": 0,
-      "arm_f_upper": -8.0,
+      "arm_f_upper": -18.0,
       "arm_f_lower": -5.0,
       "sword": 13.0,
-      "arm_b_upper": -69.0,
-      "arm_b_lower": -42.0,
+      "arm_b_upper": -85.0,
+      "arm_b_lower": -46.0,
       "leg_f_thigh": -42.0,
       "leg_f_shin": 20.0,
       "leg_b_thigh": 32.0,
@@ -3601,15 +4683,19 @@
      "translate": {
       "root": [
        0,
-       -6
+       -2
       ],
       "torso": [
        0,
-       0
+       10
       ],
       "robe": [
        0,
-       0
+       10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      }
     }
@@ -3622,9 +4708,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 6,
+      "torso": 2.7,
       "head": -4,
-      "robe": 0,
+      "robe": 4.5,
+      "chest": 3.3,
+      "robe_f": -40.0,
       "sash": 22,
       "scarf": -6,
       "hand_f": 0,
@@ -3650,15 +4738,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 1,
      "rotate": {
-      "torso": 2,
+      "torso": 0.9,
       "head": -2,
-      "robe": 0,
+      "robe": 5.4,
+      "chest": 1.1,
+      "robe_f": -18.0,
       "sash": -12,
       "scarf": 4,
       "hand_f": 0,
@@ -3684,6 +4778,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     }
@@ -3697,9 +4795,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -3725,6 +4825,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -3732,9 +4836,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": -18,
+      "torso": 2,
       "head": -8,
-      "robe": -4,
+      "robe": 8.6,
+      "chest": -20,
+      "robe_f": -36.0,
       "sash": -8,
       "scarf": 0,
       "hand_f": 0,
@@ -3760,6 +4866,10 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      },
      "ease": "ease-in"
@@ -3767,9 +4877,11 @@
     {
      "t": 3,
      "rotate": {
-      "torso": 14,
+      "torso": 16,
       "head": -2,
-      "robe": 0,
+      "robe": 17.1,
+      "chest": -2,
+      "robe_f": -40.0,
       "sash": 12,
       "scarf": 0,
       "hand_f": 0,
@@ -3795,15 +4907,21 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      }
     },
     {
      "t": 4,
      "rotate": {
-      "torso": 26,
+      "torso": 11.7,
       "head": 8,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 14.3,
+      "robe_f": -46.0,
       "sash": 34,
       "scarf": -8,
       "hand_f": 0,
@@ -3829,6 +4947,10 @@
       "robe": [
        0,
        10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      },
      "ease": "ease-out"
@@ -3836,9 +4958,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": 28,
+      "torso": 12.6,
       "head": 8,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 15.4,
+      "robe_f": -46.0,
       "sash": 34,
       "scarf": -8,
       "hand_f": 0,
@@ -3864,6 +4988,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in-out"
@@ -3871,9 +4999,11 @@
     {
      "t": 11,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -3899,6 +5029,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -3912,9 +5046,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 26,
+      "torso": 11.7,
       "head": 8,
-      "robe": 8,
+      "robe": 31.4,
+      "chest": 14.3,
+      "robe_f": -46.0,
       "sash": 34,
       "scarf": -8,
       "hand_f": 0,
@@ -3940,6 +5076,10 @@
       "robe": [
        0,
        10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      },
      "ease": "ease-out"
@@ -3947,9 +5087,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": 26,
+      "torso": 6,
       "head": 4,
-      "robe": 0,
+      "robe": 18.9,
+      "chest": 20,
+      "robe_f": -46.0,
       "sash": 20,
       "scarf": 0,
       "hand_f": 0,
@@ -3975,6 +5117,10 @@
       "robe": [
        0,
        12
+      ],
+      "robe_f": [
+       0,
+       12
       ]
      },
      "ease": "ease-in"
@@ -3982,9 +5128,11 @@
     {
      "t": 3,
      "rotate": {
-      "torso": 10,
+      "torso": -4,
       "head": -2,
-      "robe": 0,
+      "robe": 18.0,
+      "chest": 14,
+      "robe_f": -40.0,
       "sash": 8,
       "scarf": 0,
       "hand_f": 0,
@@ -4010,15 +5158,21 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      }
     },
     {
      "t": 4,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 24.9,
+      "chest": -7.7,
+      "robe_f": -36.0,
       "sash": -14,
       "scarf": 0,
       "hand_f": 0,
@@ -4044,6 +5198,10 @@
       "robe": [
        0,
        2
+      ],
+      "robe_f": [
+       0,
+       2
       ]
      },
      "ease": "ease-out"
@@ -4051,9 +5209,11 @@
     {
      "t": 7,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 24.9,
+      "chest": -7.7,
+      "robe_f": -36.0,
       "sash": -14,
       "scarf": 0,
       "hand_f": 0,
@@ -4079,6 +5239,10 @@
       "robe": [
        0,
        2
+      ],
+      "robe_f": [
+       0,
+       2
       ]
      },
      "ease": "ease-in-out"
@@ -4086,9 +5250,11 @@
     {
      "t": 12,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4114,6 +5280,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -4127,9 +5297,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 6,
+      "robe": 24.9,
+      "chest": -7.7,
+      "robe_f": -36.0,
       "sash": -14,
       "scarf": 0,
       "hand_f": 0,
@@ -4155,6 +5327,10 @@
       "robe": [
        0,
        2
+      ],
+      "robe_f": [
+       0,
+       2
       ]
      },
      "ease": "ease-out"
@@ -4162,9 +5338,11 @@
     {
      "t": 3,
      "rotate": {
-      "torso": -26,
+      "torso": 0,
       "head": -12,
-      "robe": -4,
+      "robe": 3.2,
+      "chest": -26,
+      "robe_f": -24.0,
       "sash": -12,
       "scarf": 0,
       "hand_f": 0,
@@ -4190,6 +5368,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-in"
@@ -4197,9 +5379,11 @@
     {
      "t": 4,
      "rotate": {
-      "torso": 10,
+      "torso": 14,
       "head": -2,
-      "robe": 0,
+      "robe": 18.0,
+      "chest": -4,
+      "robe_f": -40.0,
       "sash": 0,
       "scarf": 0,
       "hand_f": 0,
@@ -4225,15 +5409,21 @@
       "robe": [
        0,
        6
+      ],
+      "robe_f": [
+       0,
+       6
       ]
      }
     },
     {
      "t": 5,
      "rotate": {
-      "torso": 34,
+      "torso": 15.3,
       "head": 10,
-      "robe": 10,
+      "robe": 37.0,
+      "chest": 18.7,
+      "robe_f": -54.0,
       "sash": 44,
       "scarf": -10,
       "hand_f": 0,
@@ -4259,6 +5449,10 @@
       "robe": [
        0,
        18
+      ],
+      "robe_f": [
+       0,
+       18
       ]
      },
      "ease": "ease-out"
@@ -4266,9 +5460,11 @@
     {
      "t": 11,
      "rotate": {
-      "torso": 32,
+      "torso": 14.4,
       "head": 10,
-      "robe": 10,
+      "robe": 37.0,
+      "chest": 17.6,
+      "robe_f": -54.0,
       "sash": 34,
       "scarf": -10,
       "hand_f": 0,
@@ -4294,6 +5490,10 @@
       "robe": [
        0,
        14
+      ],
+      "robe_f": [
+       0,
+       14
       ]
      },
      "ease": "ease-in-out"
@@ -4301,9 +5501,11 @@
     {
      "t": 18,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4329,6 +5531,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      }
     }
@@ -4342,9 +5548,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 6,
+      "torso": 2.7,
       "head": -4,
-      "robe": 0,
+      "robe": 4.5,
+      "chest": 3.3,
+      "robe_f": -40.0,
       "sash": 22,
       "scarf": -6,
       "hand_f": 0,
@@ -4370,6 +5578,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-out"
@@ -4377,9 +5589,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": -10,
+      "torso": -4.5,
       "head": -4,
-      "robe": 0,
+      "robe": 4.5,
+      "chest": -5.5,
+      "robe_f": -40.0,
       "sash": 22,
       "scarf": -6,
       "hand_f": 0,
@@ -4405,6 +5619,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-in"
@@ -4412,9 +5630,11 @@
     {
      "t": 2,
      "rotate": {
-      "torso": 10,
+      "torso": 4.5,
       "head": -4,
-      "robe": 0,
+      "robe": 4.5,
+      "chest": 5.5,
+      "robe_f": -40.0,
       "sash": 22,
       "scarf": -6,
       "hand_f": 0,
@@ -4440,15 +5660,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 4,
      "rotate": {
-      "torso": 30,
+      "torso": 13.5,
       "head": 6,
-      "robe": 0,
+      "robe": 9.0,
+      "chest": 16.5,
+      "robe_f": -60.0,
       "sash": 30,
       "scarf": -6,
       "hand_f": 0,
@@ -4474,6 +5700,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-out"
@@ -4481,9 +5711,11 @@
     {
      "t": 8,
      "rotate": {
-      "torso": 26,
+      "torso": 11.7,
       "head": -4,
-      "robe": 0,
+      "robe": 9.0,
+      "chest": 14.3,
+      "robe_f": -50.0,
       "sash": 24,
       "scarf": -6,
       "hand_f": 0,
@@ -4509,6 +5741,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-in-out"
@@ -4516,9 +5752,11 @@
     {
      "t": 14,
      "rotate": {
-      "torso": 2,
+      "torso": 0.9,
       "head": -2,
-      "robe": 0,
+      "robe": 5.4,
+      "chest": 1.1,
+      "robe_f": -18.0,
       "sash": -12,
       "scarf": 4,
       "hand_f": 0,
@@ -4544,6 +5782,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     }
@@ -4557,9 +5799,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4585,6 +5829,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -4592,9 +5840,11 @@
     {
      "t": 3,
      "rotate": {
-      "torso": 30,
+      "torso": 10,
       "head": 6,
-      "robe": 0,
+      "robe": 18.0,
+      "chest": 20,
+      "robe_f": -55.0,
       "sash": 24,
       "scarf": 0,
       "hand_f": 0,
@@ -4620,6 +5870,10 @@
       "robe": [
        0,
        14
+      ],
+      "robe_f": [
+       0,
+       14
       ]
      },
      "ease": "ease-in"
@@ -4627,9 +5881,11 @@
     {
      "t": 4,
      "rotate": {
-      "torso": 8,
+      "torso": -6,
       "head": -2,
-      "robe": 0,
+      "robe": 10.8,
+      "chest": 14,
+      "robe_f": -30.0,
       "sash": 0,
       "scarf": 0,
       "hand_f": 0,
@@ -4655,15 +5911,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 6,
      "rotate": {
-      "torso": -18,
+      "torso": -8.1,
       "head": -12,
-      "robe": 0,
+      "robe": 13.5,
+      "chest": -9.9,
+      "robe_f": -14.0,
       "sash": -20,
       "scarf": 6,
       "hand_f": 0,
@@ -4689,6 +5951,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      },
      "ease": "ease-out"
@@ -4696,9 +5962,11 @@
     {
      "t": 13,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -10,
-      "robe": 0,
+      "robe": 12.6,
+      "chest": -7.7,
+      "robe_f": -14.0,
       "sash": -12,
       "scarf": 0,
       "hand_f": 0,
@@ -4724,15 +5992,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 20,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4756,6 +6030,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]
@@ -4771,9 +6049,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4799,6 +6079,10 @@
       "robe": [
        0,
        4
+      ],
+      "robe_f": [
+       0,
+       4
       ]
      },
      "ease": "ease-out"
@@ -4806,9 +6090,11 @@
     {
      "t": 1,
      "rotate": {
-      "torso": -24,
+      "torso": -4,
       "head": -18,
-      "robe": 0,
+      "robe": 3.6,
+      "chest": -20,
+      "robe_f": -26.0,
       "sash": 24,
       "scarf": 8,
       "hand_f": 0,
@@ -4834,15 +6120,21 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     },
     {
      "t": 6,
      "rotate": {
-      "torso": -14,
+      "torso": -6.3,
       "head": -8,
-      "robe": 0,
+      "robe": 6.3,
+      "chest": -7.7,
+      "robe_f": -22.0,
       "sash": 10,
       "scarf": 0,
       "hand_f": 0,
@@ -4868,6 +6160,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     }
@@ -4881,9 +6177,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 4,
+      "torso": 1.8,
       "head": -10,
-      "robe": 0,
+      "robe": 4.5,
+      "chest": 2.2,
+      "robe_f": 0.0,
       "sash": 0,
       "scarf": 0,
       "hand_f": 0,
@@ -4910,6 +6208,10 @@
       "robe": [
        0,
        0
+      ],
+      "robe_f": [
+       0,
+       0
       ]
      }
     }
@@ -4923,9 +6225,11 @@
     {
      "t": 0,
      "rotate": {
-      "torso": 28,
+      "torso": 12.6,
       "head": -6,
-      "robe": 0,
+      "robe": 13.5,
+      "chest": 15.4,
+      "robe_f": -70.0,
       "sash": 0,
       "scarf": 0,
       "hand_f": 0,
@@ -4951,6 +6255,10 @@
       "robe": [
        0,
        10
+      ],
+      "robe_f": [
+       0,
+       10
       ]
      },
      "ease": "ease-out"
@@ -4958,9 +6266,11 @@
     {
      "t": 10,
      "rotate": {
-      "torso": 8,
+      "torso": 3.6,
       "head": -4,
-      "robe": 0,
+      "robe": 9.9,
+      "chest": 4.4,
+      "robe_f": -24.0,
       "sash": 4,
       "scarf": 0,
       "hand_f": 0,
@@ -4984,6 +6294,10 @@
        4
       ],
       "robe": [
+       0,
+       4
+      ],
+      "robe_f": [
        0,
        4
       ]

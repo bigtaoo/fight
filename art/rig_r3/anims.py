@@ -45,10 +45,12 @@ HIT3 = dict(torso=34, head=10, af=(68, 74, 72), ab=(20, 35), lf=(64, 18), lb=(-6
 def walk():
     # one cycle is two steps; the client advances it by distance walked, so the keys only set
     # the shape. Root drops when the legs straddle so the planted foot stays on the ground.
-    a = dict(lf=(22, 14), lb=(-20, -38), ab=(20, 35), af=(12, 45, 70), torso=5, sash=6, robe=-2)
-    b = dict(lf=(0, 0), lb=(5, -30), ab=(-5, 5), af=(20, 52, 75), torso=6, sash=0)
-    c = dict(lf=(-20, -38), lb=(22, 14), ab=(-30, -25), af=(28, 60, 80), torso=5, sash=-6, robe=2)
-    d = dict(lf=(5, -30), lb=(0, 0), ab=(-5, 5), af=(20, 52, 75), torso=6, sash=0)
+    # The body sinks onto each heel and rises over the passing foot, the chest settling
+    # behind the hips; both arms swing against the legs, the sword arm the less.
+    a = dict(lf=(22, 14), lb=(-20, -38), ab=(26, 44), af=(8, 40, 64), torso=3, waist=5, head=0, body=4, sash=8, robe=-3, scarf=2)
+    b = dict(lf=(0, 0), lb=(5, -30), ab=(-5, 5), af=(18, 50, 72), torso=8, waist=3, head=-4, body=-3, sash=0, scarf=-2)
+    c = dict(lf=(-20, -38), lb=(22, 14), ab=(-36, -30), af=(30, 64, 84), torso=3, waist=5, head=0, body=4, sash=-8, robe=3, scarf=2)
+    d = dict(lf=(5, -30), lb=(0, 0), ab=(-5, 5), af=(18, 50, 72), torso=8, waist=3, head=-4, body=-3, sash=0, scarf=-2)
     return loop(1.0, [key(0, pose(**a)), key(0.25, pose(**b)), key(0.5, pose(**c)), key(0.75, pose(**d)), key(1.0, pose(**a))], ease="linear")
 
 
@@ -56,12 +58,17 @@ def run():
     # root as given: the body rises in the flight phase instead of keeping a foot down. Leaning
     # into the run, the sword is carried low in front, the arm nearly straight and the blade
     # slanting forward with its tip just off the ground (trailed behind, the arm folded up);
-    # the back arm pumps against the legs, the sword arm only sways a little
-    common = dict(torso=22, head=-16, plant=False)
-    a = dict(common, lf=(42, 22), lb=(-32, -72), root=(0, -6), af=SWORD_LOW[0], ab=(28, 70), sash=26, scarf=-6)
-    b = dict(common, lf=(12, -18), lb=(10, -60), root=(0, 18), af=SWORD_LOW[1], ab=(0, 40), sash=32, scarf=-4)
-    c = dict(common, lf=(-32, -72), lb=(42, 22), root=(0, -6), af=SWORD_LOW[2], ab=(-40, -10), sash=26, scarf=-6)
-    d = dict(common, lf=(10, -60), lb=(12, -18), root=(0, 18), af=SWORD_LOW[1], ab=(0, 40), sash=32, scarf=-4)
+    # the back arm pumps against the legs, the sword arm only sways a little. Landing (a, c)
+    # the body gives under the weight, the chest dipping over the hips; pushing off (b, d) it
+    # drives forward and up, the head held level throughout and the robe's hem
+    # streaming back
+    common = dict(plant=False)
+    land = dict(common, torso=32, waist=14, head=-24, body=10, robe=14)
+    fly = dict(common, torso=24, waist=16, head=-16, body=-4, robe=22)
+    a = dict(land, lf=(42, 22), lb=(-32, -72), root=(0, -2), af=SWORD_LOW[0], ab=(34, 80), sash=22, scarf=-8)
+    b = dict(fly, lf=(12, -18), lb=(10, -60), root=(0, 20), af=SWORD_LOW[1], ab=(0, 40), sash=34, scarf=-2)
+    c = dict(land, lf=(-32, -72), lb=(42, 22), root=(0, -2), af=SWORD_LOW[2], ab=(-48, -20), sash=22, scarf=-8)
+    d = dict(fly, lf=(10, -60), lb=(12, -18), root=(0, 20), af=SWORD_LOW[1], ab=(0, 40), sash=34, scarf=-2)
     return loop(1.0, [key(0, pose(**a)), key(0.25, pose(**b)), key(0.5, pose(**c)), key(0.75, pose(**d)), key(1.0, pose(**a))], ease="linear")
 
 
@@ -104,8 +111,8 @@ def tri():
         # a diagonal cut down from over the shoulder, stepping in as it falls
         "tri1": once(14, [
             key(0, pose(**GUARD), "ease-out"),
-            key(1.5, P(TRI1, torso=-12, head=-8, af=(165, 196, 236), ab=(0, 40), lf=(36, 4), lb=(-30, -30), root=(0, 0), body=6, robe=-4, sash=-6), "ease-in"),
-            key(2.5, P(TRI1, torso=14, af=(118, 124, 104), root=(16, 0))),
+            key(1.5, P(TRI1, torso=-12, waist=4, head=-8, af=(165, 196, 236), ab=(0, 40), lf=(36, 4), lb=(-30, -30), root=(0, 0), body=6, robe=-4, sash=-6), "ease-in"),
+            key(2.5, P(TRI1, torso=14, waist=18, af=(118, 124, 104), root=(16, 0))),
             key(3, pose(**TRI1), "ease-out"),
             key(8, pose(**TRI1_HOLD), "ease-in-out"),
             key(14, pose(**GUARD)),
@@ -122,7 +129,7 @@ def tri():
         # the blade carried on up over the head and brought down in the deepest lunge
         "tri3": once(20, [
             key(0, pose(**TRI2_HOLD), "ease-out"),
-            key(1.5, P(TRI2, torso=-26, head=-12, af=(196, 216, 252), ab=(100, 130), root=(4, -16), robe=-4, sash=-14), "ease-in"),
+            key(1.5, P(TRI2, torso=-26, waist=0, head=-12, af=(196, 216, 252), ab=(100, 130), root=(4, -16), robe=-4, sash=-14), "ease-in"),
             key(2.5, P(TRI3, torso=12, af=(140, 136, 128), root=(20, -4))),
             key(3, pose(**TRI3), "ease-out"),
             key(9, P(TRI3, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
@@ -198,8 +205,8 @@ def iai():
     return once(34, [
         key(0, pose(**GUARD), "ease-out"),
         key(7, pose(**GATHER), "ease-in-out"),
-        key(12.5, P(GATHER, torso=24, af=(-60, -80, 256), body=28, sash=-10), "ease-in"),
-        key(13.4, P(IAI, torso=4, head=-6, af=(130, 150, 176), root=(20, 0), body=10)),
+        key(12.5, P(GATHER, torso=24, waist=6, af=(-60, -80, 256), body=28, sash=-10), "ease-in"),
+        key(13.4, P(IAI, torso=4, waist=16, head=-6, af=(130, 150, 176), root=(20, 0), body=10)),
         key(14, pose(**IAI), "ease-out"),
         key(22, P(IAI, torso=40, af=(76, 82, 54), body=22), "ease-in-out"),
         key(25, P(IAI, torso=36, af=(70, 80, 60), body=18), "ease-in-out"),
@@ -233,7 +240,7 @@ def phantom():
             key(at + 5, pose(**dict(p, af=tuple(a + drift for a in p["af"]))), "ease-in"),
         ]
     keys += [
-        key(54, P(UP, torso=-26, head=-12, af=(196, 216, 252), ab=(100, 130), root=(8, -16), sash=-16), "ease-in"),
+        key(54, P(UP, torso=-26, waist=0, head=-12, af=(196, 216, 252), ab=(100, 130), root=(8, -16), sash=-16), "ease-in"),
         key(55.5, P(HEAVY, torso=12, af=(140, 136, 128))),
         key(56, pose(**HEAVY), "ease-out"),
         key(61, P(HEAVY, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
@@ -245,7 +252,7 @@ def phantom():
 def phantom_end():
     # jumped out of the dance: straight to the heavy cut, the wave leaving on tick 3
     return once(14, [
-        key(0, P(UP, torso=-24, head=-12, af=(192, 212, 248), ab=(100, 130), root=(4, -14), sash=-14), "ease-in"),
+        key(0, P(UP, torso=-24, waist=0, head=-12, af=(192, 212, 248), ab=(100, 130), root=(4, -14), sash=-14), "ease-in"),
         key(2, P(HEAVY, torso=12, af=(140, 136, 128))),
         key(3, pose(**HEAVY), "ease-out"),
         key(8, P(HEAVY, torso=42, af=(60, 66, 50), body=22), "ease-in-out"),
@@ -280,8 +287,8 @@ def clips():
         # diagonal cut down from over the shoulder
         "atk1": once(11, [
             key(0, pose(**GUARD), "ease-out"),
-            key(2, pose(torso=-18, head=-8, af=(170, 200, 240), ab=(-5, 40), lf=(32, 6), lb=(-28, -24), root=(-12, 0), body=6, robe=-4, sash=-8), "ease-in"),
-            key(3, pose(torso=14, af=(115, 120, 100), ab=(-30, 10), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
+            key(2, pose(torso=-18, waist=2, head=-8, af=(170, 200, 240), ab=(-5, 40), lf=(32, 6), lb=(-28, -24), root=(-12, 0), body=6, robe=-4, sash=-8), "ease-in"),
+            key(3, pose(torso=14, waist=16, af=(115, 120, 100), ab=(-30, 10), lf=(40, 8), lb=(-38, -34), body=6, sash=12)),
             key(4, pose(**HIT1), "ease-out"),
             key(7, pose(**dict(HIT1, torso=28, af=(64, 68, 44), body=12)), "ease-in-out"),
             key(11, pose(**GUARD)),
@@ -289,8 +296,8 @@ def clips():
         # rising backhand from low behind
         "atk2": once(12, [
             key(0, pose(**HIT1), "ease-out"),
-            key(2, pose(torso=26, head=4, af=(0, 12, -40), ab=(-45, -20), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
-            key(3, pose(torso=10, af=(80, 95, 110), ab=(-40, -10), lf=(40, 10), lb=(-40, -36), body=6, sash=8)),
+            key(2, pose(torso=26, waist=6, head=4, af=(0, 12, -40), ab=(-45, -20), lf=(46, 14), lb=(-42, -40), body=12, sash=20), "ease-in"),
+            key(3, pose(torso=10, waist=-4, af=(80, 95, 110), ab=(-40, -10), lf=(40, 10), lb=(-40, -36), body=6, sash=8)),
             key(4, pose(**HIT2), "ease-out"),
             key(7, pose(**dict(HIT2, af=(160, 178, 190))), "ease-in-out"),
             key(12, pose(**GUARD)),
@@ -298,8 +305,8 @@ def clips():
         # the finisher: both hands over the head, rise, slam down into a deep lunge
         "atk3": once(18, [
             key(0, pose(**HIT2), "ease-out"),
-            key(3, pose(torso=-26, head=-12, af=(195, 215, 250), ab=(110, 135), lf=(20, 0), lb=(-16, -12), root=(-14, -18), robe=-4, sash=-12), "ease-in"),
-            key(4, pose(torso=10, af=(140, 135, 130), ab=(75, 95), lf=(40, 10), lb=(-40, -40), body=6)),
+            key(3, pose(torso=-26, waist=0, head=-12, af=(195, 215, 250), ab=(110, 135), lf=(20, 0), lb=(-16, -12), root=(-14, -18), robe=-4, sash=-12), "ease-in"),
+            key(4, pose(torso=10, waist=14, af=(140, 135, 130), ab=(75, 95), lf=(40, 10), lb=(-40, -40), body=6)),
             key(5, pose(**HIT3), "ease-out"),
             key(11, pose(**dict(HIT3, torso=32, af=(62, 66, 62), body=14, sash=34)), "ease-in-out"),
             key(18, pose(**GUARD)),
@@ -315,8 +322,8 @@ def clips():
         # crouch with the blade low, then rip it up and rise onto the toes
         "upper": once(20, [
             key(0, pose(**GUARD), "ease-out"),
-            key(3, pose(torso=30, head=6, af=(-6, 6, -45), ab=(-30, -10), lf=(55, -5), lb=(-40, -60), body=14, sash=24), "ease-in"),
-            key(4, pose(torso=8, af=(85, 100, 120), ab=(-40, -25), lf=(30, 0), lb=(-24, -24), root=(0, -10))),
+            key(3, pose(torso=30, waist=10, head=6, af=(-6, 6, -45), ab=(-30, -10), lf=(55, -5), lb=(-40, -60), body=14, sash=24), "ease-in"),
+            key(4, pose(torso=8, waist=-6, af=(85, 100, 120), ab=(-40, -25), lf=(30, 0), lb=(-24, -24), root=(0, -10))),
             key(6, pose(torso=-18, head=-12, af=(175, 185, 195), ab=(-60, -50), lf=(14, 10), lb=(-30, -40), root=(0, -30), sash=-20, scarf=6), "ease-out"),
             key(13, pose(torso=-14, head=-10, af=(170, 180, 190), ab=(-55, -45), lf=(14, 10), lb=(-28, -36), root=(0, -10), sash=-12)),
             key(20, pose(**GUARD)),
@@ -324,7 +331,7 @@ def clips():
         # snapped back at the waist, the head whipped, knocked a step back
         "hurt": once(6, [
             key(0, pose(**GUARD), "ease-out"),
-            key(1, pose(torso=-24, head=-18, af=(-30, -10, 20), ab=(-60, -50), lf=(26, 8), lb=(-8, -12), root=(-20, 0), sash=24, scarf=8)),
+            key(1, pose(torso=-24, waist=-4, head=-18, af=(-30, -10, 20), ab=(-60, -50), lf=(26, 8), lb=(-8, -12), root=(-20, 0), sash=24, scarf=8)),
             key(6, pose(torso=-14, head=-8, af=(0, 20, 45), ab=(-40, -25), lf=(22, 6), lb=(-14, -16), root=(-14, 0), sash=10)),
         ]),
         # lying on the back, head toward the attacker's side: the whole figure turned onto its back
