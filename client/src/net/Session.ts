@@ -1,4 +1,7 @@
 import { Engine, LocalInputSource, TICK_RATE, type RunConfig, type SimEvent } from '@dnf/engine';
+import { Character } from '../rpg/character';
+import { settleRun, type Reward } from '../rpg/rewards';
+import { browserStore, deviceRand } from '../platform/store';
 
 // What the game loop drives: something that says how many ticks to step for the time that
 // passed, and steps one tick with the local player's buttons. Offline that is the engine on a
@@ -51,8 +54,12 @@ export class Clock {
 export class OfflineSession implements Session {
   readonly engine: Engine;
   private readonly clock = new Clock(1000 / TICK_RATE);
+  /** What the run earned once it is decided (null before, and for practice). */
+  reward: Reward | null = null;
+  private settled = false;
 
-  constructor(config: RunConfig) {
+  /** `character`: the single-player character the run's experience and gear go to. */
+  constructor(config: RunConfig, readonly character = new Character(browserStore)) {
     this.engine = new Engine(config, new LocalInputSource());
   }
 
@@ -67,7 +74,12 @@ export class OfflineSession implements Session {
   step(buttons: number): SimEvent[] {
     const e = this.engine;
     e.submit({ owner: 0, tick: e.nextTick, buttons });
-    return e.advance() ?? [];
+    const events = e.advance() ?? [];
+    if (!this.settled && e.state.outcome !== 'playing') {
+      this.settled = true;
+      this.reward = settleRun(e.state, this.character, deviceRand);
+    }
+    return events;
   }
 
   status(): string {

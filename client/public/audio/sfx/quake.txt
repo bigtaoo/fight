@@ -1,0 +1,3 @@
+Kenney, Impact Sounds (CC0 1.0), https://kenney.nl/assets/impact-sounds
+from: impactWood_heavy_000.ogg
+converted to mono mp3, silence trimmed, peak at -1 dB

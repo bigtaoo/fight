@@ -26,7 +26,7 @@ function checkpoints(e: Engine, n: number): number[] {
 
 describe('engine', () => {
   it('keeps the system order', () => {
-    expect(STEP_ORDER).toEqual(['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'items', 'cleanup', 'room']);
+    expect(STEP_ORDER).toEqual(['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'affix', 'items', 'cleanup', 'room']);
   });
 
   it('the bot clears the trial dungeon', () => {
@@ -87,7 +87,7 @@ describe('engine', () => {
   it('matches the golden hash (bump ENGINE_VERSION when this changes on purpose)', () => {
     const e = newRun({ seed: 42 });
     play(e, 600, bot);
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 12, tick: 600, hash: 4273846571 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 15, tick: 600, hash: 1416218367 });
   });
 
   it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour, cancels, the chief', () => {
@@ -117,6 +117,6 @@ describe('engine', () => {
     expect(ev.filter((x) => x.type === 'fire' && x.shot === 'quake').length).toBeGreaterThan(3);
     expect(ev.filter((x) => x.type === 'phase')).toHaveLength(1);
     expect(e.state.outcome).toBe('cleared');
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 12, tick: 11424, hash: 2591535892 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 15, tick: 11424, hash: 169803149 });
   });
 });

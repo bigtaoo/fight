@@ -3,6 +3,7 @@ import type { SimEvent } from './events';
 import { LocalInputSource, type InputSource, type PlayerCommand } from './input';
 import { cloneState } from './snapshot';
 import { createState, newEntity, type RunConfig, type SimState } from './state';
+import { affixSystem } from './systems/affix';
 import { bodiesSystem, prologue } from './systems/bodies';
 import { combatSystem } from './systems/combat';
 import { applyInput } from './systems/hero';
@@ -17,9 +18,9 @@ import { fireSystem, shotsSystem } from './systems/shots';
 // a system or any number in content.ts, changes every replay, so bump ENGINE_VERSION (and
 // record the new golden hash in Engine.test.ts on purpose).
 
-export const ENGINE_VERSION = 12;
+export const ENGINE_VERSION = 15;
 
-export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'items', 'cleanup', 'room'] as const;
+export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'affix', 'items', 'cleanup', 'room'] as const;
 
 export class Engine {
   state: SimState;
@@ -59,6 +60,7 @@ export class Engine {
     separate(s);
     combatSystem(s, events);
     shotsSystem(s, events);
+    affixSystem(s, events);
     itemsSystem(s, events);
     cleanup(s);
     roomSystem(s, events);
@@ -86,6 +88,7 @@ function setup(s: SimState): SimEvent[] {
   const events: SimEvent[] = [];
   for (let i = 0; i < s.config.players; i++) {
     const h = newEntity(s, 'hero', 0, i, ENTRY.x, ENTRY.y);
+    h.hp = h.maxHp = s.config.hero.hp;
     s.players.push({ owner: i, hero: h.id, buttons: 0, prev: 0, tapDir: 0, tapTick: -100, running: false, buf: 0, bufLeft: 0, skills: [...s.config.loadout], combo: 0, comboLeft: 0, maxCombo: 0, hitsTaken: 0 });
   }
   enterRoom(s, 0, events);

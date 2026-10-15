@@ -1,0 +1,3 @@
+Kenney, RPG Audio (CC0 1.0), https://kenney.nl/assets/rpg-audio
+from: cloth1.ogg
+converted to mono mp3, silence trimmed, peak at -1 dB

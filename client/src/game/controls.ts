@@ -1,34 +1,28 @@
 import { BTN, DODGE, SKILLS, TICK_RATE, type SimState, type SkillId } from '@dnf/engine';
 import { Container, Graphics, Rectangle, Text, type FederatedPointerEvent, type TextStyleOptions } from 'pixi.js';
 import { VIEW_H, VIEW_W } from './layout';
+import { getLang, keyName, t, type Key } from '../i18n';
 
-// The on-screen controls, for touch (and the mouse): a floating stick on the left, the seven
-// buttons on the right, attack the largest with jump and the dodge beside it and the three skills
-// and the ultimate in an arc above. Each button shows its key and, while cooling down, a sweep
-// and the seconds left. Like the keyboard it hands out engine buttons, held or tapped since the
+// The on-screen controls, for touch (and the mouse): a floating stick on the left, the buttons on
+// the right, attack the largest with jump and the dodge beside it, the bar's first four skills in
+// an arc above and its fifth and sixth further left (an empty slot shows no button). Each button
+// shows its skill and key and, while cooling down, a sweep and the seconds left. Like the keyboard it hands out engine buttons, held or tapped since the
 // last read.
 
 const FONT = 'Georgia, "Songti SC", "SimSun", serif';
 const style = (size: number, fill: number): TextStyleOptions => ({ fontFamily: FONT, fontSize: size, fill, fontWeight: 'bold', align: 'center' });
-
-const NAMES: Record<SkillId, string> = {
-  triple: '三段斩',
-  dragon: '猛龙',
-  upper: '上挑',
-  crush: '破军',
-  iai: '拔刀',
-  phantom: '剑舞',
-};
 
 interface Pad {
   btn: number;
   x: number;
   y: number;
   r: number;
+  /** Its key's code ('KeyX'), named on the player's layout. */
   key: string;
   /** The cooldown it shows: a skill slot, the dodge's, or none. */
   cd: number | null;
-  name: string;
+  /** What it is called, for the fixed ones (a skill slot's comes from the loadout). */
+  name: Key | null;
   label: Text;
   timer: Text;
 }
@@ -56,10 +50,11 @@ export class Controls {
   private knob = { x: 0, y: 0 };
   private stickBits = 0;
   private runTaps: boolean[] = [];
-  private skills: readonly SkillId[] = [];
+  private skills: readonly (SkillId | null)[] = [];
+  private lang = '';
 
   constructor() {
-    const pad = (btn: number, x: number, y: number, r: number, key: string, cd: number | null, name: string): Pad => {
+    const pad = (btn: number, x: number, y: number, r: number, key: string, cd: number | null, name: Key | null): Pad => {
       const label = new Text({ text: '', style: style(r > 80 ? 34 : 26, 0xf3eee2) });
       const timer = new Text({ text: '', style: style(30, 0xf3eee2) });
       label.anchor.set(0.5);
@@ -69,13 +64,15 @@ export class Controls {
       return { btn, x, y, r, key, cd, name, label, timer };
     };
     this.pads = [
-      pad(BTN.ATTACK, 1730, 915, 105, 'X', null, '攻击'),
-      pad(BTN.JUMP, 1520, 990, 60, 'C', null, '跳'),
-      pad(BTN.DODGE, 1385, 990, 56, 'Z', DODGE.slot, '闪避'),
-      pad(BTN.SKILL1, 1505, 830, 66, 'A', 0, ''),
-      pad(BTN.SKILL2, 1570, 680, 66, 'S', 1, ''),
-      pad(BTN.SKILL3, 1705, 610, 66, 'D', 2, ''),
-      pad(BTN.ULT, 1845, 690, 72, 'F', 3, ''),
+      pad(BTN.ATTACK, 1730, 915, 105, 'KeyX', null, 'pad.attack'),
+      pad(BTN.JUMP, 1520, 990, 60, 'KeyC', null, 'pad.jump'),
+      pad(BTN.DODGE, 1385, 990, 56, 'KeyZ', DODGE.slot, 'pad.dodge'),
+      pad(BTN.SKILL1, 1505, 830, 64, 'KeyA', 0, null),
+      pad(BTN.SKILL2, 1570, 680, 64, 'KeyS', 1, null),
+      pad(BTN.SKILL3, 1705, 610, 64, 'KeyD', 2, null),
+      pad(BTN.SKILL4, 1845, 690, 64, 'KeyF', 3, null),
+      pad(BTN.SKILL5, 1365, 855, 60, 'KeyQ', 4, null),
+      pad(BTN.SKILL6, 1430, 705, 60, 'KeyW', 5, null),
     ];
     this.layer.addChild(this.g, ...this.pads.flatMap((p) => [p.label, p.timer]));
     this.layer.eventMode = 'static';
@@ -101,7 +98,7 @@ export class Controls {
 
   private down(ev: FederatedPointerEvent): void {
     const p = this.local(ev);
-    const pad = this.pads.find((q) => Math.hypot(p.x - q.x, p.y - q.y) <= q.r * 1.2);
+    const pad = this.pads.find((q) => this.shown(q) && Math.hypot(p.x - q.x, p.y - q.y) <= q.r * 1.15);
     if (pad) {
       this.pointers.set(ev.pointerId, pad.btn);
       this.held |= pad.btn;
@@ -153,25 +150,43 @@ export class Controls {
     }
   }
 
+  /** Whether a button is there: a skill slot's only while it holds a skill. */
+  private shown(p: Pad): boolean {
+    return p.name !== null || (p.cd !== null && this.skills[p.cd] != null);
+  }
+
+  /** Lets go of everything, as if every finger lifted (the game pausing). */
+  release(): void {
+    this.pointers.clear();
+    this.held = this.tapped = this.stickBits = 0;
+    this.runTaps = [];
+    this.base = { ...STICK_HOME };
+    this.knob = { x: 0, y: 0 };
+  }
+
   /** Draws the stick and the buttons with the hero's cooldowns; `keys`: the keyboard's held buttons. */
   update(s: SimState, keys: number): void {
     const slot = s.players[0];
     const hero = slot && s.entities.find((e) => e.id === slot.hero);
-    if (slot && slot.skills !== this.skills) {
+    if (slot && (slot.skills !== this.skills || getLang() !== this.lang)) {
       this.skills = slot.skills;
-      this.pads.forEach((p) => {
-        if (p.cd !== null && p.cd < DODGE.slot) p.name = NAMES[slot.skills[p.cd]];
-        p.label.text = `${p.name}\n${p.key}`;
-      });
+      this.lang = getLang();
+      for (const p of this.pads) {
+        const id = p.name ? null : slot.skills[p.cd!];
+        p.label.text = p.name || id ? `${t(p.name ?? (`skill.${id}` as Key))}\n${keyName(p.key)}` : '';
+      }
     }
     const g = this.g.clear();
     g.circle(this.base.x, this.base.y, STICK_R + 30).fill({ color: 0x141317, alpha: 0.12 }).stroke({ width: 3, color: 0x141317, alpha: 0.35 });
     g.circle(this.base.x + this.knob.x, this.base.y + this.knob.y, 52).fill({ color: 0x141317, alpha: 0.45 });
     const pressed = this.held | keys | this.stickBits;
     for (const p of this.pads) {
+      p.timer.visible = p.label.visible = this.shown(p);
+      if (!this.shown(p)) continue;
       const left = hero && p.cd !== null ? hero.cd[p.cd] : 0;
-      const total = p.cd === null ? 1 : p.cd === DODGE.slot ? DODGE.cooldown : SKILLS[this.skills[p.cd]].cooldown;
-      const ult = p.btn === BTN.ULT;
+      const id = p.name || p.cd === null ? null : this.skills[p.cd];
+      const total = p.cd === null ? 1 : p.cd === DODGE.slot ? DODGE.cooldown : SKILLS[id!].cooldown;
+      const ult = id === 'phantom';
       g.circle(p.x, p.y, p.r).fill({ color: left > 0 ? 0x6a665e : ult ? 0x5a1a14 : 0x141317, alpha: 0.78 });
       if (left > 0) {
         // the part still cooling, swept away clockwise from the top

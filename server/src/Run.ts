@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from 'node:crypto';
-import { BTN_ALL, DUNGEONS, runConfig, type DungeonId, type RunConfig, type SkillId } from '@dnf/engine';
+import { BTN_ALL, DUNGEONS, runConfig, type DungeonId, type Loadout, type RunConfig } from '@dnf/engine';
 import { CHECK_EVERY, type ClientMsg, type CmdMsg, type Frame, type FrameCmd, type ServerMsg } from '../protocol';
 import { rollLoot, type Inventory } from './loot';
 import type { ReplayOut } from './replay';
@@ -50,7 +50,7 @@ export class Run {
 
   constructor(
     dungeon: DungeonId,
-    loadout: SkillId[],
+    loadout: Loadout,
     private readonly device: string,
     private readonly inventory: Inventory,
     private readonly send: (msg: ServerMsg) => void,
@@ -61,7 +61,7 @@ export class Run {
     this.verifier = new Verifier(this.config, (out) => this.onVerifier(out), (err) => this.fail(`verifier crashed: ${err.message}`));
     send({ type: 'start', run: this.id, owner: 0, config: this.config, tickMs: opts.tickMs, inventory: inventory.get(device) });
     this.timer = setInterval(() => this.flush(), Math.max(10, Math.min(50, opts.tickMs * 2)));
-    log(`run ${this.id} start: ${dungeon}, seed ${this.config.seed}, skills ${loadout.join(' ')}`);
+    log(`run ${this.id} start: ${dungeon}, seed ${this.config.seed}, skills ${loadout.map((id) => id ?? '-').join(' ')}`);
   }
 
   handle(msg: ClientMsg): void {

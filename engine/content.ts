@@ -107,6 +107,8 @@ export interface Monster {
    * (the default: 12, 30). */
   juggle?: { decay: number; floor: number };
   boss?: Boss;
+  /** An elite: on the harder tiers it rolls the tier's elite affixes (see TIERS), like a boss. */
+  elite?: boolean;
   /** What it may leave behind when it dies: `item`, `pct` percent of the time. */
   drop?: { item: ItemKind; pct: number };
 }
@@ -120,6 +122,42 @@ export const ITEMS: Readonly<Record<ItemKind, { heal: number }>> = {
   potion: { heal: 20 },
   bigPotion: { heal: 50 },
 };
+
+/** A difficulty tier (design/CONTENT.md): the monsters' health and damage in percent, the affixes
+ * an elite or a boss rolls, and the chance in percent that any other monster rolls one. */
+export interface Tier {
+  hpPct: number;
+  dmgPct: number;
+  eliteAffixes: number;
+  gruntPct: number;
+}
+
+/** Normal, adventure, warrior, king. */
+export const TIERS: readonly Tier[] = [
+  { hpPct: 100, dmgPct: 100, eliteAffixes: 0, gruntPct: 0 },
+  { hpPct: 180, dmgPct: 150, eliteAffixes: 1, gruntPct: 0 },
+  { hpPct: 300, dmgPct: 220, eliteAffixes: 2, gruntPct: 15 },
+  { hpPct: 500, dmgPct: 300, eliteAffixes: 3, gruntPct: 25 },
+];
+
+/** What a monster may roll on the harder tiers, each a bit of Entity.affixes:
+ * frenzy walks and attacks sooner, ironclad is never stunned, a ward soaks damage until it
+ * breaks, summon calls bandits now and then, miasma leaves a poison cloud where it dies, revive
+ * gets up once at half health. */
+export const AFFIXES = ['frenzy', 'ironclad', 'ward', 'summon', 'miasma', 'revive'] as const;
+export type Affix = (typeof AFFIXES)[number];
+
+export const AFFIX = {
+  frenzy: { walkPct: 140, cdPct: 55 },
+  /** The ward's strength in percent of the monster's health. */
+  ward: { pct: 30 },
+  /** Two of `kind` either side of it every `every` ticks, `times` times, while fewer than `max`
+   * monsters stand. */
+  summon: { kind: 'bandit' as MonsterKind, every: ticks(8), times: 3, max: 8, dx: toFp(160) },
+  /** The cloud lasts `life` ticks and every `every` ticks hurts each hero inside by `damage`
+   * (scaled by the tier); it never kills. */
+  miasma: { life: ticks(6), every: ticks(0.5), damage: 30, x: toFp(140), y: toFp(70) },
+} as const;
 
 /** A hero this close to an item in x and depth picks it up. */
 export const PICKUP = { x: toFp(60), y: toFp(40) };
@@ -153,6 +191,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     cooldown: [ticks(0.6), ticks(1.4)],
     firstCooldown: [ticks(0.4), ticks(0.9)],
     juggle: { decay: 25, floor: 20 },
+    elite: true,
     drop: { item: 'bigPotion', pct: 100 },
   },
   archer: {
@@ -540,33 +579,53 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
 
 export type SkillId = 'triple' | 'dragon' | 'upper' | 'crush' | 'iai' | 'phantom';
 
-/** A skill the hero can carry: the slot it goes in (0..2 the skills, 3 the ultimate; the buttons
- * SKILL1, SKILL2, SKILL3, ULT), the move it starts with, and its cooldown from that start. */
+/** What a skill gains from level `lv` on: a cut from its cooldown in percent, or super armour
+ * for its first `armor` ticks. */
+export interface Perk {
+  lv: number;
+  cdPct?: number;
+  armor?: number;
+}
+
+/** A skill the hero can carry in any slot: the move it starts with, its cooldown from that
+ * start, and what it gains at a level. */
 export interface Skill {
-  slot: number;
   move: string;
   cooldown: number;
+  perk: Perk;
 }
 
 export const SKILLS: Readonly<Record<SkillId, Skill>> = {
-  triple: { slot: 0, move: 'tri1', cooldown: ticks(4) },
-  dragon: { slot: 0, move: 'dragon1', cooldown: ticks(7) },
-  upper: { slot: 1, move: 'upper', cooldown: ticks(2.5) },
-  crush: { slot: 1, move: 'crush1', cooldown: ticks(6) },
-  iai: { slot: 2, move: 'iai', cooldown: ticks(8) },
-  phantom: { slot: 3, move: 'phantom', cooldown: ticks(20) },
+  triple: { move: 'tri1', cooldown: ticks(4), perk: { lv: 6, cdPct: 20 } },
+  // through all four dashes
+  dragon: { move: 'dragon1', cooldown: ticks(7), perk: { lv: 6, armor: 47 } },
+  upper: { move: 'upper', cooldown: ticks(2.5), perk: { lv: 6, cdPct: 30 } },
+  crush: { move: 'crush1', cooldown: ticks(6), perk: { lv: 6, cdPct: 25 } },
+  // while gathering, up to the cut
+  iai: { move: 'iai', cooldown: ticks(8), perk: { lv: 6, armor: 16 } },
+  phantom: { move: 'phantom', cooldown: ticks(20), perk: { lv: 6, cdPct: 25 } },
 };
 
-/** Skill slots a hero carries; its cooldowns are one per slot, then the dodge's. */
-export const SLOTS = 4;
+/** The highest level of a skill; each level past the first adds SKILL_DMG_PCT to its damage. */
+export const MAX_SKILL_LV = 10;
+export const SKILL_DMG_PCT = 8;
+
+/** Skill slots a hero carries (the buttons SKILL1 .. SKILL6); its cooldowns are one per slot,
+ * then the dodge's. */
+export const SLOTS = 6;
 export const DODGE = { slot: SLOTS, move: 'backstep', cooldown: ticks(1) };
 
-/** The skill in each slot when the player has not chosen. */
-export const DEFAULT_LOADOUT: readonly SkillId[] = ['triple', 'upper', 'iai', 'phantom'];
+/** The skill in each slot, null for an empty one. */
+export type Loadout = readonly (SkillId | null)[];
 
-/** One skill per slot, each in its own slot: what the server accepts from a client. */
-export function validLoadout(l: unknown): l is SkillId[] {
-  return Array.isArray(l) && l.length === SLOTS && l.every((id, i) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, id) && SKILLS[id as SkillId].slot === i);
+/** The skill in each slot when the player has not chosen. */
+export const DEFAULT_LOADOUT: Loadout = ['triple', 'upper', 'iai', 'phantom', null, null];
+
+/** SLOTS entries, each a skill or empty, no skill twice: what the server accepts from a client. */
+export function validLoadout(l: unknown): l is (SkillId | null)[] {
+  if (!Array.isArray(l) || l.length !== SLOTS) return false;
+  const ids = l.filter((id) => id !== null);
+  return ids.every((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, id)) && new Set(ids).size === ids.length;
 }
 
 export interface Spawn {

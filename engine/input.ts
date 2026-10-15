@@ -15,13 +15,16 @@ export const BTN = {
   DOWN: 8,
   ATTACK: 16,
   JUMP: 32,
-  /** The skill slots (whatever skill the loadout puts in each) and the ultimate. */
+  /** The first four skill slots (whatever skill the loadout puts in each). */
   SKILL1: 64,
   SKILL2: 128,
   SKILL3: 256,
-  ULT: 512,
+  SKILL4: 512,
   /** The dodge: a hop back. */
   DODGE: 1024,
+  /** The fifth and sixth skill slots. */
+  SKILL5: 2048,
+  SKILL6: 4096,
 } as const;
 
 /** Every button bit: what a command from outside is masked to. */

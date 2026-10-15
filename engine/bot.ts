@@ -91,7 +91,7 @@ export function botButtons(s: SimState, owner: number): number {
       if (s.tick % 2 === 0) b |= BTN.SKILL2;
     } else if (chain) {
       if (s.tick % 4 === 0) b |= BTN.SKILL1;
-    } else if (hero.cd[3] === 0 && s.tick % 12 === 0 && !boss && !s.entities.some((e) => e.hp > 0 && e.kind !== 'hero' && MONSTERS[e.kind].ranged)) b |= BTN.ULT;
+    } else if (hero.cd[3] === 0 && s.tick % 12 === 0 && !boss && !s.entities.some((e) => e.hp > 0 && e.kind !== 'hero' && MONSTERS[e.kind].ranged)) b |= BTN.SKILL4;
     else if (hero.cd[2] === 0 && s.tick % 12 === 3) b |= BTN.SKILL3;
     else if (hero.cd[1] === 0 && s.tick % 12 === 6) b |= BTN.SKILL2;
     else if (hero.cd[0] === 0 && s.tick % 12 === 9) b |= BTN.SKILL1;

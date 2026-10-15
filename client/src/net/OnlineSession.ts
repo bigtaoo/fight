@@ -1,7 +1,8 @@
-import { Engine, hashState, type DungeonId, type PlayerCommand, type SimEvent, type SimState, type SkillId } from '@dnf/engine';
+import { Engine, hashState, type DungeonId, type Loadout, type PlayerCommand, type SimEvent, type SimState } from '@dnf/engine';
 import { CHECK_EVERY, type Frame, type Item, type ServerMsg } from '@dnf/server/protocol';
 import type { Link } from './Link';
 import { Clock, type Session } from './Session';
+import { t } from '../i18n';
 
 // Online play against the server's metronome. The local player's buttons take effect on the
 // tick they are pressed: the session steps ahead of the server's frame clock by about one
@@ -23,7 +24,7 @@ export interface JoinOptions {
   dungeon: DungeonId;
   device: string;
   /** The skill wanted in each slot (none: the default). */
-  loadout?: SkillId[];
+  loadout?: Loadout;
   /** ?cheat=dmg: run the hero's damage x10 locally, as a tampered client would. */
   cheatDmg: boolean;
 }
@@ -146,10 +147,10 @@ export class OnlineSession implements Session {
   }
 
   status(): string {
-    if (this.desync) return '联机：状态失步';
-    if (!this.link.open) return '联机：已断开';
-    const parts = [`联机 ${Math.round(this.rtt)}ms`];
-    if (this.rollbacks) parts.push(`回滚 ${this.rollbacks} 次（最深 ${this.deepest} 帧）`);
+    if (this.desync) return t('net.desync');
+    if (!this.link.open) return t('net.closed');
+    const parts = [t('net.rtt', { ms: Math.round(this.rtt) })];
+    if (this.rollbacks) parts.push(t('net.rollbacks', { n: this.rollbacks, deep: this.deepest }));
     return parts.join('  ');
   }
 

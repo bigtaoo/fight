@@ -1,6 +1,7 @@
 # Dependencies / build output
 node_modules/
 dist/
+dist-cg/
 *.tsbuildinfo
 
 # Real credentials never go in the repo (image keys live in ~/.vibe)

@@ -1,7 +1,7 @@
 import { DODGE, HERO, MOVES, SKILLS, WORLD, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { BTN, type PlayerCommand } from '../input';
-import { setState, type Entity, type PlayerSlot, type SimState } from '../state';
+import { MAX_CDR, setState, skillLevel, type Entity, type PlayerSlot, type SimState } from '../state';
 import { moveVelocity, startMove } from './moves';
 
 // The hero: buttons in, presses and double taps derived, then the state machine. Recovery is
@@ -9,9 +9,9 @@ import { moveVelocity, startMove } from './moves';
 // a skill of several parts chains into its next part on another press of its button.
 
 /** Which press the buffer keeps when several land on one tick. */
-const ACTION_ORDER = [BTN.DODGE, BTN.ULT, BTN.SKILL3, BTN.SKILL2, BTN.SKILL1, BTN.JUMP, BTN.ATTACK] as const;
+const ACTION_ORDER = [BTN.DODGE, BTN.SKILL6, BTN.SKILL5, BTN.SKILL4, BTN.SKILL3, BTN.SKILL2, BTN.SKILL1, BTN.JUMP, BTN.ATTACK] as const;
 /** The button of each skill slot. */
-const SLOT_BTN = [BTN.SKILL1, BTN.SKILL2, BTN.SKILL3, BTN.ULT] as const;
+const SLOT_BTN = [BTN.SKILL1, BTN.SKILL2, BTN.SKILL3, BTN.SKILL4, BTN.SKILL5, BTN.SKILL6] as const;
 
 /** Takes this tick's buttons; finds presses, double-tap runs and the buffered press. */
 export function applyInput(s: SimState, cmds: readonly PlayerCommand[]): void {
@@ -50,12 +50,13 @@ function wantsAttack(p: PlayerSlot): boolean {
   return p.buf === BTN.ATTACK || (p.buttons & BTN.ATTACK) !== 0;
 }
 
-/** The skill the buffer asks for, if it is ready and not the one being performed; null otherwise. */
-function wantedSkill(p: PlayerSlot, e: Entity): SkillId | null {
+/** The slot of the skill the buffer asks for, if it holds one that is ready and not the one
+ * being performed; -1 otherwise. */
+function wantedSlot(p: PlayerSlot, e: Entity): number {
   const slot = SLOT_BTN.indexOf(p.buf as (typeof SLOT_BTN)[number]);
-  if (slot < 0 || e.cd[slot] !== 0) return null;
+  if (slot < 0 || e.cd[slot] !== 0) return -1;
   const id = p.skills[slot];
-  return e.state === 'act' && MOVES[e.move].of === id ? null : id;
+  return id === null || (e.state === 'act' && MOVES[e.move].of === id) ? -1 : slot;
 }
 
 function wantsDodge(p: PlayerSlot, e: Entity): boolean {
@@ -67,10 +68,16 @@ function consume(p: PlayerSlot): void {
   p.bufLeft = 0;
 }
 
-function useSkill(e: Entity, id: SkillId, events: SimEvent[], dx: number, dy: number): void {
+/** Starts the skill in `slot`, its cooldown cut by the hero's and by its perk once its level
+ * reaches it; the perk's super armour too. */
+function useSkill(s: SimState, p: PlayerSlot, e: Entity, slot: number, events: SimEvent[], dx: number, dy: number): void {
+  const id = p.skills[slot] as SkillId;
   const sk = SKILLS[id];
-  e.cd[sk.slot] = sk.cooldown;
+  const perk = skillLevel(s, id) >= sk.perk.lv ? sk.perk : null;
+  const cut = Math.min(s.config.hero.cdr, MAX_CDR) + (perk?.cdPct ?? 0);
+  e.cd[slot] = sk.cooldown - Math.trunc((sk.cooldown * cut) / 100);
   startMove(e, sk.move, events, dx, dy);
+  e.armor = perk?.armor ?? 0;
 }
 
 function dodge(e: Entity, events: SimEvent[]): void {
@@ -87,10 +94,10 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
   const st = e.state;
 
   if (st === 'idle' || st === 'walk' || st === 'run') {
-    const skill = wantedSkill(p, e);
-    if (skill) {
+    const slot = wantedSlot(p, e);
+    if (slot >= 0) {
       consume(p);
-      useSkill(e, skill, events, dx, dy);
+      useSkill(s, p, e, slot, events, dx, dy);
     } else if (wantsDodge(p, e)) {
       consume(p);
       dodge(e, events);
@@ -128,15 +135,15 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
       return tickBuffer(p);
     }
     if (m.cancel > 0 && e.st >= m.cancel) {
-      if (m.follow && m.of && p.buf === SLOT_BTN[SKILLS[m.of].slot]) {
+      if (m.follow && m.of && p.buf === SLOT_BTN[p.skills.indexOf(m.of)]) {
         consume(p);
         startMove(e, m.follow, events, dx, dy);
         return tickBuffer(p);
       }
-      const skill = wantedSkill(p, e);
-      if (skill) {
+      const slot = wantedSlot(p, e);
+      if (slot >= 0) {
         consume(p);
-        useSkill(e, skill, events, dx, dy);
+        useSkill(s, p, e, slot, events, dx, dy);
         return tickBuffer(p);
       }
       if (wantsDodge(p, e)) {

@@ -115,15 +115,16 @@ export class Fx {
     this.splashes.push({ g, age: 0, life: 0.18, drops: [], heavy: false, ring: true });
   }
 
-  /** A damage number; `blocked`: the sliver a shield let through, small and grey. */
-  damage(x: number, y: number, value: number, taken: boolean, blocked = false): void {
+  /** A damage number; `blocked`: the sliver a shield let through, small and grey; `crit`: a
+   * critical hit, bigger and in vermilion. */
+  damage(x: number, y: number, value: number, taken: boolean, blocked = false, crit = false): void {
     const t = new Text({
       text: String(value),
       style: {
         fontFamily: 'Georgia, "Songti SC", "SimSun", serif',
-        fontSize: blocked ? 32 : taken ? 46 : 52,
+        fontSize: blocked ? 32 : taken ? 46 : crit ? 68 : 52,
         fontWeight: 'bold',
-        fill: blocked ? 0x8a8478 : taken ? 0xc8281e : 0x141317,
+        fill: blocked ? 0x8a8478 : taken ? 0xc8281e : crit ? 0xd2461e : 0x141317,
         stroke: { color: 0xf3eee2, width: 6 },
       },
     });
@@ -131,6 +132,18 @@ export class Fx {
     t.position.set(x + (Math.random() - 0.5) * 30, y);
     this.layer.addChild(t);
     this.nums.push({ t, age: 0, life: 0.8, y0: t.y });
+  }
+
+  /** A word rising off a body (a ward broken, a monster up again), or poison's small number. */
+  word(x: number, y: number, text: string, fill: number, size = 40): void {
+    const t = new Text({
+      text,
+      style: { fontFamily: 'Georgia, "Songti SC", "SimSun", serif', fontSize: size, fontWeight: 'bold', fill, stroke: { color: 0xf3eee2, width: 6 } },
+    });
+    t.anchor.set(0.5, 1);
+    t.position.set(x, y);
+    this.layer.addChild(t);
+    this.nums.push({ t, age: 0, life: 0.9, y0: t.y });
   }
 
   /** Health back from a potion: a green "+n" rising off the hero. */

@@ -1,0 +1,3 @@
+artisticdude, Swishes sound pack (CC0 1.0), https://opengameart.org/content/swishes-sound-pack
+from: swish-9.wav
+converted to mono mp3, silence trimmed, peak at -1 dB

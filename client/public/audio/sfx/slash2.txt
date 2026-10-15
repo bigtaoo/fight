@@ -1,0 +1,3 @@
+StarNinjas, Sword sounds (CC0 1.0), https://opengameart.org/content/sword-sounds (credit appreciated: https://opengameart.org/users/starninjas)
+from: sword.6.ogg
+converted to mono mp3, silence trimmed, peak at -1 dB

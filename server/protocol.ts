@@ -1,4 +1,4 @@
-import type { DungeonId, Rating, RunConfig, SkillId } from '@dnf/engine';
+import type { DungeonId, Loadout, Rating, RunConfig } from '@dnf/engine';
 
 // The wire protocol between the client and the server, JSON over one WebSocket. Types only, so
 // the client imports it as source. JSON is enough for M1 (one player, a few messages a second);
@@ -12,6 +12,8 @@ export const SERVER_PORT = 5181;
 
 /** The deployed server (server/README.md "Deploy"), which a page served over https connects to. */
 export const PUBLIC_SERVER_URL = 'wss://fs.gamestao.com';
+/** Where the deployed game posts its drop-off analytics (server/src/events.ts). */
+export const PUBLIC_EVENTS_URL = 'https://fs.gamestao.com/events';
 
 /** A client reports the hash of its state on every tick that is a multiple of this, and on the
  * tick the run ends. */
@@ -49,7 +51,7 @@ export interface Frame {
 export type ClientMsg =
   /** `loadout`: the skill wanted in each slot; the server falls back to the default for one it
    * does not accept. */
-  | { type: 'join'; dungeon: DungeonId; device: string; loadout?: SkillId[] }
+  | { type: 'join'; dungeon: DungeonId; device: string; loadout?: Loadout }
   | CmdMsg
   | { type: 'hash'; tick: number; hash: number }
   /** `tick` is the tick the client would stamp a command with right now. */

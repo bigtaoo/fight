@@ -15,7 +15,8 @@
     "paths": {
       "@dnf/engine": ["engine/index.ts"],
       "@dnf/engine/*": ["engine/*"],
-      "@dnf/server/protocol": ["server/protocol.ts"]
+      "@dnf/server/protocol": ["server/protocol.ts"],
+      "@dnf/server/lootTables": ["server/lootTables.ts"]
     }
   }
 }

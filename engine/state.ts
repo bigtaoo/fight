@@ -1,4 +1,4 @@
-import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, type DungeonId, type ItemKind, type Kind, type MonsterKind, type ShotKind, type SkillId } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, MAX_SKILL_LV, SKILL_DMG_PCT, TIERS, type DungeonId, type ItemKind, type Kind, type Loadout, type MonsterKind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -13,11 +13,53 @@ export interface RunConfig {
    * `?cheat=dmg` raises it locally to prove the server catches a tampered client. */
   heroDamagePct: number;
   /** The skill in each slot, for every hero (see validLoadout; the server checks it). */
-  loadout: readonly SkillId[];
+  loadout: Loadout;
+  /** Every hero's level of each skill, 1 when missing (as online, where the server keeps no
+   * characters yet): a level adds SKILL_DMG_PCT to the skill's damage and from the skill's
+   * perk level on gives it the perk. */
+  skillLv: Readonly<Partial<Record<SkillId, number>>>;
+  /** Every hero's stats: from the character's level and gear in single player, the base ones
+   * online (the server does not keep characters yet). */
+  hero: HeroStats;
+  /** The difficulty tier, an index into TIERS (0 online: the server knows only the normal one). */
+  tier: number;
 }
 
+/** What a character's level and gear come to in a fight. The engine knows only these numbers. */
+export interface HeroStats {
+  /** Health. */
+  hp: number;
+  /** Damage in percent of the moves' own (100: as written in content.ts). */
+  atk: number;
+  /** Chance in percent that a hit is critical, and a critical hit's damage in percent. */
+  crit: number;
+  critDmg: number;
+  /** Percent cut from the skills' cooldowns (not the dodge's), at most MAX_CDR. */
+  cdr: number;
+}
+
+export const BASE_HERO: HeroStats = { hp: BODIES.hero.hp, atk: 100, crit: 0, critDmg: 150, cdr: 0 };
+export const MAX_CDR = 40;
+
 export function runConfig(over: Partial<RunConfig> = {}): RunConfig {
-  return { seed: 1, dungeon: 'trial', players: 1, heroDamagePct: 100, loadout: DEFAULT_LOADOUT, ...over };
+  return { seed: 1, dungeon: 'trial', players: 1, heroDamagePct: 100, loadout: DEFAULT_LOADOUT, skillLv: {}, hero: BASE_HERO, tier: 0, ...over };
+}
+
+/** The run's tier, 0 .. TIERS.length - 1. */
+export function tierOf(s: SimState): number {
+  const t = s.config.tier ?? 0;
+  return Number.isSafeInteger(t) ? Math.max(0, Math.min(TIERS.length - 1, t)) : 0;
+}
+
+/** The heroes' level of skill `id` in this run, 1 .. MAX_SKILL_LV. */
+export function skillLevel(s: SimState, id: SkillId): number {
+  const lv = s.config.skillLv[id] ?? 1;
+  return Number.isSafeInteger(lv) ? Math.max(1, Math.min(MAX_SKILL_LV, lv)) : 1;
+}
+
+/** The damage of skill `id` in percent of its moves' own, by its level. */
+export function skillDamagePct(s: SimState, id: SkillId): number {
+  return 100 + SKILL_DMG_PCT * (skillLevel(s, id) - 1);
 }
 
 export type BodyState =
@@ -81,12 +123,29 @@ export interface Entity {
   cd: number[];
   /** Untouchable ticks left (a dodge, a quick rise). */
   inv: number;
+  /** Super armour ticks left from a skill's perk, while the skill's moves last. */
+  armor: number;
   /** Where the current move heads, from the stick as it started: aimX 1 forward, 0 not at all;
    * aimY -1 back, 1 front, 0 neither. Plain moves head forward. */
   aimX: number;
   aimY: number;
   /** A boss's phase: 0, then 1 once its second phase has started. */
   phase: number;
+  /** A monster's affixes, a bit per AFFIXES entry; its ward left; summons left and the ticks to
+   * the next. */
+  affixes: number;
+  ward: number;
+  summons: number;
+  summonCd: number;
+}
+
+/** A poison cloud left where a monster with miasma died. */
+export interface Cloud {
+  id: number;
+  x: number;
+  y: number;
+  /** Ticks left. */
+  life: number;
 }
 
 /** A projectile in flight (its definition is SHOTS[kind]). */
@@ -104,6 +163,8 @@ export interface Projectile {
   pz: number;
   /** Speed along x, FP per tick; its sign is the direction of flight. */
   vx: number;
+  /** The skill whose move fired it, '' for none (its damage grows with the skill's level). */
+  of: SkillId | '';
   /** Ticks to live, and hits left before it is spent. */
   life: number;
   pierce: number;
@@ -125,8 +186,8 @@ export interface PlayerSlot {
   /** The buffered press (one BTN bit, 0: none) and its unfrozen ticks left. */
   buf: number;
   bufLeft: number;
-  /** The skill in each slot. */
-  skills: SkillId[];
+  /** The skill in each slot, null for an empty one. */
+  skills: (SkillId | null)[];
   /** Hits landed in a row, each within WORLD.comboTicks of the last, and ticks before it lapses. */
   combo: number;
   comboLeft: number;
@@ -161,6 +222,8 @@ export interface SimState {
   shots: Projectile[];
   /** Items lying on the floor of this room. */
   items: Item[];
+  /** Poison clouds in this room. */
+  clouds: Cloud[];
   players: PlayerSlot[];
   /** Monsters killed, by kind (the server draws their loot once the run is cleared). */
   kills: Partial<Record<MonsterKind, number>>;
@@ -183,6 +246,7 @@ export function createState(config: RunConfig): SimState {
     entities: [],
     shots: [],
     items: [],
+    clouds: [],
     players: [],
     kills: {},
     outcome: 'playing',
@@ -200,7 +264,7 @@ export function newEntity(s: SimState, kind: Kind, team: number, owner: number, 
     state: 'idle', st: 0, move: '', hitList: [],
     stop: 0, held: false, timer: 0, juggle: 0, bounced: false, airAtk: false,
     cd: team === 0 ? new Array<number>(DODGE.slot + 1).fill(0) : [0, 0],
-    inv: 0, aimX: 1, aimY: 0, phase: 0,
+    inv: 0, armor: 0, aimX: 1, aimY: 0, phase: 0, affixes: 0, ward: 0, summons: 0, summonCd: 0,
   };
   s.entities.push(e);
   return e;

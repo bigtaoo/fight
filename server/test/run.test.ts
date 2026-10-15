@@ -110,14 +110,14 @@ describe('online run', () => {
     expect(s.inventory).toHaveLength(0);
   }, 70_000);
 
-  it('runs the skills the client chose, checked: the swapped ones, or the default for a bad pick', async () => {
+  it('runs the skills the client chose, checked: the swapped ones, or the default for a bad pick (a skill twice)', async () => {
     const swapped: SkillId[] = ['dragon', 'crush', 'iai', 'phantom'];
     const s = await playOnline({ loadout: swapped, device: 'test-device-loadout' });
-    expect(s.engine.state.players[0].skills).toEqual(swapped);
+    expect(s.engine.state.players[0].skills).toEqual([...swapped, null, null]); // an old client's four, padded
     expect(s.flag).toBeNull();
     expect(s.result?.ok ? 'cleared' : 'failed').toBe(s.engine.state.outcome);
     const link = await WsLink.connect(`ws://localhost:${server.port}`, 0);
-    const bad = await OnlineSession.join(link, { dungeon: 'trial', device: 'test-device-loadout', loadout: ['upper', 'triple', 'iai', 'phantom'], cheatDmg: false });
+    const bad = await OnlineSession.join(link, { dungeon: 'trial', device: 'test-device-loadout', loadout: ['iai', 'iai', 'upper', 'phantom'], cheatDmg: false });
     expect(bad.engine.state.players[0].skills).toEqual(DEFAULT_LOADOUT);
     link.close();
   }, 70_000);

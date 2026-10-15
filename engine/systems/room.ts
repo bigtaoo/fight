@@ -1,8 +1,8 @@
-import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, HERO, MONSTERS, WORLD, type Door, type Room, type Side } from '../content';
+import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, HERO, WORLD, type Door, type Room, type Side } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
-import { randRange } from '../math/prng';
-import { newEntity, setState, type Entity, type SimState } from '../state';
+import { setState, type Entity, type SimState } from '../state';
+import { spawnMonster } from './affix';
 
 // The dungeon: a graph of rooms joined by doors. A room opens with its monsters and clears when
 // every one is dead; then its doors open, and a hero walking into one takes everybody to the room
@@ -20,6 +20,7 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
   s.entities = s.entities.filter((e) => e.team === 0);
   s.shots = [];
   s.items = [];
+  s.clouds = [];
   const twin = room.doors.find((d) => d.side === via && d.to === from);
   s.entities.forEach((e, i) => {
     place(e, room, via, twin, i);
@@ -28,11 +29,7 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
     if (e.hp > 0) setState(e, 'idle');
   });
   if (!s.roomCleared) {
-    for (const sp of room.spawns) {
-      const m = newEntity(s, sp.kind, 1, -1, sp.x, sp.y);
-      const first = MONSTERS[sp.kind].firstCooldown;
-      if (first) m.cd[0] = randRange(s.rng, 'ai', first[0], first[1]);
-    }
+    for (const sp of room.spawns) spawnMonster(s, sp.kind, sp.x, sp.y, true);
   }
   events.push({ type: 'roomEnter', room: index });
 }

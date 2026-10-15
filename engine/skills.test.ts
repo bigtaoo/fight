@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOADOUT, DODGE, SKILLS, WORLD, validLoadout, type SkillId } from './content';
+import { DEFAULT_LOADOUT, DODGE, SKILLS, WORLD, validLoadout, type Loadout, type SkillId } from './content';
 import type { SimEvent } from './events';
 import { hashState } from './hash';
 import { BTN } from './input';
@@ -15,7 +15,7 @@ import type { Engine } from './Engine';
 // moments, and the loadout.
 
 /** The hero at `x` (790: close in) facing the first training dummy (x 900), both at depth 180. */
-function atDummy(loadout: readonly SkillId[] = DEFAULT_LOADOUT, x = 790): Engine {
+function atDummy(loadout: Loadout = DEFAULT_LOADOUT, x = 790): Engine {
   const e = newRun({ dungeon: 'training', loadout });
   const s = e.state;
   for (const x of s.entities) {
@@ -94,7 +94,7 @@ describe('skills', () => {
     const moves: string[] = [];
     const ev = play(e, 90, (_s, t) => {
       moves.push(h.move);
-      return t === 1 ? BTN.ULT : t % 10 === 0 ? BTN.SKILL1 : t % 10 === 5 ? BTN.DODGE : 0;
+      return t === 1 ? BTN.SKILL4 : t % 10 === 0 ? BTN.SKILL1 : t % 10 === 5 ? BTN.DODGE : 0;
     });
     expect(swings(ev, h.id)[0]).toBe('phantom');
     expect(moves.slice(2, 60).every((m) => m === 'phantom')).toBe(true);
@@ -106,7 +106,7 @@ describe('skills', () => {
     let fireTick = -1;
     play(early, 40, (s, t) => {
       if (fireTick < 0 && s.shots.some((p) => p.kind === 'wave')) fireTick = t;
-      return t === 1 ? BTN.ULT : t === 12 ? BTN.JUMP : 0;
+      return t === 1 ? BTN.SKILL4 : t === 12 ? BTN.JUMP : 0;
     });
     expect(he.move === 'phantomEnd' || he.state === 'idle').toBe(true);
     expect(fireTick).toBeGreaterThan(0);
@@ -116,7 +116,7 @@ describe('skills', () => {
   it('the sword wave flies through every monster in its way', () => {
     const e = atDummy();
     const h = hero(e.state);
-    const ev = play(e, 120, (_s, t) => (t === 1 ? BTN.ULT : 0));
+    const ev = play(e, 120, (_s, t) => (t === 1 ? BTN.SKILL4 : 0));
     const dummies = e.state.entities.filter((x) => x.kind === 'dummy').map((x) => x.id);
     const waveHits = ev.flatMap((x) => (x.type === 'hit' && x.attacker === h.id && x.launch ? [x.target] : []));
     expect(new Set(waveHits)).toEqual(new Set(dummies));
@@ -132,7 +132,7 @@ describe('skills', () => {
     expect(h.cd[DODGE.slot]).toBeGreaterThan(0);
     // an arrow through the hero while it is untouchable
     const s = e.state;
-    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, x: h.x + toFp(40), y: h.y, z: h.z + toFp(100), px: 0, py: 0, pz: 0, vx: toFp(-60), life: 30, pierce: 1, hitList: [] });
+    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, of: '', x: h.x + toFp(40), y: h.y, z: h.z + toFp(100), px: 0, py: 0, pz: 0, vx: toFp(-60), life: 30, pierce: 1, hitList: [] });
     const ev2 = play(e, 6, () => 0);
     expect(ev2.some((x) => x.type === 'hit')).toBe(false);
     play(e, 40, () => 0);
@@ -144,7 +144,7 @@ describe('skills', () => {
     const e = atDummy();
     const h = hero(e.state);
     const s = e.state;
-    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, x: h.x + toFp(40), y: h.y, z: toFp(100), px: 0, py: 0, pz: 0, vx: toFp(-24), life: 30, pierce: 1, hitList: [] });
+    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, of: '', x: h.x + toFp(40), y: h.y, z: toFp(100), px: 0, py: 0, pz: 0, vx: toFp(-24), life: 30, pierce: 1, hitList: [] });
     const ev = play(e, 6, () => 0);
     expect(ev.some((x) => x.type === 'hit' && x.target === h.id)).toBe(true);
   });
@@ -173,8 +173,8 @@ describe('skills', () => {
     const e = atDummy();
     const h = hero(e.state);
     const s = e.state;
-    play(e, 6, presses(BTN.ULT, [1]));
-    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, x: h.x - toFp(40), y: h.y, z: toFp(100), px: 0, py: 0, pz: 0, vx: toFp(24), life: 30, pierce: 1, hitList: [] });
+    play(e, 6, presses(BTN.SKILL4, [1]));
+    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, of: '', x: h.x - toFp(40), y: h.y, z: toFp(100), px: 0, py: 0, pz: 0, vx: toFp(24), life: 30, pierce: 1, hitList: [] });
     const ev = play(e, 4, () => 0);
     expect(ev.find((x) => x.type === 'hit' && x.target === h.id)).toMatchObject({ armor: true });
     expect(h.hp).toBeLessThan(h.maxHp);
@@ -183,7 +183,7 @@ describe('skills', () => {
   });
 
   it('the dragon dash goes where the stick points, four times, the last launching', () => {
-    const e = atDummy(['dragon', 'upper', 'iai', 'phantom']);
+    const e = atDummy(['dragon', 'upper', 'iai', 'phantom', null, null]);
     const h = hero(e.state);
     h.y = h.py = toFp(60);
     const ev = play(e, 60, presses(BTN.SKILL1, [1], BTN.DOWN));
@@ -205,18 +205,79 @@ describe('skills', () => {
     expect(h.inv).toBeGreaterThan(h.timer);
   });
 
-  it('only a skill per slot, each in its own slot, is a loadout', () => {
+  it('a loadout is six slots, each a skill or empty, no skill twice', () => {
     expect(validLoadout([...DEFAULT_LOADOUT])).toBe(true);
-    expect(validLoadout(['dragon', 'crush', 'iai', 'phantom'])).toBe(true);
-    expect(validLoadout(['upper', 'triple', 'iai', 'phantom'])).toBe(false);
-    expect(validLoadout(['triple', 'upper', 'iai'])).toBe(false);
-    expect(validLoadout(['triple', 'upper', 'iai', 'toString'])).toBe(false);
+    expect(validLoadout(['phantom', 'crush', null, 'dragon', 'iai', 'triple'])).toBe(true);
+    expect(validLoadout([null, null, null, null, null, null])).toBe(true);
+    expect(validLoadout(['upper', 'upper', null, null, null, null])).toBe(false);
+    expect(validLoadout(['triple', 'upper', 'iai', 'phantom'])).toBe(false);
+    expect(validLoadout(['triple', 'upper', 'iai', 'toString', null, null])).toBe(false);
     expect(validLoadout('triple')).toBe(false);
+  });
+
+  it('any skill works from any slot, the fifth and sixth too; an empty slot does nothing', () => {
+    const e = atDummy([null, null, null, null, 'iai', 'upper']);
+    const h = hero(e.state);
+    expect(swings(play(e, 5, presses(BTN.SKILL1, [1])), h.id)).toEqual([]);
+    expect(swings(play(e, 40, presses(BTN.SKILL6, [1])), h.id)).toEqual(['upper']);
+    expect(h.cd[5]).toBeGreaterThan(0);
+    expect(h.cd[4]).toBe(0);
+    expect(swings(play(e, 5, presses(BTN.SKILL5, [1])), h.id)).toEqual(['iai']);
+    expect(h.cd[4]).toBeGreaterThan(0);
+  });
+
+  it('the triple slash chains from whatever slot holds it', () => {
+    const e = atDummy(['iai', 'upper', 'phantom', null, 'triple', null], 500);
+    const h = hero(e.state);
+    expect(swings(play(e, 60, presses(BTN.SKILL5, [1, 12, 24])), h.id)).toEqual(['tri1', 'tri2', 'tri3']);
+  });
+
+  it('each skill level adds to its damage, and only to its own', () => {
+    const dmg = (skillLv: Partial<Record<SkillId, number>>, btn: number) => {
+      const e = newRun({ dungeon: 'training', skillLv });
+      for (const x of e.state.entities) x.y = x.py = toFp(180);
+      const h = hero(e.state);
+      h.x = h.px = toFp(790);
+      return hitsBy(play(e, 30, presses(btn, [1])), h.id).reduce((n, x) => n + x.dmg, 0);
+    };
+    // the hits roll 90..110 percent from the same stream, so the ratio holds within rounding
+    const base = dmg({}, BTN.SKILL2);
+    expect(base).toBeGreaterThan(0);
+    expect(dmg({ upper: 6 }, BTN.SKILL2)).toBeGreaterThanOrEqual(Math.floor((base * 140) / 100) - 1);
+    expect(dmg({ triple: 10 }, BTN.SKILL2)).toBe(base);
+    expect(dmg({ upper: 99 }, BTN.SKILL2)).toBe(dmg({ upper: 10 }, BTN.SKILL2));
+  });
+
+  it("a skill's perk comes at its level: a shorter cooldown, or super armour", () => {
+    const cd = (lv: number) => {
+      const e = newRun({ dungeon: 'training', skillLv: { upper: lv } });
+      play(e, 2, presses(BTN.SKILL2, [1]));
+      return hero(e.state).cd[1];
+    };
+    expect(cd(6)).toBeLessThan(cd(5) - 15);
+
+    const armoured = (lv: number) => {
+      const e = atDummy();
+      e.state.config = { ...e.state.config, skillLv: { iai: lv } };
+      const h = hero(e.state);
+      const b = slashingBandit(e);
+      b.x = b.px = h.x - toFp(60);
+      // it strikes while the hero is still gathering
+      b.st = 8;
+      play(e, 1, presses(BTN.SKILL3, [1]));
+      play(e, 11, () => 0);
+      return h;
+    };
+    expect(armoured(5).state).not.toBe('act');
+    const h = armoured(6);
+    expect(h.state).toBe('act');
+    expect(h.move).toBe('iai');
+    expect(h.hp).toBeLessThan(h.maxHp);
   });
 
   it('the loadout is part of the state, so a run checked against the wrong one fails', () => {
     const a = newRun({ seed: 3 });
-    const b = newRun({ seed: 3, loadout: ['dragon', 'upper', 'iai', 'phantom'] });
+    const b = newRun({ seed: 3, loadout: ['dragon', 'upper', 'iai', 'phantom', null, null] });
     expect(hashState(a.state)).not.toBe(hashState(b.state));
   });
 });

@@ -1,7 +1,8 @@
 import { BODIES, CROWD, MONSTERS, MOVES, WORLD, type BossMove, type Monster, type MonsterKind } from '../content';
 import type { SimEvent } from '../events';
 import { randInt, randRange } from '../math/prng';
-import { newEntity, setState, type Entity, type SimState } from '../state';
+import { setState, type Entity, type SimState } from '../state';
+import { pace, rest, spawnMonster } from './affix';
 import { moveVelocity, startMove } from './moves';
 
 // Monster brains, picked by each kind's `brain` in content.ts. A melee monster walks up to the
@@ -68,16 +69,16 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   if (def.boss && m.cd[0] === 0 && pickMove(s, m, def, ax, ay, events)) return;
   if (!def.boss && ax <= def.range && ay <= def.alignY && m.cd[0] === 0) {
     startMove(m, def.attack, events);
-    m.cd[0] = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
+    m.cd[0] = rest(m, randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]));
     return;
   }
   // close in to a bit inside striking range; too close, step back. Waiting in a lane beside
   // the hero's, just out of its reach, so the crowd queues aslant instead of all closing in
   const ly = def.brain === 'melee' ? lane(s, m, t) : t.y;
   const want = ly === t.y ? Math.trunc((def.range * 3) / 4) : def.range + Math.trunc(CROWD.sepX / 2);
-  m.vx = ax > want ? Math.sign(dx) * def.walkX : ax < CROWD.sepX ? -Math.sign(dx) * Math.trunc(def.walkX / 2) : 0;
+  m.vx = ax > want ? Math.sign(dx) * pace(m, def.walkX) : ax < CROWD.sepX ? -Math.sign(dx) * Math.trunc(pace(m, def.walkX) / 2) : 0;
   const ldy = ly - m.y;
-  m.vy = Math.abs(ldy) > Math.trunc(def.alignY / 2) ? Math.sign(ldy) * def.walkY : 0;
+  m.vy = Math.abs(ldy) > Math.trunc(def.alignY / 2) ? Math.sign(ldy) * pace(m, def.walkY) : 0;
   const next = m.vx === 0 && m.vy === 0 ? 'idle' : 'walk';
   if (next !== m.state) setState(m, next);
 }
@@ -122,11 +123,11 @@ function ranged(s: SimState, m: Entity, def: Monster, dx: number, dy: number, ev
   }
   if (ax <= def.range && ay <= def.alignY && m.cd[0] === 0) {
     startMove(m, def.attack, events);
-    m.cd[0] = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
+    m.cd[0] = rest(m, randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]));
     return;
   }
-  m.vx = ax < r.keep && !cornered ? away * def.walkX : ax > def.range ? -away * def.walkX : 0;
-  m.vy = ay > Math.trunc(def.alignY / 2) ? Math.sign(dy) * def.walkY : 0;
+  m.vx = ax < r.keep && !cornered ? away * pace(m, def.walkX) : ax > def.range ? -away * pace(m, def.walkX) : 0;
+  m.vy = ay > Math.trunc(def.alignY / 2) ? Math.sign(dy) * pace(m, def.walkY) : 0;
   const next = m.vx === 0 && m.vy === 0 ? 'idle' : 'walk';
   if (next !== m.state) setState(m, next);
 }
@@ -145,7 +146,7 @@ function pickMove(s: SimState, m: Entity, def: Monster, ax: number, ay: number, 
   m.vx = 0;
   m.vy = 0;
   startMove(m, m.phase > 0 ? bm.fast : bm.move, events);
-  const cd = randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]);
+  const cd = rest(m, randRange(s.rng, 'ai', def.cooldown[0], def.cooldown[1]));
   m.cd[0] = m.phase > 0 ? Math.trunc((cd * b.fastPct) / 100) : cd;
   return true;
 }
@@ -172,9 +173,7 @@ function phase2(s: SimState, m: Entity, def: Monster, events: SimEvent[]): void 
   const t = nearestHero(s, m);
   const fromRight = !t || t.x < Math.trunc(s.roomWidth / 2);
   for (const sp of b.summon) {
-    const help = newEntity(s, sp.kind, 1, -1, fromRight ? s.roomWidth - sp.x : sp.x, sp.y);
-    const first = MONSTERS[sp.kind].firstCooldown;
-    if (first) help.cd[0] = randRange(s.rng, 'ai', first[0], first[1]);
+    spawnMonster(s, sp.kind, fromRight ? s.roomWidth - sp.x : sp.x, sp.y, false);
   }
 }
 

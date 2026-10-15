@@ -23,7 +23,7 @@ function fire(s: SimState, e: Entity, dir: number, kind: keyof typeof SHOTS, ahe
   const x = e.x + dir * ahead;
   const z = e.z + up;
   const id = s.nextId++;
-  s.shots.push({ id, kind, team: e.team, owner: e.id, x, y: e.y, z, px: x, py: e.y, pz: z, vx: dir * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
+  s.shots.push({ id, kind, team: e.team, owner: e.id, of: MOVES[e.move].of ?? '', x, y: e.y, z, px: x, py: e.y, pz: z, vx: dir * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
   events.push({ type: 'fire', id, owner: e.id, shot: kind });
 }
 
@@ -42,7 +42,7 @@ export function shotsSystem(s: SimState, events: SimEvent[]): void {
       if (!overlaps(p, dir, def.box, t)) continue;
       p.hitList.push(t.id);
       p.pierce--;
-      applyHit(s, events, { id: p.owner, team: p.team }, dir, t, def);
+      applyHit(s, events, { id: p.owner, team: p.team }, dir, t, def, p.of || undefined);
     }
   }
   s.shots = s.shots.filter((p) => p.pierce > 0 && p.life > 0 && p.x > 0 && p.x < s.roomWidth);

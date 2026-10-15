@@ -1,4 +1,4 @@
-import type { ItemKind } from './content';
+import type { Affix, ItemKind } from './content';
 
 // Everything the view (and the server's verifier) learns from a step, besides reading the state.
 
@@ -7,7 +7,7 @@ export type SimEvent =
   | { type: 'swing'; id: number; move: string }
   /** `attacker` is the body that struck, or that fired the projectile; `dir` the way the hit went;
    * `blocked`: it landed on a shield (chip damage, no stun); `armor`: on super armour (full damage, no stun). */
-  | { type: 'hit'; attacker: number; target: number; dmg: number; x: number; y: number; z: number; dir: number; stop: number; launch: boolean; blocked: boolean; armor: boolean }
+  | { type: 'hit'; attacker: number; target: number; dmg: number; x: number; y: number; z: number; dir: number; stop: number; launch: boolean; blocked: boolean; armor: boolean; crit: boolean }
   /** A projectile was fired (`id` is the projectile's). */
   | { type: 'fire'; id: number; owner: number; shot: string }
   | { type: 'jump'; id: number }
@@ -17,6 +17,11 @@ export type SimEvent =
   /** A hero lying down got straight up (a quick rise). */
   | { type: 'rise'; id: number }
   | { type: 'death'; id: number }
+  /** A monster's ward broke; a monster got up from its death (revive); a monster called help
+   * (summon); a poison cloud rose where one died (miasma). */
+  | { type: 'affix'; id: number; affix: Affix }
+  /** Poison from a cloud: `dmg` off hero `target`, no stun. */
+  | { type: 'dot'; target: number; dmg: number; x: number; y: number; z: number }
   /** A boss went into its next phase. */
   | { type: 'phase'; id: number; phase: number }
   | { type: 'roomEnter'; room: number }

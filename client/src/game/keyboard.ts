@@ -1,7 +1,7 @@
 import { BTN } from '@dnf/engine';
 
 // Keyboard to engine buttons, DNF's default layout where it has one: arrows move (double tap to
-// run), X attacks, C jumps, Z dodges, A S D are the three skill slots and F the ultimate.
+// run), X attacks, C jumps, Z dodges, A S D F Q W are the six skill slots.
 
 const KEYS: Record<string, number> = {
   ArrowLeft: BTN.LEFT,
@@ -13,7 +13,9 @@ const KEYS: Record<string, number> = {
   KeyA: BTN.SKILL1,
   KeyS: BTN.SKILL2,
   KeyD: BTN.SKILL3,
-  KeyF: BTN.ULT,
+  KeyF: BTN.SKILL4,
+  KeyQ: BTN.SKILL5,
+  KeyW: BTN.SKILL6,
   KeyZ: BTN.DODGE,
 };
 
@@ -36,6 +38,11 @@ export class Keyboard {
       this.held &= ~b;
     });
     target.addEventListener('blur', () => (this.held = 0));
+  }
+
+  /** Lets go of every key (the game pausing): one held through the pause is pressed again after. */
+  release(): void {
+    this.held = this.tapped = 0;
   }
 
   /** The buttons held right now. */

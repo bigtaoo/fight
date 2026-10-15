@@ -1,5 +1,6 @@
-import { BODIES, HERO, MONSTERS, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, type Entity } from '@dnf/engine';
-import { ColorMatrixFilter, Container, Graphics, Sprite } from 'pixi.js';
+import { AFFIX, AFFIXES, BODIES, HERO, MONSTERS, MOVES, TICK_RATE, WORLD, armored, fromFp, guarding, hasAffix, type Entity } from '@dnf/engine';
+import { ColorMatrixFilter, Container, Graphics, Sprite, Text } from 'pixi.js';
+import { getLang, t } from '../i18n';
 import { floorY, lerp } from './layout';
 import type { FrameSet, SpriteSet } from './sprites';
 import { TaoActor, type TaoAsset } from './tao/TaoActor';
@@ -114,6 +115,9 @@ export class BodyView {
   private readonly bar = new Graphics();
   private readonly rigRoot = new Container();
   private readonly actor: TaoActor | null;
+  /** A monster's affixes by name over it, made once it has any (and again in another language). */
+  private tags: Text | null = null;
+  private tagKey = '';
   /** Distance walked or run so far, which drives the step cycle, and where it was last frame. */
   private dist = 0;
   private last: { x: number; y: number } | null = null;
@@ -184,13 +188,50 @@ export class BodyView {
     if (!this.actor && !this.frames) this.root.alpha *= e.inv > 0 && frame % 4 < 2 ? 0.4 : 1;
     if (debug) fx.rect(-hw, -z - h, hw * 2, h).stroke({ width: 1, color: 0x2a7a3a });
 
-    const bar = this.bar.clear();
-    // (a boss's health is on the screen's top instead, see Hud)
-    if (e.team === 1 && e.kind !== 'dummy' && e.kind !== 'hero' && !MONSTERS[e.kind].boss && e.hp < e.maxHp && e.hp > 0) {
-      const w = 90;
-      bar.rect(-w / 2, -z - h - 30, w, 8).fill({ color: 0x000000, alpha: 0.35 });
-      bar.rect(-w / 2, -z - h - 30, (w * e.hp) / e.maxHp, 8).fill(0x34466b);
+    if (e.ward > 0) {
+      // a ward: a pale ring of wash round the body until it breaks
+      fx.ellipse(0, -z - h / 2, hw + 36, h / 2 + 30).fill({ color: 0x9ab0c0, alpha: 0.12 }).stroke({ width: 5, color: 0x6a8aa0, alpha: 0.6 });
     }
+
+    const bar = this.bar.clear();
+    // (a boss's health is on the screen's top instead, see Hud; its ward is drawn here)
+    const boss = e.kind !== 'hero' && MONSTERS[e.kind].boss;
+    const alive = e.hp > 0 && e.state !== 'dead';
+    if (e.team === 1 && e.kind !== 'dummy' && e.kind !== 'hero' && alive && ((!boss && e.hp < e.maxHp) || e.ward > 0)) {
+      const w = boss ? 160 : 90;
+      if (!boss) {
+        bar.rect(-w / 2, -z - h - 30, w, 8).fill({ color: 0x000000, alpha: 0.35 });
+        bar.rect(-w / 2, -z - h - 30, (w * e.hp) / e.maxHp, 8).fill(0x34466b);
+      }
+      if (e.ward > 0) {
+        const full = Math.max(1, Math.trunc((e.maxHp * AFFIX.ward.pct) / 100));
+        bar.rect(-w / 2, -z - h - 42, w, 6).fill({ color: 0x000000, alpha: 0.25 });
+        bar.rect(-w / 2, -z - h - 42, (w * Math.min(e.ward, full)) / full, 6).fill(0x9ab0c0);
+      }
+    }
+    this.drawTags(e, z, h, alive);
+  }
+
+  /** The names of a monster's affixes over its health bar. */
+  private drawTags(e: Entity, z: number, h: number, alive: boolean): void {
+    const names = e.team === 1 && e.affixes ? AFFIXES.filter((a) => hasAffix(e, a)) : [];
+    const key = names.length ? `${getLang()}|${names.join(',')}` : '';
+    if (key !== this.tagKey) {
+      this.tagKey = key;
+      this.tags?.destroy();
+      this.tags = null;
+      if (names.length) {
+        this.tags = new Text({
+          text: names.map((a) => t(`affix.${a}`)).join(' · '),
+          style: { fontFamily: 'Georgia, "Songti SC", "SimSun", serif', fontSize: 26, fontWeight: 'bold', fill: 0xa8221a, stroke: { color: 0xf3eee2, width: 5 } },
+        });
+        this.tags.anchor.set(0.5, 1);
+        this.root.addChild(this.tags);
+      }
+    }
+    if (!this.tags) return;
+    this.tags.visible = alive;
+    this.tags.position.set(0, -z - h - 50);
   }
 
   private drawRig(actor: TaoActor, e: Entity, x: number, y: number, z: number, alpha: number, dt: number): void {

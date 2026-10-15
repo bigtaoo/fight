@@ -1,0 +1,3 @@
+rubberduck, 80 CC0 RPG SFX (CC0 1.0), https://opengameart.org/content/80-cc0-rpg-sfx
+from: creature_hurt_02.ogg
+converted to mono mp3, silence trimmed, peak at -1 dB

@@ -26,6 +26,7 @@ export function bodiesSystem(s: SimState, events: SimEvent[]): void {
     e.st++;
     for (let i = 0; i < e.cd.length; i++) if (e.cd[i] > 0) e.cd[i]--;
     if (e.inv > 0) e.inv--;
+    if (e.armor > 0) e.armor--;
     if (e.team === 0 && quickRise(s, e, events)) continue;
     if (react(e)) {
       if (e.team === 0) {

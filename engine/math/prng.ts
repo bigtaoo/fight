@@ -11,6 +11,10 @@ export interface Rng {
   combat: number;
   /** What fallen monsters leave behind. */
   drop: number;
+  /** Whether a hero's hit is critical. */
+  crit: number;
+  /** The affixes monsters roll on the harder tiers. */
+  affix: number;
 }
 
 export function seedRng(seed: number): Rng {
@@ -18,6 +22,8 @@ export function seedRng(seed: number): Rng {
     ai: mix32((seed ^ 0xa1a1a1a1) >>> 0) || 1,
     combat: mix32((seed ^ 0x5eed1234) >>> 0) || 1,
     drop: mix32((seed ^ 0xd209d209) >>> 0) || 1,
+    crit: mix32((seed ^ 0xc417c417) >>> 0) || 1,
+    affix: mix32((seed ^ 0xaf1eaf1e) >>> 0) || 1,
   };
 }
 

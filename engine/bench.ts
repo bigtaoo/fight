@@ -35,6 +35,6 @@ export function benchTopUp(s: SimState): void {
     const x = toFp(1200) - dir * toFp(700);
     const y = toFp(30 + ((s.tick * 37 + i * 61) % 300));
     const z = toFp(150);
-    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, x, y, z, px: x, py: y, pz: z, vx: dir * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
+    s.shots.push({ id: s.nextId++, kind: 'arrow', team: 1, owner: -1, of: '', x, y, z, px: x, py: y, pz: z, vx: dir * def.speed, life: def.life, pierce: def.pierce, hitList: [] });
   }
 }

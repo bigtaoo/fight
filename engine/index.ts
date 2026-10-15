@@ -7,5 +7,6 @@ export { FP, TICK_RATE, fromFp, toFp, ticks } from './math/fixed';
 export { rateRun, type Grade, type Rating } from './rating';
 export { cloneState } from './snapshot';
 export { guarding } from './systems/combat';
+export { hasAffix } from './systems/affix';
 export { armored } from './systems/moves';
-export { runConfig, type BodyState, type Entity, type Item, type Outcome, type PlayerSlot, type Projectile, type RunConfig, type SimState } from './state';
+export { BASE_HERO, MAX_CDR, runConfig, skillDamagePct, skillLevel, tierOf, type BodyState, type Cloud, type HeroStats, type Entity, type Item, type Outcome, type PlayerSlot, type Projectile, type RunConfig, type SimState } from './state';

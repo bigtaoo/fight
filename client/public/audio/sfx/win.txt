@@ -1,0 +1,3 @@
+Kenney, Interface Sounds (CC0 1.0), https://kenney.nl/assets/interface-sounds
+from: confirmation_004.ogg
+converted to mono mp3, silence trimmed, peak at -1 dB

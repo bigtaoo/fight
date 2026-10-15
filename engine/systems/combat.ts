@@ -1,8 +1,9 @@
-import { BODIES, MONSTERS, MOVES, WORLD, type HitBox, type HitData } from '../content';
+import { AFFIX, BODIES, MONSTERS, MOVES, TIERS, WORLD, type HitBox, type HitData, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randInt, randRange } from '../math/prng';
-import { hittable, setState, type Entity, type SimState } from '../state';
+import { hittable, setState, skillDamagePct, tierOf, type Entity, type SimState } from '../state';
+import { dropAffix, hasAffix } from './affix';
 import { armored } from './moves';
 
 // Hit detection on the 2.5D floor and what a hit does. A hit lands when the attack box and the
@@ -11,6 +12,9 @@ import { armored } from './moves';
 // A shield bearer guarding takes a hit from the front as a block: a sliver of the damage, the
 // hitstop, no stun. It is not turned by hits, so a hero behind it stays behind it. A body under
 // super armour takes the full damage and the hitstop but is not stunned, turned or launched.
+// On the harder tiers monsters hit harder; a ward takes the hits (no stun) until it breaks, a
+// monster that revives gets up once from the blow that would kill it, and one with miasma leaves
+// a poison cloud where it dies (affix.ts).
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
@@ -29,7 +33,7 @@ export function combatSystem(s: SimState, events: SimEvent[]): void {
       if (!overlaps(a, a.facing, m.box, t)) continue;
       a.hitList.push(t.id);
       a.stop = Math.max(a.stop, m.stop);
-      applyHit(s, events, a, a.facing, t, m);
+      applyHit(s, events, a, a.facing, t, m, m.of);
     }
   }
 }
@@ -52,10 +56,23 @@ export function guarding(e: Entity): boolean {
   return e.state === 'act' && e.move === MONSTERS[e.kind].attack && e.st <= MOVES[e.move].active[1];
 }
 
-/** Hit `t` with `m`, struck by `a` (a body, or the one that fired a projectile) heading `facing`. */
-export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData): void {
+/** Hit `t` with `m`, struck by `a` (a body, or the one that fired a projectile) heading `facing`;
+ * `of`: the skill it is part of, whose level adds to a hero's damage. */
+export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData, of?: SkillId): void {
   let dmg = m.damage;
-  if (a.team === 0) dmg = Math.trunc((dmg * s.config.heroDamagePct) / 100);
+  let crit = false;
+  if (a.team === 0) {
+    const h = s.config.hero;
+    dmg = Math.trunc((dmg * s.config.heroDamagePct * h.atk) / 10000);
+    if (of) dmg = Math.trunc((dmg * skillDamagePct(s, of)) / 100);
+    // the crit stream is drawn only by a hero that can crit, so base stats leave it untouched
+    if (h.crit > 0 && randInt(s.rng, 'crit', 100) < h.crit) {
+      crit = true;
+      dmg = Math.trunc((dmg * h.critDmg) / 100);
+    }
+  } else {
+    dmg = Math.trunc((dmg * TIERS[tierOf(s)].dmgPct) / 100);
+  }
   dmg = Math.max(1, Math.trunc((dmg * randRange(s.rng, 'combat', 90, 110)) / 100));
   const guard = t.kind === 'hero' ? undefined : MONSTERS[t.kind].guard;
   if (guard && !m.breaks && t.facing === -facing && guarding(t)) {
@@ -65,15 +82,28 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
       t.hp -= chip;
       t.stop = m.stop;
       tally(s, a, t);
-      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false });
+      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false, crit });
       return;
     }
   }
+  if (t.ward > 0) {
+    t.ward = Math.max(0, t.ward - dmg);
+    t.stop = m.stop;
+    tally(s, a, t);
+    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false, crit });
+    if (t.ward === 0) events.push({ type: 'affix', id: t.id, affix: 'ward' });
+    return;
+  }
   t.hp -= dmg;
   t.stop = m.stop;
+  if (t.hp <= 0 && t.team === 1 && hasAffix(t, 'revive')) {
+    dropAffix(t, 'revive');
+    t.hp = Math.trunc(t.maxHp / 2);
+    events.push({ type: 'affix', id: t.id, affix: 'revive' });
+  }
   tally(s, a, t);
   if (t.hp > 0 && armored(t)) {
-    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: false, armor: true });
+    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: false, armor: true, crit });
     return;
   }
   if (!guard) t.facing = -facing;
@@ -96,8 +126,12 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     t.vx = facing * m.push;
     t.vy = 0;
   }
-  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false, armor: false });
+  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false, armor: false, crit });
   if (kill) events.push(t.team === 0 ? { type: 'heroDown', id: t.id } : { type: 'death', id: t.id });
+  if (kill && t.team === 1 && hasAffix(t, 'miasma')) {
+    s.clouds.push({ id: s.nextId++, x: t.x, y: t.y, life: AFFIX.miasma.life });
+    events.push({ type: 'affix', id: t.id, affix: 'miasma' });
+  }
 }
 
 /** Counts a landed hit for the rating: the striking hero's combo, the struck hero's hits taken,
