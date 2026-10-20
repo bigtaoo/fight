@@ -8,9 +8,14 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "build:cg": "tsc --noEmit && vite build --mode crazygames"
+    "build:cg": "tsc --noEmit && vite build --mode crazygames",
+    "build:wechat3d": "tsc --noEmit && vite build --config vite.wechat3d.config.js"
   },
   "dependencies": {
-    "pixi.js": "^8.6.6"
+    "pixi.js": "^8.6.6",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0"
   }
 }

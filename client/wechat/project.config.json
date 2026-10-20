@@ -1,0 +1,15 @@
+{
+  "appid": "wx25a3b18a3e83ffce",
+  "projectname": "brushblade-3d",
+  "compileType": "game",
+  "setting": {
+    "es6": false,
+    "minified": false,
+    "postcss": false,
+    "urlCheck": false,
+    "uploadWithSourceMap": true,
+    "minifyWXML": true
+  },
+  "miniprogramRoot": "./",
+  "description": "Brushblade 3D trial (three.js) as a WeChat mini-game"
+}

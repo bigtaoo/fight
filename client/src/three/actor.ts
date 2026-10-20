@@ -1,0 +1,320 @@
+import { BODIES, fromFp, type Entity } from '@dnf/engine';
+import {
+  AnimationClip,
+  AnimationMixer,
+  Box3,
+  BoxGeometry,
+  Group,
+  LoopOnce,
+  LoopRepeat,
+  Mesh,
+  MeshToonMaterial,
+  MeshBasicMaterial,
+  CircleGeometry,
+  Quaternion,
+  Vector3,
+  VectorKeyframeTrack,
+  QuaternionKeyframeTrack,
+  type AnimationAction,
+  type Bone,
+  type Object3D,
+  type SkinnedMesh,
+  type Texture,
+} from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { INK, bodyMaterial, inkMesh, outlineMaterial } from './ink';
+import { cutPose, cutting } from './pose';
+import { Trail } from './trail';
+
+// A body of the engine drawn as a skinned 3D model. The model and its clips come from Tripo
+// (art/hero3d, art/archer3d): every Tripo humanoid shares one 41-bone skeleton, so the archer's
+// idle, walk, hit and fall clips play on any model. Only their rotations carry over (their bone
+// offsets would give every model the archer's proportions), plus the hips' height, scaled.
+// Attacks are posed in code from the engine's own move timing, so a cut lands on its active ticks.
+
+/** The world's depth (y) is drawn this much deeper than it is wide, so the floor band reads from a
+ * camera above it. */
+export const DEPTH_K = 2;
+
+export type ClipId = 'idle' | 'walk' | 'hit' | 'fall';
+
+export interface Model {
+  scene: Object3D;
+  /** Height of the model at rest in its own units. */
+  height: number;
+  map: Texture | null;
+  clips: Record<ClipId, AnimationClip>;
+}
+
+const loader = new GLTFLoader();
+
+/** Where the models are: the hero's, and the clips (the first, idle, also gives the archer's own
+ * model); `read`, when given, fetches a file's bytes instead of the loader (a mini-game has no fetch). */
+export interface ModelFiles {
+  hero: string;
+  clips: Record<ClipId, string>;
+  read?: (url: string) => Promise<ArrayBuffer>;
+}
+
+/** Hip height at rest in the clips' source (the archer) model. */
+const CLIP_HIP = 0.5;
+
+/** The clips with only their rotations, and the hips' offset scaled from the archer to `hip`. */
+function retarget(clip: AnimationClip, hip: number): AnimationClip {
+  const tracks = clip.tracks.flatMap((t) => {
+    if (t instanceof QuaternionKeyframeTrack) return [t];
+    if (t instanceof VectorKeyframeTrack && t.name === 'Hip.position') {
+      const v = t.values.slice();
+      for (let i = 0; i < v.length; i++) v[i] *= hip / CLIP_HIP;
+      return [new VectorKeyframeTrack(t.name, Array.from(t.times), Array.from(v))];
+    }
+    return [];
+  });
+  return new AnimationClip(clip.name, clip.duration, tracks);
+}
+
+export async function loadModels(files: ModelFiles): Promise<{ hero: Model; archer: Model }> {
+  // the archer's own model comes with its clips (its rig_v1.glb has another skeleton)
+  const load = (u: string) => (files.read ? files.read(u).then((b) => loader.parseAsync(b, u.slice(0, u.lastIndexOf('/') + 1))) : loader.loadAsync(u));
+  const [hero, ...clips] = await Promise.all([files.hero, ...Object.values(files.clips)].map(load));
+  const ids = Object.keys(files.clips) as ClipId[];
+  const model = (gltf: typeof hero): Model => {
+    const scene = gltf.scene;
+    const hipBone = scene.getObjectByName('Hip');
+    const hip = hipBone ? hipBone.position.length() : CLIP_HIP;
+    let map: Texture | null = null;
+    scene.traverse((o) => {
+      const m = o as SkinnedMesh;
+      if (m.isSkinnedMesh) map = (m.material as MeshToonMaterial).map ?? null;
+    });
+    const box = new Box3().setFromObject(scene);
+    const c = {} as Record<ClipId, AnimationClip>;
+    ids.forEach((id, i) => (c[id] = retarget(clips[i].animations[0], hip)));
+    return { scene, height: box.max.y - box.min.y, map, clips: c };
+  };
+  return { hero: model(hero), archer: model(clips[0]) };
+}
+
+const _q = new Quaternion();
+const _p = new Quaternion();
+const _axis = new Vector3();
+
+/** The body's own axes while a clip plays (the clips turn the hips a quarter, so the model faces
+ * -x in its own space): up, and the side axis a positive turn raises an arm forward on. */
+const UP = new Vector3(0, 1, 0);
+const SIDE = new Vector3(0, 0, -1);
+const _side = new Vector3();
+const _base = new Vector3();
+const _tip = new Vector3();
+
+/** A plain dao: grip, guard and a slightly curved blade, along +y from the hand. */
+function sword(): Group {
+  const g = new Group();
+  const ink = new MeshBasicMaterial({ color: INK });
+  const steel = new MeshToonMaterial({ color: 0xd8dade, gradientMap: null });
+  const blade = new Mesh(new BoxGeometry(0.01, 0.46, 0.04), steel);
+  blade.position.y = 0.3;
+  const edge = new Mesh(new BoxGeometry(0.014, 0.47, 0.012), ink);
+  edge.position.set(0, 0.3, -0.024);
+  const guard = new Mesh(new BoxGeometry(0.03, 0.016, 0.07), ink);
+  guard.position.y = 0.065;
+  const grip = new Mesh(new BoxGeometry(0.02, 0.12, 0.024), ink);
+  grip.position.y = 0;
+  g.add(blade, edge, guard, grip);
+  return g;
+}
+
+export class Actor {
+  readonly root = new Group();
+  private readonly body: Group;
+  private readonly mixer: AnimationMixer;
+  private readonly actions: Record<ClipId, AnimationAction>;
+  private current: ClipId | null = null;
+  private readonly mat: MeshToonMaterial;
+  private readonly shadow: Mesh;
+  private readonly bones: Record<string, Bone> = {};
+  private readonly scale: number;
+  private yaw = Math.PI;
+  private blade: Group | null = null;
+  /** The swish behind the blade, kept in the room like the shadow. */
+  readonly trail = new Trail();
+  /** Seconds of white flash left after a hit. */
+  flash = 0;
+
+  constructor(
+    private readonly id: number,
+    readonly kind: Entity['kind'],
+    model: Model,
+    tint = 0xffffff,
+    armed = false,
+  ) {
+    this.body = SkeletonUtils.clone(model.scene) as Group;
+    this.mat = bodyMaterial(model.map, tint);
+    const outline = outlineMaterial(0.006);
+    this.body.traverse((o) => {
+      const m = o as SkinnedMesh;
+      if (m.isSkinnedMesh) {
+        inkMesh(m, this.mat, outline);
+        m.frustumCulled = false;
+      }
+      if ((o as Bone).isBone) this.bones[o.name] = o as Bone;
+    });
+    if (armed) this.arm();
+    this.scale = fromFp(BODIES[kind].height) / model.height;
+    this.body.scale.setScalar(this.scale);
+    this.root.add(this.body);
+    this.shadow = new Mesh(
+      new CircleGeometry(1, 24),
+      new MeshBasicMaterial({
+        color: INK,
+        transparent: true,
+        opacity: 0.28,
+        depthWrite: false,
+      }),
+    );
+    this.shadow.rotation.x = -Math.PI / 2;
+    this.shadow.renderOrder = -1;
+    this.mixer = new AnimationMixer(this.body);
+    this.actions = {} as Record<ClipId, AnimationAction>;
+    for (const id of Object.keys(model.clips) as ClipId[]) {
+      const a = this.mixer.clipAction(model.clips[id]);
+      if (id === 'hit' || id === 'fall') {
+        a.setLoop(LoopOnce, 1);
+        a.clampWhenFinished = true;
+      } else a.setLoop(LoopRepeat, Infinity);
+      this.actions[id] = a;
+    }
+  }
+
+  /** Puts a sword in the right hand, pointing forward out of the fist at rest (worked out from the
+   * rest pose, where the model faces +z and the arms are out to the sides). */
+  private arm(): void {
+    const hand = this.bones['R_Hand'];
+    const fore = this.bones['R_Forearm'];
+    if (!hand || !fore) return;
+    this.body.updateMatrixWorld(true);
+    const hq = hand.getWorldQuaternion(new Quaternion()).invert();
+    const along = hand.getWorldPosition(new Vector3()).sub(fore.getWorldPosition(new Vector3())).normalize().applyQuaternion(hq);
+    const s = sword();
+    // half way between the arm's line and forward, so a cut ends with the blade at the enemy
+    const dir = along
+      .clone()
+      .add(new Vector3(0, 0, 1).applyQuaternion(hq))
+      .normalize();
+    s.quaternion.setFromUnitVectors(UP, dir);
+    // the grip sits in the fist, a little past the wrist (the bones carry the model's own scale)
+    s.position.copy(along).multiplyScalar(0.05 / hand.getWorldScale(new Vector3()).x);
+    s.scale.setScalar(1 / hand.getWorldScale(new Vector3()).x);
+    hand.add(s);
+    this.blade = s;
+  }
+
+  /** The blob of shadow on the floor, kept apart so it never tilts with the body. */
+  get floorShadow(): Mesh {
+    return this.shadow;
+  }
+
+  private play(id: ClipId, fade = 0.12): AnimationAction {
+    const a = this.actions[id];
+    if (this.current !== id) {
+      const prev = this.current ? this.actions[this.current] : null;
+      a.reset().play();
+      if (prev) a.crossFadeFrom(prev, fade, false);
+      this.current = id;
+    }
+    return a;
+  }
+
+  update(e: Entity, alpha: number, dt: number): void {
+    const x = fromFp(e.px + (e.x - e.px) * alpha);
+    const y = fromFp(e.py + (e.y - e.py) * alpha);
+    const z = fromFp(e.pz + (e.z - e.pz) * alpha);
+    this.root.position.set(x, z, y * DEPTH_K);
+    const r = fromFp(BODIES[e.kind].halfWidth) * 1.4 * Math.max(0.4, 1 - z / 400);
+    this.shadow.position.set(x, 0.5, y * DEPTH_K);
+    this.shadow.scale.set(r, r * 0.45, 1);
+
+    // turn to face the way the engine faces (the clips themselves turn the hips a quarter to the
+    // right, so facing +x is a half turn and -x none)
+    const want = e.facing > 0 ? Math.PI : 0;
+    this.yaw += (want - this.yaw) * Math.min(1, dt * 18);
+    this.body.rotation.y = this.yaw;
+
+    const held = e.held;
+    let speed = held ? 0 : 1;
+    switch (e.state) {
+      case 'walk':
+        this.play('walk').timeScale = speed;
+        break;
+      case 'run':
+        this.play('walk').timeScale = speed * 1.7;
+        break;
+      case 'hurt':
+        this.play('hit', 0.05).timeScale = speed;
+        break;
+      case 'air':
+      case 'down':
+      case 'dead':
+        this.play('fall', 0.08).timeScale = speed * 1.6;
+        break;
+      case 'getup': {
+        const a = this.play('fall', 0.1);
+        a.timeScale = -speed * 2;
+        break;
+      }
+      default:
+        this.play('idle').timeScale = speed;
+    }
+    this.mixer.update(dt);
+    this.body.updateMatrixWorld(true);
+    if (e.state === 'act') this.pose(e, alpha);
+    if (this.blade) {
+      this.blade.localToWorld(_base.set(0, 0.14, 0));
+      this.blade.localToWorld(_tip.set(0, 0.53, 0));
+      this.trail.update(dt, e.state === 'act' && cutting(e.move, e.st + alpha), _base, _tip);
+    }
+    this.flash = Math.max(0, this.flash - dt);
+    this.mat.emissive.setRGB(this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.85 : 0);
+    const dead = e.state === 'dead';
+    this.root.visible = !dead || e.st < 40;
+  }
+
+  /** Rotates `bone` by `deg` about `axis` given in the body's own space (x: side to side). */
+  private turn(bone: string, axis: Vector3, deg: number): void {
+    const b = this.bones[bone];
+    if (!b || !b.parent) return;
+    b.parent.getWorldQuaternion(_p);
+    this.body.getWorldQuaternion(_q);
+    // parent's rotation within the body
+    _p.premultiply(_q.invert());
+    _axis.copy(axis).applyQuaternion(_p.clone().invert());
+    _q.setFromAxisAngle(_axis, (deg * Math.PI) / 180);
+    b.quaternion.premultiply(_q);
+    b.updateMatrixWorld(true);
+  }
+
+  private pose(e: Entity, alpha: number): void {
+    const p = cutPose(e.move, e.st + (e.held ? 0 : alpha));
+    if (!p) return;
+    this.turn('Spine01', SIDE, p.lean * 0.5);
+    this.turn('Spine02', SIDE, p.lean * 0.5);
+    this.turn('Spine02', UP, p.twist);
+    _side.copy(SIDE).applyAxisAngle(UP, (p.twist * Math.PI) / 180);
+    this.turn('R_Upperarm', _side, p.arm);
+    this.turn('R_Forearm', _side, p.elbow);
+    this.turn('L_Upperarm', _side, p.off);
+    this.turn('L_Forearm', _side, p.off * 0.8);
+  }
+
+  dispose(): void {
+    this.root.removeFromParent();
+    this.shadow.removeFromParent();
+    this.trail.mesh.removeFromParent();
+    this.mixer.stopAllAction();
+  }
+
+  get entityId(): number {
+    return this.id;
+  }
+}

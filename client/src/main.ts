@@ -17,6 +17,11 @@ async function main(): Promise<void> {
     const { runBench } = await import('./bench/bench');
     return runBench(out);
   }
+  if (import.meta.env.DEV && params.has('three')) {
+    // the 3D renderer trial instead of the game (three/proto.ts)
+    const { runProto } = await import('./three/proto');
+    return runProto(params);
+  }
   // the platform first: the language and the saves come from it (when the page has its SDK)
   await initPlatform();
   platform.loadingStart();

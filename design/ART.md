@@ -382,3 +382,15 @@ R3 计划：
 动作仍是骨骼关键帧。弓手（`art/archer3d`）、主角（`art/hero3d`，流程和经验见 [`art/hero3d/README.md`](../art/hero3d/README.md)）
 已换，游戏里用 `?rig3d` 打开。主角在共用的 25 个动作之外另做了双手竖剑的缓步走路（上身前倾、手臂和腿反解、
 鞋底贴地），躯干拆成腰和胸两段，袍子拆前后两片跟着大腿走。还没换：盾兵、山贼、寨主。
+
+进展（2026-10-20）：试实时 3D 渲染（Three.js r186），引擎不动，只换画法。开发版用 `?three` 打开（加 `&bot` 由引擎自带的机器人打），
+代码在 `client/src/three/`：Tripo 模型套卡通色阶加水墨描边（`ink.ts`），挥剑是按招式帧手 K 的姿势（`pose.ts`），
+另有剑光拖尾、墨点飞溅、受击闪白和震屏。网页上约 60 fps、42 个 draw call。
+
+微信小游戏版：`npm run build:wechat3d` 出到 `client/wechat/`，用开发者工具打开（appid 借 standing 的）。
+- 主包约 2.4 MB（代码 0.7 MB + 背景），模型单独一个分包 `models`（3.1 MB）：构建时把 GLB 瘦身，只留颜色贴图并另存成 jpg（`client/build/slimGlb.mjs`），动作文件只留动画。
+- 小游戏缺的浏览器全局在 `wechatShim.ts` 里补（document 造图、TextDecoder、AbortController 等）；模拟器里 `window` 等是只读的，只补缺的。
+- 调试日志：构建时设 `WX_LOG=http://<本机局域网 IP>:<端口>`，游戏会把启动报告和每秒帧率 POST 过去（开发者工具和手机的控制台脚本都够不着）。
+- 模拟器实测：WebGL2 可用（基础库 3.17.2），模型加载 0.3 秒，38～54 fps、每帧 38～47 个 draw call、15～20 万三角形。模拟器自身开销大，帧率要以真机为准；三角形偏多，真机吃力时先把每个角色减到 1～2 万面。
+
+还没做：真机帧率、和 PixiJS 版对比后定是否换 3D、挥剑动作资源和 HUD。

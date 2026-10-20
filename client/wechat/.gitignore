@@ -1,0 +1,5 @@
+# built by npm run build:wechat3d
+js/
+art/
+models/
+project.private.config.json
