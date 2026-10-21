@@ -1,3 +1,4 @@
+import { DUNGEONS } from '@dnf/engine';
 import { describe, expect, it } from 'vitest';
 import { CLEAR_LOOT, MONSTER_LOOT, rollLoot, type Rand } from '../src/loot';
 
@@ -39,5 +40,12 @@ describe('loot', () => {
 
   it('a practice dungeon or one without a table draws nothing for the clear', () => {
     expect(rollLoot('hall', {}, 'S', fixed(() => 0))).toEqual([]);
+  });
+
+  it('the crowded practice dungeon gives nothing: Run refuses to settle it and it has no clear table', () => {
+    // the gate Run.settle checks before rolling anything, the kills included
+    expect(DUNGEONS.horde.practice).toBe(true);
+    expect(CLEAR_LOOT.horde).toBeUndefined();
+    for (const g of ['S', 'A', 'B', 'C'] as const) expect(rollLoot('horde', {}, g, fixed(() => 0))).toEqual([]);
   });
 });

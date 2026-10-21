@@ -19,6 +19,17 @@ export default defineConfig(({ mode }) => ({
       name: 'crazygames-sdk',
       transformIndexHtml: () => (mode === 'crazygames' ? [{ tag: 'script', attrs: { src: CG_SDK }, injectTo: 'head-prepend' }] : []),
     },
+    {
+      // dev only: a short link to type on a phone, /t for the crowded 3D soak with the bot playing
+      name: 'short-links',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url !== '/t') return next();
+          res.writeHead(302, { Location: '/?three&bot&dungeon=horde&fps=30' });
+          res.end();
+        });
+      },
+    },
   ],
   resolve: {
     alias: [
@@ -28,6 +39,12 @@ export default defineConfig(({ mode }) => ({
       { find: /^@dnf\/server\/lootTables$/, replacement: LOOT },
     ],
   },
-  server: { port: 5180, host: true },
+  server: {
+    port: 5180,
+    host: true,
+    // build outputs inside the root (dist, dist-cg, the WeChat build in wechat/): a rebuild deletes
+    // and rewrites them, and on Windows a watch on a deleted folder can spin the dev server at full CPU
+    watch: { ignored: ['**/wechat/**', '**/dist*/**'] },
+  },
   build: { target: 'es2020', outDir: mode === 'crazygames' ? 'dist-cg' : 'dist' },
 }));

@@ -6,6 +6,11 @@
  * A miss is a frame that came a whole display frame late (at 30 on a 60 Hz screen, 50 ms instead of
  * 33). Lone misses are scheduling noise that no quality level fixes (the A16 soak: 16 in 18000 at
  * full quality), so it only steps down on several within a couple of seconds.
+ *
+ * On a faster screen a late frame is only one short refresh late (41.7 ms at 30 on 120 Hz), under the
+ * miss line, so it also steps down when the mean interval over a 2 s block runs more than 8% over the
+ * target (a cap sagging to ~27 fps). Lone 50 ms hiccups barely move a mean of ~60 frames, and the
+ * cap draws slightly early, so a held cap sits at or just under the target.
  */
 export class Governor {
   /** 0 is full quality; higher is cheaper. */
@@ -18,6 +23,9 @@ export class Governor {
   /** The level probed up from, while the probe is on trial. */
   private probe = -1;
   private misses: number[] = [];
+  /** The current mean block: milliseconds and frames since it began. */
+  private blockMs = 0;
+  private blockFrames = 0;
   /** The device says it is under pressure (Compute Pressure API, where there is one): no probing up. */
   private hot = false;
 
@@ -56,7 +64,14 @@ export class Governor {
       this.clean = 0;
     }
     while (this.misses.length && now - this.misses[0] > 2) this.misses.shift();
-    if (this.misses.length >= 3) {
+    this.blockMs += ms;
+    this.blockFrames++;
+    let slow = false;
+    if (this.blockMs >= 2000) {
+      slow = this.blockMs / this.blockFrames > this.target * 1.08;
+      this.blockMs = this.blockFrames = 0;
+    }
+    if (this.misses.length >= 3 || slow) {
       // a failed probe goes back down and waits twice as long before the next one
       if (this.probe >= 0) this.hold = Math.min(this.hold * 2, 120);
       this.step(1);
@@ -77,6 +92,7 @@ export class Governor {
     const next = Math.min(Math.max(this.level + d, 0), this.levels - 1);
     if (d > 0) this.probe = -1;
     this.misses = [];
+    this.blockMs = this.blockFrames = 0;
     this.clean = 0;
     this.since = 0;
     if (next === this.level) return;

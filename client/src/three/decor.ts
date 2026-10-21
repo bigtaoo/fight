@@ -179,7 +179,8 @@ function windStroke(): Mesh {
   return new Mesh(new PlaneGeometry(900, 4, 32, 1), m);
 }
 
-/** A war banner on its pole: red cloth with an ink border and a white disc, rippling from the pole. */
+/** A war banner on its pole: red cloth with an ink border and a paper title strip down it, written
+ * with a column of characters, rippling from the pole. */
 const POLE_GEO = new BoxGeometry(7, 560, 7).translate(0, 280, 0);
 const POLE_MAT = new MeshBasicMaterial({ color: INK });
 const CLOTH_GEO = new PlaneGeometry(130, 300, 12, 8).translate(65, 380, 0);
@@ -206,13 +207,20 @@ function banner(): Group {
         vec2 p = vUv;
         float edge = step( p.x, 0.06 ) + step( 0.94, p.x ) + step( p.y, 0.04 ) + step( 0.96, p.y );
         vec3 c = mix( red * vShade, ink, min( edge, 1.0 ) );
-        // a white disc in the middle, with a broad ink stroke through it for a character
-        vec2 q = ( p - vec2( 0.5, 0.58 ) ) * vec2( 1.0, 2.3 );
-        float disc = smoothstep( 0.36, 0.33, length( q ) );
-        c = mix( c, vec3( 0.93, 0.9, 0.84 ), disc );
-        float stroke = smoothstep( 0.07, 0.05, abs( q.y + q.x * 0.35 ) ) * step( abs( q.x ), 0.22 );
-        stroke = max( stroke, smoothstep( 0.06, 0.04, abs( q.x - 0.02 ) ) * step( abs( q.y ), 0.26 ) );
-        c = mix( c, ink, stroke * disc );
+        // a paper strip down the cloth, as on a temple or army streamer, written with three
+        // characters of slanted bars and a dot each. No disc and no crossing strokes: an emblem in a
+        // disc on red reads as a modern flag, not as writing
+        float sx = p.x - 0.42;
+        float strip = step( abs( sx ), 0.12 ) * step( 0.14, p.y ) * step( p.y, 0.9 );
+        c = mix( c, vec3( 0.93, 0.9, 0.84 ), strip );
+        float g = 0.0;
+        for ( int i = 0; i < 3; i++ ) {
+          vec2 r = vec2( sx, p.y - ( 0.77 - float( i ) * 0.22 ) );
+          g = max( g, smoothstep( 0.02, 0.012, abs( r.y - 0.05 + r.x * 0.3 ) ) * step( abs( r.x ), 0.07 ) );
+          g = max( g, smoothstep( 0.02, 0.012, abs( r.y + 0.02 - r.x * 0.15 ) ) * step( abs( r.x + 0.01 ), 0.08 ) );
+          g = max( g, smoothstep( 0.03, 0.02, length( ( r - vec2( -0.04, -0.07 ) ) * vec2( 1.0, 0.45 ) ) ) );
+        }
+        c = mix( c, ink, g * strip );
         // ragged swallow-tail at the free end
         if ( p.x > 0.88 && abs( p.y - 0.5 ) < ( p.x - 0.88 ) * 2.0 ) discard;
         gl_FragColor = vec4( c, 1.0 );
