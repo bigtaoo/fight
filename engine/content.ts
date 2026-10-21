@@ -660,6 +660,9 @@ export interface Dungeon {
   boss: number;
   /** For practice: the server gives no loot for clearing it. */
   practice?: boolean;
+  /** Its monsters' health and damage in percent, on top of the tier (a crowded room plays fair
+   * with weaker monsters). */
+  scale?: { hpPct: number; dmgPct: number };
   /** What a clear is rated against (see rateRun): the time in ticks, the longest combo and the
    * hits taken that earn the top marks. */
   par: Par;
@@ -671,7 +674,7 @@ export interface Par {
   hits: number;
 }
 
-export type DungeonId = 'trial' | 'training' | 'heifeng' | 'hall';
+export type DungeonId = 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
 
 function room(width: number, spawns: [MonsterKind, number, number][], doors: [Side, number, number?][], endless = false): Room {
   return {
@@ -717,7 +720,43 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
   },
   // the fort's hall on its own, to practise on the chief (?dungeon=hall)
   hall: { rooms: [room(2200, [['chief', 1500, 180]], [])], boss: 0, practice: true, par: PAR_HALL },
+  // the fort crowded (?dungeon=horde): a dozen and more to a room, a third of them archers, to see
+  // how a full screen looks and runs; practice, so it gives nothing
+  horde: {
+    rooms: [
+      room(2400, crowd(2400, [['bandit', 8], ['archer', 4]]), [['right', 1]]),
+      room(2400, crowd(2400, [['bandit', 8], ['archer', 6]]), [['left', 0], ['right', 2]]),
+      room(2600, crowd(2600, [['bandit', 6], ['shield', 3], ['archer', 5]]), [['left', 1], ['right', 3], ['down', 4, 1300]]),
+      room(2400, crowd(2400, [['bandit', 6], ['shield', 4], ['archer', 6]]), [['left', 2], ['right', 5]]),
+      room(1800, crowd(1800, [['elite', 1], ['bandit', 6]]), [['up', 2, 900]]),
+      room(2200, crowd(2200, [['chief', 1], ['bandit', 4], ['archer', 4]]), [['left', 3]]),
+    ],
+    boss: 5,
+    practice: true,
+    // three to four times the fort's monsters to a room: each has a third of the health and hits a
+    // third as hard; the bot then clears it on the normal tier with most of its health left
+    scale: { hpPct: 35, dmgPct: 30 },
+    par: PAR_FORT,
+  },
 };
+
+/** `groups` of monsters spread over a room `width` wide, clear of the entry on the left: the first
+ * in the middle, the rest in a scatter that steps through the depth so no two stand together. */
+function crowd(width: number, groups: [MonsterKind, number][]): [MonsterKind, number, number][] {
+  const out: [MonsterKind, number, number][] = [];
+  const span = width - 900;
+  let i = 0;
+  for (const [kind, n] of groups) {
+    for (let k = 0; k < n; k++, i++) {
+      // archers keep to the back half of the room, where they shoot from
+      const from = kind === 'archer' ? Math.floor(span / 2) : 0;
+      const x = i === 0 ? 700 + Math.floor(span / 2) : 700 + from + ((i * 389) % (span - from));
+      const y = 30 + ((i * 113) % 300);
+      out.push([kind, x, y]);
+    }
+  }
+  return out;
+}
 
 /** Where heroes stand when they come in through a left-wall door (or start the run). */
 export const ENTRY = { x: toFp(160), y: toFp(180) };

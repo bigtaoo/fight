@@ -25,6 +25,7 @@ const SCENES: Record<SceneId, Scene> = {
 /** Each room's scene by dungeon; rooms past the list, and other dungeons, are the mountain road. */
 const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   heifeng: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
+  horde: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   hall: ['hall'],
 };
 

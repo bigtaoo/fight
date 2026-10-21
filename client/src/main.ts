@@ -18,7 +18,11 @@ async function main(): Promise<void> {
     return runBench(out);
   }
   if (import.meta.env.DEV && params.has('three')) {
-    // the 3D renderer trial instead of the game (three/proto.ts)
+    // the 3D renderer trial instead of the game (three/proto.ts), or what its bodies may cost (three/budget.ts)
+    if (params.has('budget')) {
+      const { runBudget } = await import('./three/budget');
+      return runBudget(params);
+    }
     const { runProto } = await import('./three/proto');
     return runProto(params);
   }

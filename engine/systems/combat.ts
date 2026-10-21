@@ -1,8 +1,8 @@
-import { AFFIX, BODIES, MONSTERS, MOVES, TIERS, WORLD, type HitBox, type HitData, type SkillId } from '../content';
+import { AFFIX, BODIES, MONSTERS, MOVES, WORLD, type HitBox, type HitData, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randInt, randRange } from '../math/prng';
-import { hittable, setState, skillDamagePct, tierOf, type Entity, type SimState } from '../state';
+import { hittable, monsterDmgPct, setState, skillDamagePct, type Entity, type SimState } from '../state';
 import { dropAffix, hasAffix } from './affix';
 import { armored } from './moves';
 
@@ -71,7 +71,7 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
       dmg = Math.trunc((dmg * h.critDmg) / 100);
     }
   } else {
-    dmg = Math.trunc((dmg * TIERS[tierOf(s)].dmgPct) / 100);
+    dmg = Math.trunc((dmg * monsterDmgPct(s)) / 100);
   }
   dmg = Math.max(1, Math.trunc((dmg * randRange(s.rng, 'combat', 90, 110)) / 100));
   const guard = t.kind === 'hero' ? undefined : MONSTERS[t.kind].guard;

@@ -19,6 +19,9 @@ function catmull(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: number, 
   return out.set(f(p0.x, p1.x, p2.x, p3.x), f(p0.y, p1.y, p2.y, p3.y), f(p0.z, p1.z, p2.z, p3.z));
 }
 
+/** One material for every trail (the colour is in the vertices). */
+const MATERIAL = new MeshBasicMaterial({ vertexColors: true, transparent: true, side: DoubleSide, depthWrite: false, toneMapped: false });
+
 export class Trail {
   readonly mesh: Mesh;
   private readonly base: Vector3[] = [];
@@ -41,7 +44,7 @@ export class Trail {
       index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
     this.geo.setIndex(index);
-    this.mesh = new Mesh(this.geo, new MeshBasicMaterial({ vertexColors: true, transparent: true, side: DoubleSide, depthWrite: false, toneMapped: false }));
+    this.mesh = new Mesh(this.geo, MATERIAL);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 2;
   }
@@ -87,5 +90,9 @@ export class Trail {
     }
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.color.needsUpdate = true;
+  }
+
+  dispose(): void {
+    this.geo.dispose();
   }
 }

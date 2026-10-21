@@ -4,7 +4,7 @@ import { INK } from './ink';
 // Ink flung off a hit: drops that burst out, fall and thin away, all in one draw (a point cloud,
 // each drop a soft round blot sized by its distance to the camera).
 
-const MAX = 256;
+const MAX = 512;
 /** Gravity on the drops, world units per second squared. */
 const FALL = 2600;
 

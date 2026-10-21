@@ -51,6 +51,17 @@ export function tierOf(s: SimState): number {
   return Number.isSafeInteger(t) ? Math.max(0, Math.min(TIERS.length - 1, t)) : 0;
 }
 
+/** Monster health and damage in percent: the tier's, times the dungeon's own scale. */
+export function monsterHpPct(s: SimState): number {
+  const sc = DUNGEONS[s.config.dungeon].scale;
+  return Math.trunc((TIERS[tierOf(s)].hpPct * (sc?.hpPct ?? 100)) / 100);
+}
+
+export function monsterDmgPct(s: SimState): number {
+  const sc = DUNGEONS[s.config.dungeon].scale;
+  return Math.trunc((TIERS[tierOf(s)].dmgPct * (sc?.dmgPct ?? 100)) / 100);
+}
+
 /** The heroes' level of skill `id` in this run, 1 .. MAX_SKILL_LV. */
 export function skillLevel(s: SimState, id: SkillId): number {
   const lv = s.config.skillLv[id] ?? 1;

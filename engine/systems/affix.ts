@@ -1,7 +1,7 @@
 import { AFFIX, AFFIXES, BODIES, MONSTERS, TIERS, type Affix, type MonsterKind } from '../content';
 import type { SimEvent } from '../events';
 import { randInt, randRange } from '../math/prng';
-import { newEntity, tierOf, type Entity, type SimState } from '../state';
+import { monsterDmgPct, monsterHpPct, newEntity, tierOf, type Entity, type SimState } from '../state';
 
 // Difficulty tiers and the affixes monsters roll on them (design/CONTENT.md). A tier scales every
 // monster's health as it spawns and its damage as it lands (combat.ts); an elite or a boss rolls
@@ -23,7 +23,7 @@ export function spawnMonster(s: SimState, kind: MonsterKind, x: number, y: numbe
   const m = newEntity(s, kind, 1, -1, x, y);
   const def = MONSTERS[kind];
   const tier = tierOf(s);
-  if (!def.immortal) m.hp = m.maxHp = Math.trunc((m.maxHp * TIERS[tier].hpPct) / 100);
+  if (!def.immortal) m.hp = m.maxHp = Math.max(1, Math.trunc((m.maxHp * monsterHpPct(s)) / 100));
   if (roll && tier > 0 && !def.immortal) {
     const t = TIERS[tier];
     const n = def.elite || def.boss ? t.eliteAffixes : t.gruntPct > 0 && randInt(s.rng, 'affix', 100) < t.gruntPct ? 1 : 0;
@@ -69,7 +69,7 @@ export function affixSystem(s: SimState, events: SimEvent[]): void {
   }
 
   const mi = AFFIX.miasma;
-  const dmg = Math.max(1, Math.trunc((mi.damage * TIERS[tierOf(s)].dmgPct) / 100));
+  const dmg = Math.max(1, Math.trunc((mi.damage * monsterDmgPct(s)) / 100));
   for (const c of s.clouds) {
     c.life--;
     if (c.life % mi.every !== 0) continue;

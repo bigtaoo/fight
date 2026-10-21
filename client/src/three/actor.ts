@@ -15,15 +15,17 @@ import {
   Vector3,
   VectorKeyframeTrack,
   QuaternionKeyframeTrack,
+  Sphere,
   type AnimationAction,
   type Bone,
+  type Skeleton,
   type Object3D,
   type SkinnedMesh,
   type Texture,
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { INK, bodyMaterial, inkMesh, outlineMaterial } from './ink';
+import { INK, bakeTone, bodyMaterial, inkMesh, outlineMaterial, ownOutline } from './ink';
 import { cutPose, cutting } from './pose';
 import { Trail } from './trail';
 
@@ -96,34 +98,49 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
   return { hero: model(hero), archer: model(clips[0]) };
 }
 
+/** Model units: the bodies stand about one tall with their feet at the origin. */
+const BODY_SPHERE = new Sphere(new Vector3(0, 0.5, 0), 1.5);
+
 const _q = new Quaternion();
 const _p = new Quaternion();
 const _axis = new Vector3();
 
 /** The body's own axes while a clip plays (the clips turn the hips a quarter, so the model faces
- * -x in its own space): up, and the side axis a positive turn raises an arm forward on. */
+ * +x in its own space): up, and the side axis a positive turn raises an arm forward on. */
 const UP = new Vector3(0, 1, 0);
-const SIDE = new Vector3(0, 0, -1);
+const SIDE = new Vector3(0, 0, 1);
 const _side = new Vector3();
 const _base = new Vector3();
 const _tip = new Vector3();
 
-/** A plain dao: grip, guard and a slightly curved blade, along +y from the hand. */
-function sword(): Group {
-  const g = new Group();
+/** A plain dao: grip, guard and a slightly curved blade, along +y from the hand. Its parts are
+ * shared by every sword, so a body coming and going leaves nothing behind on the GPU. */
+const SWORD = (() => {
   const ink = new MeshBasicMaterial({ color: INK });
   const steel = new MeshToonMaterial({ color: 0xd8dade, gradientMap: null });
-  const blade = new Mesh(new BoxGeometry(0.01, 0.46, 0.04), steel);
-  blade.position.y = 0.3;
-  const edge = new Mesh(new BoxGeometry(0.014, 0.47, 0.012), ink);
-  edge.position.set(0, 0.3, -0.024);
-  const guard = new Mesh(new BoxGeometry(0.03, 0.016, 0.07), ink);
-  guard.position.y = 0.065;
-  const grip = new Mesh(new BoxGeometry(0.02, 0.12, 0.024), ink);
-  grip.position.y = 0;
-  g.add(blade, edge, guard, grip);
+  steel.onBeforeCompile = bakeTone;
+  return {
+    blade: [new BoxGeometry(0.01, 0.46, 0.04), steel, [0, 0.3, 0]],
+    edge: [new BoxGeometry(0.014, 0.47, 0.012), ink, [0, 0.3, -0.024]],
+    guard: [new BoxGeometry(0.03, 0.016, 0.07), ink, [0, 0.065, 0]],
+    grip: [new BoxGeometry(0.02, 0.12, 0.024), ink, [0, 0, 0]],
+  } as const;
+})();
+
+function sword(): Group {
+  const g = new Group();
+  for (const [geo, mat, [x, y, z]] of Object.values(SWORD)) {
+    const m = new Mesh(geo, mat);
+    m.position.set(x, y, z);
+    g.add(m);
+  }
   return g;
 }
+
+/** The blob of shadow under every body, and the ink line round every body (one width for all). */
+const SHADOW_GEO = new CircleGeometry(1, 24);
+const SHADOW_MAT = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.28, depthWrite: false });
+const OUTLINE = outlineMaterial(0.006);
 
 export class Actor {
   readonly root = new Group();
@@ -132,15 +149,20 @@ export class Actor {
   private readonly actions: Record<ClipId, AnimationAction>;
   private current: ClipId | null = null;
   private readonly mat: MeshToonMaterial;
+  private readonly line: MeshBasicMaterial;
   private readonly shadow: Mesh;
   private readonly bones: Record<string, Bone> = {};
+  /** The clone's own skeletons: each keeps its bones in a texture of its own. */
+  private readonly skeletons: Skeleton[] = [];
   private readonly scale: number;
-  private yaw = Math.PI;
+  private yaw = 0;
   private blade: Group | null = null;
   /** The swish behind the blade, kept in the room like the shadow. */
   readonly trail = new Trail();
   /** Seconds of white flash left after a hit. */
   flash = 0;
+  /** How far the body has broken up into ink (0 whole, 1 gone); set from outside, the effects. */
+  dissolve = 0;
 
   constructor(
     private readonly id: number,
@@ -151,12 +173,19 @@ export class Actor {
   ) {
     this.body = SkeletonUtils.clone(model.scene) as Group;
     this.mat = bodyMaterial(model.map, tint);
-    const outline = outlineMaterial(0.006);
+    this.line = ownOutline(OUTLINE);
     this.body.traverse((o) => {
       const m = o as SkinnedMesh;
       if (m.isSkinnedMesh) {
-        inkMesh(m, this.mat, outline);
+        inkMesh(m, this.mat, this.line);
+        // the sun's shadow only for the hero and the boss: the shadow pass skins every caster again,
+        // and a room of bandits doing so held an A16 under 40 fps (the rest keep their blob)
+        m.castShadow = kind === 'hero' || kind === 'chief';
         m.frustumCulled = false;
+        // a fixed sphere round the body: left unset, three works one out on the first frame by
+        // skinning every vertex on the CPU (it is only used to sort, so it need not be tight)
+        m.boundingSphere = BODY_SPHERE;
+        this.skeletons.push(m.skeleton);
       }
       if ((o as Bone).isBone) this.bones[o.name] = o as Bone;
     });
@@ -164,15 +193,7 @@ export class Actor {
     this.scale = fromFp(BODIES[kind].height) / model.height;
     this.body.scale.setScalar(this.scale);
     this.root.add(this.body);
-    this.shadow = new Mesh(
-      new CircleGeometry(1, 24),
-      new MeshBasicMaterial({
-        color: INK,
-        transparent: true,
-        opacity: 0.28,
-        depthWrite: false,
-      }),
-    );
+    this.shadow = new Mesh(SHADOW_GEO, SHADOW_MAT);
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.renderOrder = -1;
     this.mixer = new AnimationMixer(this.body);
@@ -188,7 +209,7 @@ export class Actor {
   }
 
   /** Puts a sword in the right hand, pointing forward out of the fist at rest (worked out from the
-   * rest pose, where the model faces +z and the arms are out to the sides). */
+   * rest pose, where the model faces -z and the arms are out to the sides). */
   private arm(): void {
     const hand = this.bones['R_Hand'];
     const fore = this.bones['R_Forearm'];
@@ -200,7 +221,7 @@ export class Actor {
     // half way between the arm's line and forward, so a cut ends with the blade at the enemy
     const dir = along
       .clone()
-      .add(new Vector3(0, 0, 1).applyQuaternion(hq))
+      .add(new Vector3(0, 0, -1).applyQuaternion(hq))
       .normalize();
     s.quaternion.setFromUnitVectors(UP, dir);
     // the grip sits in the fist, a little past the wrist (the bones carry the model's own scale)
@@ -235,9 +256,9 @@ export class Actor {
     this.shadow.position.set(x, 0.5, y * DEPTH_K);
     this.shadow.scale.set(r, r * 0.45, 1);
 
-    // turn to face the way the engine faces (the clips themselves turn the hips a quarter to the
-    // right, so facing +x is a half turn and -x none)
-    const want = e.facing > 0 ? Math.PI : 0;
+    // turn to face the way the engine faces (the clips themselves turn the hips a quarter, so the
+    // model already faces +x on screen and -x is a half turn)
+    const want = e.facing > 0 ? 0 : Math.PI;
     this.yaw += (want - this.yaw) * Math.min(1, dt * 18);
     this.body.rotation.y = this.yaw;
 
@@ -276,6 +297,8 @@ export class Actor {
     }
     this.flash = Math.max(0, this.flash - dt);
     this.mat.emissive.setRGB(this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.85 : 0);
+    this.mat.userData.dissolve.value = this.line.userData.dissolve.value = this.dissolve;
+    if (this.blade) this.blade.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     this.root.visible = !dead || e.st < 40;
   }
@@ -312,6 +335,16 @@ export class Actor {
     this.shadow.removeFromParent();
     this.trail.mesh.removeFromParent();
     this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.body);
+    this.trail.dispose();
+    for (const k of this.skeletons) k.dispose();
+    // the materials are left alone: dropping the last user of a shader frees it, and the next
+    // body would build it again in the middle of a frame
+  }
+
+  /** The posed body, for effects that copy it (afterimages). */
+  get pose3d(): Group {
+    return this.body;
   }
 
   get entityId(): number {
