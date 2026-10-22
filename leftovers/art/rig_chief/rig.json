@@ -1,0 +1,18 @@
+{
+ "parent": {
+  "leg_b_thigh": null,
+  "leg_b_shin": "leg_b_thigh",
+  "leg_f_thigh": null,
+  "leg_f_shin": "leg_f_thigh",
+  "robe": null,
+  "torso": null,
+  "head": "torso",
+  "arm_b_upper": "torso",
+  "arm_b_lower": "arm_b_upper",
+  "hand_b": "arm_b_lower",
+  "arm_f_upper": "torso",
+  "arm_f_lower": "arm_f_upper",
+  "hand_f": "arm_f_lower",
+  "sword": "hand_f"
+ }
+}

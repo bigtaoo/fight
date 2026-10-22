@@ -7,4 +7,4 @@
 - 手：Tripo 绑骨没有手指骨，手是张开的平板，两面都有皮肤，绕前臂转 180° 看起来几乎一样。
 - 积分：试验用掉 150，余 190（v2.5 绑骨重定向报错 1004，白花 25；人形要用绑骨 v1.0）。
 - 早先用 Blender 把它渲成 2D 图集、给 PixiJS 版用的脚本（`blender/render.py`、`pack.py`、`rig2d.py`）
-  已随 PixiJS 一起删除（2026-10-22），要找回看 git 历史。
+  已随 PixiJS 一起移到 `leftovers/art/archer3d/blender/`（2026-10-22）。

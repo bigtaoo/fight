@@ -23,7 +23,7 @@
 
 > 2026-10-22：PixiJS 版已删除，游戏只剩 Three.js 3D 渲染。下面的剪纸骨骼流程（`art/rig_*`、`art/poses_r3`、
 > `tools/pack_tao.py`、`split_parts.py`、`rigpose.py`、`mannequin.py`、`draw_sword.py`、`anim_sheet.py` 等）
-> 和 `client/public/art` 里的 2D 图集一起删掉了，本节和 R3 各节只作历史记录，要找回看 git 历史。
+> 和 `client/public/art` 里的 2D 图集一起移到了 `leftovers/`（按原路径存放），本节和 R3 各节只作历史记录。
 > 仍在用：`art/bg_m2` + `tools/bg_layers.py`（`client/public/art/bg`，3D 场景的远景）、出图和抠图工具。
 
 - 主角、精英、Boss：剪纸骨骼。先 edit 出一张侧面 A-pose（四肢离开身体）→ 拆件 → `.tao`。

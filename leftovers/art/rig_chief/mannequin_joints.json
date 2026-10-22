@@ -1,0 +1,115 @@
+{
+ "size": [
+  768,
+  1024
+ ],
+ "feet_y": 965,
+ "joints": {
+  "crown": [
+   396,
+   96
+  ],
+  "head": [
+   402,
+   160
+  ],
+  "neck": [
+   400,
+   236
+  ],
+  "shoulder_b": [
+   311,
+   274
+  ],
+  "shoulder_f": [
+   479,
+   274
+  ],
+  "waist": [
+   394,
+   480
+  ],
+  "hip_b": [
+   351,
+   520
+  ],
+  "hip_f": [
+   439,
+   520
+  ],
+  "elbow_b": [
+   211,
+   412
+  ],
+  "wrist_b": [
+   134,
+   546
+  ],
+  "elbow_f": [
+   579,
+   412
+  ],
+  "wrist_f": [
+   656,
+   546
+  ],
+  "knee_b": [
+   325,
+   728
+  ],
+  "ankle_b": [
+   319,
+   929
+  ],
+  "knee_f": [
+   465,
+   728
+  ],
+  "ankle_f": [
+   471,
+   929
+  ]
+ },
+ "limbs": {
+  "arm_b_upper": [
+   "shoulder_b",
+   "elbow_b",
+   70
+  ],
+  "arm_b_lower": [
+   "elbow_b",
+   "wrist_b",
+   60
+  ],
+  "arm_f_upper": [
+   "shoulder_f",
+   "elbow_f",
+   70
+  ],
+  "arm_f_lower": [
+   "elbow_f",
+   "wrist_f",
+   60
+  ],
+  "leg_b_thigh": [
+   "hip_b",
+   "knee_b",
+   76
+  ],
+  "leg_b_shin": [
+   "knee_b",
+   "ankle_b",
+   60
+  ],
+  "leg_f_thigh": [
+   "hip_f",
+   "knee_f",
+   76
+  ],
+  "leg_f_shin": [
+   "knee_f",
+   "ankle_f",
+   60
+  ]
+ }
+}

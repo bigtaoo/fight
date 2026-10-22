@@ -1,0 +1,63 @@
+{
+ "parent": {
+  "leg_b_thigh": null,
+  "leg_b_shin": "leg_b_thigh",
+  "leg_f_thigh": null,
+  "leg_f_shin": "leg_f_thigh",
+  "robe": null,
+  "torso": null,
+  "sash": "torso",
+  "head": "torso",
+  "scarf": "torso",
+  "arm_b_upper": "torso",
+  "arm_b_lower": "arm_b_upper",
+  "hand_b": "arm_b_lower",
+  "arm_f_upper": "torso",
+  "arm_f_lower": "arm_f_upper",
+  "hand_f": "arm_f_lower",
+  "sword": "hand_f"
+ },
+ "poses": [
+  {
+   "torso": -6,
+   "head": 6,
+   "leg_b_thigh": 30,
+   "leg_b_shin": -10,
+   "leg_f_thigh": -35,
+   "leg_f_shin": 40,
+   "arm_b_upper": -35,
+   "arm_b_lower": -20,
+   "arm_f_upper": 40,
+   "arm_f_lower": 30,
+   "robe": 3,
+   "sash": 15
+  },
+  {
+   "torso": 8,
+   "head": -8,
+   "arm_f_upper": -120,
+   "arm_f_lower": -30,
+   "hand_f": -20,
+   "arm_b_upper": 60,
+   "arm_b_lower": 40,
+   "leg_f_thigh": 25,
+   "leg_f_shin": -30,
+   "leg_b_thigh": -20,
+   "leg_b_shin": 35,
+   "robe": -4
+  },
+  {
+   "torso": 15,
+   "arm_f_upper": -60,
+   "arm_f_lower": -60,
+   "arm_b_upper": -70,
+   "arm_b_lower": -30,
+   "leg_f_thigh": -60,
+   "leg_f_shin": 70,
+   "leg_b_thigh": 40,
+   "leg_b_shin": 20,
+   "sash": -20,
+   "scarf": -5
+  }
+ ]
+}

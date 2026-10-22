@@ -201,6 +201,12 @@ export class Game {
     this.link = await this.connect();
     await sounds;
     await this.start(this.seed);
+    // 1-1 opens the chapter: the hero and the landscape painted in on blank paper (?reveal does
+    // it for any dungeon)
+    if (this.dungeon === 'luobi' && !this.params.has('reveal')) {
+      this.view.blank();
+      setTimeout(() => this.view.reveal(), 600);
+    }
     // a phone draws 30 frames a second unless ?fps= says otherwise: the engine ticks at 30, and
     // the GPU's work and heat halve (the governor holds that rate)
     this.view.loop((dt) => this.update(dt), navigator.maxTouchPoints > 0 ? 30 : 0);
@@ -293,9 +299,10 @@ export class Game {
     this.menu.markSkills(freePoints(this.character) > 0);
     // a break is the pause panel the player opened or the result; leaving the window is not one
     platform.gameplay(session.engine.state.outcome === 'playing' && !this.held && (!this.paused || this.autoPaused));
-    if ((this.paused || this.held) && this.freezes) {
-      // stopped: the scene stands still, and its clock runs up no ticks to catch up on later
-      this.render(session.alpha, 0);
+    if ((this.paused || this.held || this.view.revealing) && this.freezes) {
+      // stopped (or still being painted in): the scene stands still, and its clock runs up no
+      // ticks to catch up on later
+      this.render(session.alpha, this.view.revealing && !this.paused ? dt : 0);
       return;
     }
     const n = session.ticksFor(dt * 1000);
