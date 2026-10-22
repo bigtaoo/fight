@@ -308,6 +308,37 @@
 - **印**：压住路的印可以打碎，下面是隐藏路线。
 - **颜色恢复**：只是奖励反馈，不是数值。
 
+## 未完成的美术（2026-10-22 归档的两个任务卡，都停在出图额度用完）
+
+### 场景背景（分支 `claude/ch1-scenes-57bea1`，提交 4b836a0，未合进 main）
+
+已做：六个地点的 prompt 和分层配置（`art/chapter1/bg/*_t2i.txt`、`layers.json`），`?scene=plank|manor|ferry|temple|tail|screen`
+切场景和摆件，画卷丝绸边框（`bg_layers.py` 的 `silk`，钉在画面上下），`bg_layers.py` 可按名字前缀只打包部分图层。
+山寺三层全部画完；栈道只有远景和地面。
+
+还差的图（prompt 都已写好，出图后用 `bg_layers.py` 打包）：
+
+| 地点 | 缺的层 |
+|---|---|
+| 栈道 plank | mid、front |
+| 宅门 manor | far、mid、front |
+| 渡口 ferry | far、mid、front |
+| 屏风 screen | far、mid、front |
+| 题跋 tail | far、mid |
+
+接着做：先把这条分支合进 main（代码和山寺、边框已经能用），再补图。
+
+### 关键帧概念图（文件已拷进 main 的 `art/chapter1/concept/`，未提交）
+
+| 关键帧 | 现状 |
+|---|---|
+| k3 走进屏风 | A 出了图（`k3_screen_A.png`），B 只有 prompt |
+| k4 宅门墨狮 | A 出了图（`k4_lion_A.png`），B 只有 prompt |
+| k5 伪印 | A、B 只有 prompt |
+| k6 画外人影 | A、B 只有 prompt |
+
+接着做：出 B 版和 k5、k6，两版里挑一张定稿（跟 k1、k2 一样，定稿后可能还要 e 系列局部重画）。
+
 ## 待定
 
 - 第二、三章的画种和英雄线（候选：界画城池、工笔宫殿、敦煌壁画）。
