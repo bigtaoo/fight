@@ -224,9 +224,11 @@ export class Actor {
     const hq = hand.getWorldQuaternion(new Quaternion()).invert();
     const along = hand.getWorldPosition(new Vector3()).sub(fore.getWorldPosition(new Vector3())).normalize().applyQuaternion(hq);
     const s = sword();
-    // half way between the arm's line and forward, so a cut ends with the blade at the enemy
+    // mostly forward, a little down the arm's line: a cut ends with the blade at the enemy, and a
+    // hanging arm (the swordsman's reaches low) keeps the tip above the floor
     const dir = along
       .clone()
+      .multiplyScalar(0.4)
       .add(new Vector3(0, 0, -1).applyQuaternion(hq))
       .normalize();
     s.quaternion.setFromUnitVectors(UP, dir);

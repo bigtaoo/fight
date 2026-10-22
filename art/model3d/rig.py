@@ -112,6 +112,13 @@ for v in loose:
     b = min(arm.data.bones, key=lambda b: seg_dist(v.co, b))
     mesh.vertex_groups[b.name].add([v.index], 1.0, 'REPLACE')
 print(f'RIG {NAME}: {len(mesh.data.vertices)} verts, {len(loose)} unweighted fixed')
+# a hat (J['headAbove']: the height its brim starts at) rides on the head alone; bone heat lets the
+# brim follow the shoulders, and the head then pokes through it
+if 'headAbove' in J:
+    hat = [v.index for v in mesh.data.vertices if v.co.z >= J['headAbove']]
+    for g in mesh.vertex_groups: g.remove(hat)
+    mesh.vertex_groups['Head'].add(hat, 1.0, 'REPLACE')
+    print(f'RIG {NAME}: {len(hat)} hat verts on the head')
 
 # pose every bone back to the template's rest orientation, parents first, then make that the rest
 mode(arm, 'POSE')

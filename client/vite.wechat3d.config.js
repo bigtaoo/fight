@@ -19,7 +19,7 @@ const copyAssets = {
     const models = at('./wechat/models');
     rmSync(models, { recursive: true, force: true });
     mkdirSync(models, { recursive: true });
-    slimGlb(at('../art/hero3d/model/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg');
+    slimGlb(at('../art/model3d/sword/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg');
     slimGlb(at('../art/archer3d/model/anim_idle.glb'), `${models}/archer.glb`, 'archer.jpg');
     for (const clip of ['walk', 'hit', 'fall']) slimGlb(at(`../art/archer3d/model/anim_${clip}.glb`), `${models}/${clip}.glb`);
     writeFileSync(`${models}/game.js`, '// models: a pack, loaded by wx.loadSubpackage\n');

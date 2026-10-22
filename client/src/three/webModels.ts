@@ -3,7 +3,8 @@ import type { ModelFiles } from './actor';
 // The models as the web build serves them: Tripo's own files, straight from art/. Kept apart so
 // the WeChat build can leave them out (vite.wechat3d.config.js), as it packs slimmed copies.
 
-/** Chapter-one bodies rigged by art/model3d/rig.py, picked for the hero with ?hero=<name>. */
+/** Chapter-one bodies rigged by art/model3d/rig.py: the swordsman is the hero, ?hero=<name> tries
+ * another. */
 const RIGS: Record<string, string> = {
   sword: new URL('../../../art/model3d/sword/rig_v1.glb', import.meta.url).href,
   lion: new URL('../../../art/model3d/lion/rig_v1.glb', import.meta.url).href,
@@ -17,7 +18,7 @@ const RIGS: Record<string, string> = {
 const pick = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hero');
 
 export const WEB_FILES: ModelFiles = {
-  hero: (pick && RIGS[pick]) || new URL('../../../art/hero3d/model/rig_v1.glb', import.meta.url).href,
+  hero: (pick && RIGS[pick]) || RIGS.sword,
   clips: {
     idle: new URL('../../../art/archer3d/model/anim_idle.glb', import.meta.url).href,
     walk: new URL('../../../art/archer3d/model/anim_walk.glb', import.meta.url).href,
