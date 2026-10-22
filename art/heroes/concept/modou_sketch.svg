@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="900" viewBox="0 0 800 900">
+  <!-- Layout sketch for Modou: asymmetric silhouette (tiger cannon left, slim arm and ink reel right,
+       rocket box over the right shoulder), flat colour guides only. -->
+  <rect width="800" height="900" fill="#f4eee2"/>
+  <ellipse cx="430" cy="838" rx="200" ry="14" fill="#ddd5c4"/>
+  <g stroke="#1a1714" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <!-- rocket box on the back, over the right shoulder -->
+    <g fill="#9c9a4e">
+      <rect x="458" y="58" width="16" height="100"/><rect x="478" y="44" width="16" height="114"/>
+      <rect x="498" y="52" width="16" height="106"/><rect x="518" y="64" width="16" height="94"/>
+      <rect x="538" y="78" width="16" height="80"/>
+    </g>
+    <g fill="#b8322a"><path d="M458 58 l8 -14 l8 14z"/><path d="M478 44 l8 -14 l8 14z"/><path d="M498 52 l8 -14 l8 14z"/><path d="M518 64 l8 -14 l8 14z"/><path d="M538 78 l8 -14 l8 14z"/></g>
+    <path d="M436 170 Q500 140 576 170 L566 182 L446 182 Z" fill="#7a3b22"/>
+    <rect x="450" y="180" width="108" height="150" fill="#b98535"/>
+    <path d="M450 220 h108 M450 260 h108 M450 300 h108" fill="none"/>
+
+    <!-- legs: turned posts with tenon joints -->
+    <g fill="#d9a441">
+      <path d="M392 500 L410 500 L400 640 L380 640 Z"/><path d="M448 500 L466 500 L476 640 L456 640 Z"/>
+      <path d="M374 640 L404 640 L398 800 L366 800 Z"/><path d="M452 640 L482 640 L492 800 L460 800 Z"/>
+    </g>
+    <g fill="#c8902f"><rect x="378" y="628" width="28" height="24"/><rect x="452" y="628" width="28" height="24"/></g>
+    <g fill="#8a6a3a"><path d="M368 690 h34 v70 h-36 z"/><path d="M456 690 h34 l2 70 h-36 z"/></g>
+    <g fill="#c8902f"><path d="M340 800 h62 v28 h-70 q-6 -14 8 -28z"/><path d="M456 800 h62 q14 14 8 28 h-70z"/></g>
+
+    <!-- torso: chest block, lattice, taotie disc, belt, hip plates -->
+    <path d="M360 262 L480 262 L466 400 L374 400 Z" fill="#d9a441"/>
+    <rect x="394" y="284" width="52" height="52" fill="#e8c25a"/>
+    <path d="M394 301 h52 M394 319 h52 M411 284 v52 M429 284 v52" fill="none" stroke-width="3"/>
+    <circle cx="420" cy="368" r="15" fill="#8a6a3a"/>
+    <rect x="364" y="400" width="112" height="18" fill="#b8322a"/>
+    <g fill="#e8c25a"><path d="M362 418 h42 l-6 82 h-34 z"/><path d="M402 418 h38 l2 86 h-42 z"/><path d="M438 418 h42 l4 82 h-38 z"/></g>
+    <g fill="#f2d14b"><rect x="404" y="418" width="14" height="64"/><rect x="430" y="418" width="14" height="56"/></g>
+    <g fill="#b8322a" stroke-width="2"><rect x="407" y="430" width="8" height="8"/><rect x="433" y="430" width="8" height="8"/></g>
+    <g fill="none" stroke="#1a1714" stroke-width="2"><path d="M411 444 v26 M437 444 v20"/></g>
+
+    <!-- neck and head: carved mask under an official's winged hat -->
+    <rect x="406" y="238" width="28" height="26" fill="#c8902f"/>
+    <rect x="380" y="150" width="80" height="92" rx="6" fill="#c8902f"/>
+    <ellipse cx="420" cy="198" rx="32" ry="40" fill="#e9c98a"/>
+    <path d="M394 194 C408 188 432 188 446 194" fill="none" stroke="#111" stroke-width="8"/>
+    <path d="M372 152 Q372 96 420 92 Q468 96 468 152 Z" fill="#1d1a18"/>
+    <path d="M376 128 L230 112 Q218 118 230 126 L376 142 Z" fill="#1d1a18"/>
+    <path d="M464 128 L610 112 Q622 118 610 126 L464 142 Z" fill="#1d1a18"/>
+
+    <!-- dougong brackets on both shoulders -->
+    <g fill="#d9a441">
+      <rect x="338" y="282" width="26" height="20"/><rect x="314" y="268" width="76" height="14"/>
+      <rect x="334" y="254" width="34" height="14"/><rect x="304" y="240" width="96" height="14"/>
+      <rect x="476" y="282" width="26" height="20"/><rect x="450" y="268" width="76" height="14"/>
+      <rect x="472" y="254" width="34" height="14"/><rect x="440" y="240" width="96" height="14"/>
+    </g>
+    <g fill="#b8322a"><rect x="304" y="240" width="14" height="14"/><rect x="386" y="240" width="14" height="14"/><rect x="440" y="240" width="14" height="14"/><rect x="522" y="240" width="14" height="14"/></g>
+
+    <!-- slim left arm holding the ink-line reel, the line trailing to the ground -->
+    <path d="M482 300 L498 300 L518 392 L502 394 Z" fill="#d9a441"/>
+    <circle cx="510" cy="392" r="10" fill="#c8902f"/>
+    <path d="M502 394 L518 394 L536 472 L520 474 Z" fill="#d9a441"/>
+    <rect x="514" y="470" width="30" height="26" rx="4" fill="#c8902f"/>
+    <path d="M530 470 L604 470 L596 502 L536 502 Z" fill="#7a3b22"/>
+    <circle cx="582" cy="486" r="18" fill="#d9a441"/><circle cx="582" cy="486" r="5" fill="#1d1a18"/>
+    <path d="M604 488 C640 560 600 640 650 720 C680 770 640 820 690 840" fill="none" stroke="#111" stroke-width="5"/>
+    <circle cx="648" cy="726" r="5" fill="#111"/><circle cx="672" cy="790" r="4" fill="#111"/>
+
+    <!-- squatting-tiger cannon on the right arm -->
+    <path d="M342 300 L358 300 L346 384 L330 384 Z" fill="#d9a441"/>
+    <g fill="#9a7840">
+      <path d="M196 476 q-10 -40 20 -54 l14 10 q-20 12 -12 44 z"/>
+      <path d="M296 476 q-10 -40 20 -54 l14 10 q-20 12 -12 44 z"/>
+    </g>
+    <rect x="150" y="376" width="214" height="60" rx="14" fill="#8a6a3a"/>
+    <g fill="#b98535"><rect x="200" y="372" width="14" height="68"/><rect x="258" y="372" width="14" height="68"/><rect x="316" y="372" width="14" height="68"/></g>
+    <circle cx="364" cy="406" r="24" fill="#9a7840"/>
+    <!-- the muzzle: a roaring tiger's head, jaws wide open around the bore -->
+    <circle cx="118" cy="406" r="58" fill="#9a7840"/>
+    <path d="M86 356 l-12 -26 l30 12 z M150 356 l12 -26 l-30 12 z" fill="#9a7840"/>
+    <path d="M90 372 q10 -8 20 0 M126 372 q10 -8 20 0" fill="none" stroke-width="5"/>
+    <circle cx="100" cy="378" r="5" fill="#1d1a18"/><circle cx="136" cy="378" r="5" fill="#1d1a18"/>
+    <path d="M118 340 v14 M108 344 v10 M128 344 v10" fill="none" stroke-width="3"/>
+    <path d="M78 400 Q118 384 158 400 Q160 446 118 452 Q76 446 78 400 Z" fill="#1d1a18"/>
+    <path d="M86 402 l6 14 l6 -14 M138 402 l6 14 l6 -14 M92 444 l6 -12 l6 12 M132 444 l6 -12 l6 12" fill="#f4eee2" stroke-width="2"/>
+    <path d="M70 396 l-26 -6 M70 406 l-28 2 M166 396 l26 -6" fill="none" stroke-width="3"/>
+    <path d="M378 420 q14 30 4 60 M388 418 q20 30 12 64" fill="none" stroke="#e0a800" stroke-width="6"/>
+    <rect x="336" y="396" width="26" height="24" rx="4" fill="#c8902f"/>
+  </g>
+</svg>

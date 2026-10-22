@@ -1,0 +1,4 @@
+3D game prop reference, a single object, three-quarter view from slightly above, whole object visible and centered, filling the frame.
+Style: stylized hand-painted 3D game asset like a Chinese wuxia action game, slightly simplified chunky shapes, clean readable colour blocks, soft even studio lighting, no strong shadows, no outlines.
+Object: a freestanding ancient Chinese weapon rack of a mountain bandit fortress, a rough dark wooden frame of two upright posts on wide crossed feet joined by two crossbars, holding a row of long weapons standing upright and leaning in it: three spears with red tassels under the iron spear heads, a guandao halberd with a broad curved blade, a trident, and a long wooden staff, all clearly separate with space between them. Weathered and worn, rustic.
+Plain pure white background, no ground, no shadow, no people, no text, no border, no extra views, only one object.

@@ -4,16 +4,18 @@
 set -euo pipefail
 source "$(dirname "$0")/mistral_failover.sh"
 OUT="$1"; PROMPT_FILE="$2"
-# MISTRAL_KEY=A|B|C|D|E|F|G picks the workspace; each workspace has its own agent
-case "${MISTRAL_KEY:-B}" in
+# MISTRAL_KEY=L|M|N|J|K|H|D|F|G picks the workspace; each workspace has its own agent
+case "${MISTRAL_KEY:-H}" in
+  H) CONF="$HOME/.vibe/mistral_curl_keyH.conf"; AGENT="ag_01a13ad6e58d715a89c9eca37a915309" ;;
   F) CONF="$HOME/.vibe/mistral_curl_keyF.conf"; AGENT="ag_01a1118451b2770089c64623a33a22b1" ;;
   G) CONF="$HOME/.vibe/mistral_curl_keyG.conf"; AGENT="ag_01a11185f4e2775b84cff3c759d8a84f" ;;
   D) CONF="$HOME/.vibe/mistral_curl_keyD.conf"; AGENT="ag_01a1071339ed769f8a3e6ecb75bf26dd" ;;
-  E) CONF="$HOME/.vibe/mistral_curl_keyE.conf"; AGENT="ag_01a107169f87737ab93655134b97f1fb" ;;
-  C) CONF="$HOME/.vibe/mistral_curl_keyC.conf"; AGENT="ag_01a0f2bc01d4739880edc0be391ad765" ;;
-  A) CONF="$HOME/.vibe/mistral_curl_keyA.conf"; AGENT="ag_01a0f2153a017375ae140eab15522710" ;;
-  B) CONF="$HOME/.vibe/mistral_curl_keyB.conf"; AGENT="ag_01a0f2702e31768a9bde515228083588" ;;
-  *) echo "MISTRAL_KEY must be one of A to G" >&2; exit 2 ;;
+  J) CONF="$HOME/.vibe/mistral_curl_keyJ.conf"; AGENT="ag_01a140145d3574a8afbbb4e0baf3a9dd" ;;
+  K) CONF="$HOME/.vibe/mistral_curl_keyK.conf"; AGENT="ag_01a14015661e75a8ad3cb391ac2845ed" ;;
+  L) CONF="$HOME/.vibe/mistral_curl_keyL.conf"; AGENT="ag_01a1540fa9987219b0bcdd68f3498adc" ;;
+  M) CONF="$HOME/.vibe/mistral_curl_keyM.conf"; AGENT="ag_01a1540faac174cabeff2fe987bb57ba" ;;
+  N) CONF="$HOME/.vibe/mistral_curl_keyN.conf"; AGENT="ag_01a1540fac1872dfa9a76d031b395f53" ;;
+  *) echo "MISTRAL_KEY must be one of L, M, N, J, K, H, D, F or G" >&2; exit 2 ;;
 esac
 TMP="${TMPDIR:-/tmp}/mistral_gen_$$"; mkdir -p "$TMP"
 

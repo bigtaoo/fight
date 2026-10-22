@@ -1,0 +1,4 @@
+3D game prop reference, a single object, three-quarter view from slightly above, whole object visible and centered, filling the frame.
+Style: stylized hand-painted 3D game asset like a Chinese wuxia action game, slightly simplified chunky shapes, clean readable colour blocks, soft even studio lighting, no strong shadows, no outlines.
+Object: a large ancient Chinese war drum of a mountain bandit fortress, a fat barrel-shaped drum body of dark red lacquered wood with rows of round brass studs holding pale cowhide drumheads on both ends, lying on its side in a sturdy dark wooden stand of crossed thick timbers lashed with rope, the drumhead facing sideways, a pair of wooden drumsticks with red cloth wrapped handles resting on top of the stand. Weathered and worn, a little dented, rustic and heavy.
+Plain pure white background, no ground, no shadow, no people, no text, no border, no extra views, only one object.
