@@ -1,5 +1,6 @@
 """Pack the parallax background layers of the scenes into client/public/art/bg/.
-usage: python -I tools/bg_layers.py art/bg_m2/layers.json
+usage: python -I tools/bg_layers.py art/bg_m2/layers.json [name prefix...]
+(with prefixes, only the layers whose names start with one of them are packed)
 
 Every layer comes out at its in-game size (logical screen 1920x1080) and wraps seamlessly, so
 the client only tiles it horizontally. Kinds:
@@ -20,6 +21,9 @@ the client only tiles it horizontally. Kinds:
   ground  no painting: a wash texture drawn here, periodic in both directions. "paper" and
           "ink" are the two colours it blends, "streaks" the number of long horizontal brush
           marks, "boards" > 0 draws that many floorboard seams instead.
+  silk    no painting: the mounting silk along the top of the scroll, periodic sideways. A woven
+          "silk" colour with a faint damask of round flowers in "sheen", and along its bottom
+          (the side that meets the painting) a "rim" of paper-edge shadow and a thin "line".
   empty   a blank strip, for a scene that has no layer there yet.
 All fractions (crop, erase boxes) are of the source image: [x0, y0, x1, y1].
 """
@@ -28,7 +32,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ink_cutout import ink_layer  # noqa: E402
@@ -185,6 +189,48 @@ def ground(spec, _base):
     return im.filter(ImageFilter.GaussianBlur(0.5))
 
 
+def silk(spec, _base):
+    w, h = spec["width"], spec["height"]
+    rng = np.random.default_rng(spec.get("seed", 1))
+    col = np.array(spec["silk"], dtype=np.float32) / 255
+    sheen = np.array(spec["sheen"], dtype=np.float32) / 255
+    # the damask: rows of round flowers (a ring of petals round a dot), every other row offset,
+    # drawn 4x and scaled down; `pitch` divides the width, so the pattern wraps
+    ss = 4
+    pitch = spec.get("pitch", 64)
+    pat = Image.new("L", (w * ss, h * ss))
+    d = ImageDraw.Draw(pat)
+    r = pitch * 0.22 * ss
+    rows = max(1, round((h - spec.get("rimH", 10)) / (pitch * 0.6)))
+    for j in range(rows):
+        cy = (j + 0.5) * (h - spec.get("rimH", 10)) / rows * ss
+        for i in range(-1, w // pitch + 1):
+            cx = (i + (0.5 if j % 2 else 0)) * pitch * ss
+            for k in range(6):
+                a = k * np.pi / 3 + j * 0.5
+                px, py = cx + np.cos(a) * r * 0.6, cy + np.sin(a) * r * 0.6
+                d.ellipse([px - r * 0.36, py - r * 0.36, px + r * 0.36, py + r * 0.36], outline=255, width=ss)
+            d.ellipse([cx - r * 0.18, cy - r * 0.18, cx + r * 0.18, cy + r * 0.18], fill=255)
+    flower = np.asarray(pat.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255
+    # the weave: fine threads both ways and a slow shimmer
+    yy = np.arange(h)[:, None].astype(np.float32)
+    xx = np.arange(w)[None, :].astype(np.float32)
+    weave = 0.5 + 0.25 * np.sin(xx * np.pi) * np.sin(yy * np.pi * 0.5)
+    shimmer = periodic_noise(rng, h, w, 4)
+    t = np.clip(flower * spec.get("damask", 0.5) + 0.04 * shimmer + 0.06 * (weave - 0.5), 0, 1)[..., None]
+    rgb = col * (1 - t) + sheen * t
+    rgb *= (1 + rng.normal(0, 0.015, (h, w)))[..., None]
+    # the rim where the silk meets the painting: a shadow darkening into a thin line at the edge
+    rim = spec.get("rimH", 10)
+    edge = np.clip((yy - (h - rim)) / rim, 0, 1) ** 2
+    rgb *= (1 - 0.25 * edge)[..., None]
+    line = np.array(spec.get("line", [90, 70, 50]), dtype=np.float32) / 255
+    rgb[h - 2:] = line
+    rgb[h - 4:h - 2] = rgb[h - 4:h - 2] * 0.5 + line * 0.5
+    im = Image.fromarray((np.clip(rgb, 0, 1) * 255 + 0.5).astype(np.uint8))
+    return im
+
+
 def empty(_spec, _base):
     return Image.new("RGBA", (64, 8))
 
@@ -196,8 +242,11 @@ def main():
         cfg = json.load(f)
     out_dir = os.path.join(ROOT, cfg["out"])
     os.makedirs(out_dir, exist_ok=True)
+    only = sys.argv[2:]
     for name, spec in cfg["layers"].items():
-        im = {"far": far, "cut": cut, "ground": ground, "empty": empty}[spec["kind"]](spec, base)
+        if only and not any(name.startswith(p) for p in only):
+            continue
+        im = {"far": far, "cut": cut, "ground": ground, "silk": silk, "empty": empty}[spec["kind"]](spec, base)
         if im.mode == "RGBA":
             # a 256-colour palette with alpha: a sixth of the size, no visible banding on washes
             file = os.path.join(out_dir, name + ".png")

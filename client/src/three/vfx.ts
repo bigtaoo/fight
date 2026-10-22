@@ -27,6 +27,7 @@ import { Marks } from './marks';
 import { Particles } from './particles';
 import { GLOW_MAP } from './props';
 import type { Post } from './post';
+import type { SceneId } from './stage';
 
 // Everything the effects add to a fight, driven by the engine's events and state (they only draw:
 // nothing here goes back into the game). Hits leave a brush cut over the target, sparks and a blot
@@ -34,7 +35,7 @@ import type { Post } from './post';
 // smoke; arrows, sword waves and quakes get bodies of their own; and each scene has its own air:
 // incense smoke, motes and shafts of light in the hall, embers over the fort, leaves on the road.
 
-export type Air = 'road' | 'fort' | 'hall' | 'village';
+export type Air = SceneId;
 
 /** The moves a dash leaves afterimages on. */
 const DASH = new Set(['tri1', 'tri2', 'tri3', 'dragon1', 'dragon2', 'dragon3', 'dragon4', 'iai', 'phantom', 'backstep', 'upper', 'crush2']);
