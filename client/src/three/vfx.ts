@@ -31,7 +31,7 @@ import type { Post } from './post';
 // smoke; arrows, sword waves and quakes get bodies of their own; and each scene has its own air:
 // incense smoke, motes and shafts of light in the hall, embers over the fort, leaves on the road.
 
-export type Air = 'road' | 'fort' | 'hall';
+export type Air = 'road' | 'fort' | 'hall' | 'village';
 
 /** The moves a dash leaves afterimages on. */
 const DASH = new Set(['tri1', 'tri2', 'tri3', 'dragon1', 'dragon2', 'dragon3', 'dragon4', 'iai', 'phantom', 'backstep', 'upper', 'crush2']);

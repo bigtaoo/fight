@@ -5,15 +5,22 @@ Every layer comes out at its in-game size (logical screen 1920x1080) and wraps s
 the client only tiles it horizontally. Kinds:
   far     an opaque painting; optional levels lift its blacks ("lo") and pull down its whites
           ("hi"); mirrored onto itself when "mirror" so its two ends meet.
+  "wrap"  (far or cut) a share of the cropped width: the image loops on itself instead, its last
+          that-much crossfaded into its first, so no mirror image and no seam. Crop its right
+          end where the painting is quiet (mist, a gap between houses).
+  "parts" (far or cut) in place of "src"/"crop": several {"src", "crop", "erase"} paintings side by
+          side, each scaled to the first's height and crossfaded into the next over "join"
+          pixels, for a longer strip that repeats less.
   cut     ink cut out of its paper (ink_cutout.ink_layer, or colour-to-alpha alone when "body"
           is false), washes fainter than "minInk" dropped
           and the rest thickened by "gamma" (< 1),
           blacks lifted to "lo", cropped to the ink, faded by "alpha";
-          then the cut-out and its mirror image side by side, each followed by "gap" (a share
+          then (unless "wrap") the cut-out and its mirror image side by side, each followed by "gap" (a share
           of its width) of nothing, so foreground pieces stand apart.
   ground  no painting: a wash texture drawn here, periodic in both directions. "paper" and
           "ink" are the two colours it blends, "streaks" the number of long horizontal brush
           marks, "boards" > 0 draws that many floorboard seams instead.
+  empty   a blank strip, for a scene that has no layer there yet.
 All fractions (crop, erase boxes) are of the source image: [x0, y0, x1, y1].
 """
 import json
@@ -35,6 +42,9 @@ def frac_box(box, w, h):
 
 
 def load(spec, base):
+    if "parts" in spec:
+        rgb = join([load(part, base) for part in spec["parts"]], spec.get("join", 30))
+        return looped(rgb, spec)
     im = Image.open(os.path.join(base, spec["src"])).convert("RGB")
     rgb = np.asarray(im, dtype=np.float32) / 255
     h, w, _ = rgb.shape
@@ -46,6 +56,30 @@ def load(spec, base):
     if "crop" in spec:
         x0, y0, x1, y1 = frac_box(spec["crop"], w, h)
         rgb = rgb[y0:y1, x0:x1]
+    return looped(rgb, spec)
+
+
+def join(parts, band):
+    """Paintings side by side, each scaled to the first's height, crossfaded over `band` pixels."""
+    h = parts[0].shape[0]
+    out = parts[0]
+    t = np.linspace(0, 1, band, dtype=np.float32)[None, :, None]
+    for rgb in parts[1:]:
+        im = Image.fromarray((rgb * 255 + 0.5).astype(np.uint8))
+        im = im.resize((round(im.width * h / im.height), h), Image.LANCZOS)
+        rgb = np.asarray(im, dtype=np.float32) / 255
+        seam = (1 - t) * out[:, -band:] + t * rgb[:, :band]
+        out = np.concatenate([out[:, :-band], seam, rgb[:, band:]], axis=1)
+    return out
+
+
+def looped(rgb, spec):
+    if "wrap" in spec:
+        w = rgb.shape[1]
+        band = round(spec["wrap"] * w)
+        t = np.linspace(0, 1, band, dtype=np.float32)[None, :, None]
+        head = (1 - t) * rgb[:, w - band:] + t * rgb[:, :band]
+        rgb = np.concatenate([head, rgb[:, band:w - band]], axis=1)
     return rgb
 
 
@@ -86,11 +120,15 @@ def cut(spec, base):
     a[..., :3] = lo + (1 - lo) * a[..., :3]
     im = Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA")
     box = im.getchannel("A").point(lambda v: 255 if v > 12 else 0).getbbox()
+    if "wrap" in spec:
+        box = (0, box[1], im.width, box[3])   # keep the full width, it tiles
     im = im.crop(box)
     im = im.resize((round(im.width * spec["height"] / im.height), spec["height"]), Image.LANCZOS)
     a = np.asarray(im, dtype=np.float32)
     a[..., 3] *= spec.get("alpha", 1)
     im = Image.fromarray((a + 0.5).astype(np.uint8), "RGBA")
+    if "wrap" in spec:
+        return im
     gap = round(im.width * spec.get("gap", 0))
     one = Image.new("RGBA", (im.width + gap, im.height))
     one.paste(im, (0, 0))
@@ -147,6 +185,10 @@ def ground(spec, _base):
     return im.filter(ImageFilter.GaussianBlur(0.5))
 
 
+def empty(_spec, _base):
+    return Image.new("RGBA", (64, 8))
+
+
 def main():
     path = sys.argv[1]
     base = os.path.dirname(os.path.abspath(path))
@@ -155,7 +197,7 @@ def main():
     out_dir = os.path.join(ROOT, cfg["out"])
     os.makedirs(out_dir, exist_ok=True)
     for name, spec in cfg["layers"].items():
-        im = {"far": far, "cut": cut, "ground": ground}[spec["kind"]](spec, base)
+        im = {"far": far, "cut": cut, "ground": ground, "empty": empty}[spec["kind"]](spec, base)
         if im.mode == "RGBA":
             # a 256-colour palette with alpha: a sixth of the size, no visible banding on washes
             file = os.path.join(out_dir, name + ".png")

@@ -3,8 +3,21 @@ import type { ModelFiles } from './actor';
 // The models as the web build serves them: Tripo's own files, straight from art/. Kept apart so
 // the WeChat build can leave them out (vite.wechat3d.config.js), as it packs slimmed copies.
 
+/** Chapter-one bodies rigged by art/model3d/rig.py, picked for the hero with ?hero=<name>. */
+const RIGS: Record<string, string> = {
+  sword: new URL('../../../art/model3d/sword/rig_v1.glb', import.meta.url).href,
+  lion: new URL('../../../art/model3d/lion/rig_v1.glb', import.meta.url).href,
+  modou: new URL('../../../art/model3d/modou/rig_v1.glb', import.meta.url).href,
+  fisher: new URL('../../../art/model3d/fisher/rig_v1.glb', import.meta.url).href,
+  wood: new URL('../../../art/model3d/wood/rig_v1.glb', import.meta.url).href,
+  washer: new URL('../../../art/model3d/washer/rig_v1.glb', import.meta.url).href,
+  inklion: new URL('../../../art/model3d/inklion/rig_v1.glb', import.meta.url).href,
+  boatman: new URL('../../../art/model3d/boatman/rig_v1.glb', import.meta.url).href,
+};
+const pick = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hero');
+
 export const WEB_FILES: ModelFiles = {
-  hero: new URL('../../../art/hero3d/model/rig_v1.glb', import.meta.url).href,
+  hero: (pick && RIGS[pick]) || new URL('../../../art/hero3d/model/rig_v1.glb', import.meta.url).href,
   clips: {
     idle: new URL('../../../art/archer3d/model/anim_idle.glb', import.meta.url).href,
     walk: new URL('../../../art/archer3d/model/anim_walk.glb', import.meta.url).href,

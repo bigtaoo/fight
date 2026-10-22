@@ -7,9 +7,11 @@ DNF 式 2.5D 横版动作页游。网络与反作弊沿用 `D:\funny` 的 lockst
 
 - [MVP.md](MVP.md)：M1 最小化验证的范围与验收标准（已完成）
 - [M2.md](M2.md)：当前阶段，内容竖切的范围与验收标准
-- [CONTENT.md](CONTENT.md)：下一阶段（草案），单机完整版：城镇、成长、装备强化、4 章 8 个地下城，20 小时以上内容
+- [CONTENT.md](CONTENT.md)：（章节表和故事已被 WORLD.md、CHAPTER1.md 取代）下一阶段（草案），单机完整版：城镇、成长、装备强化、4 章 8 个地下城，20 小时以上内容
 - [CG.md](CG.md)：单机版上架 CrazyGames（平台接入已做；上架放在 CONTENT.md 做完之后）
 - [M3.md](M3.md)：组队、决斗、断线重连（草案；等 CrazyGames 基础测试过了再做）
+- [WORLD.md](WORLD.md)：世界观（画中江湖）与三位英雄定稿
+- [CHAPTER1.md](CHAPTER1.md)：第一章千里江山（草案）：十节结构、新手教程、英雄解锁
 - [ART.md](ART.md)：水墨美术方向、出图流程、风格轮次记录
 
 ## 已定决策

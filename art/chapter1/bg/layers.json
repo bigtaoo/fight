@@ -1,0 +1,81 @@
+{
+ "_doc": "1-1's river village. python -I tools/bg_layers.py art/chapter1/bg/layers.json",
+ "out": "client/public/art/bg",
+ "layers": {
+  "village_far": {
+   "kind": "far",
+   "src": "village_far_t2i.png",
+   "crop": [
+    0,
+    0.12,
+    0.95,
+    0.94
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "village_mid": {
+   "kind": "cut",
+   "parts": [
+    {
+     "src": "village_mid_t2i.png",
+     "crop": [
+      0,
+      0.08,
+      0.81,
+      0.665
+     ]
+    },
+    {
+     "src": "village_mid2_t2i.png",
+     "crop": [
+      0,
+      0.229,
+      1,
+      0.817
+     ]
+    }
+   ],
+   "join": 30,
+   "wrap": 0.015,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "village_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    226,
+    220,
+    204
+   ],
+   "ink": [
+    104,
+    120,
+    110
+   ],
+   "wash": 0.05,
+   "streaks": 10,
+   "seed": 4
+  },
+  "village_front": {
+   "kind": "cut",
+   "src": "village_front_t2i.png",
+   "crop": [
+    0.1,
+    0.42,
+    1,
+    0.88
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2,
+   "lo": [
+    58,
+    96,
+    78
+   ]
+  }
+ }
+}

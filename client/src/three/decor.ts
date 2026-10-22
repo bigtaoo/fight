@@ -294,6 +294,7 @@ const DRESS: Record<Air, { mist: number; mistAlpha: number; clouds: boolean; bir
   road: { mist: 0xfbf8f0, mistAlpha: 0.8, clouds: true, birds: true, wind: true, banners: false },
   fort: { mist: 0xe4ded2, mistAlpha: 0.75, clouds: true, birds: true, wind: false, banners: true },
   hall: { mist: 0x5a5a70, mistAlpha: 0.35, clouds: false, birds: false, wind: false, banners: false },
+  village: { mist: 0xf4f6ee, mistAlpha: 0.6, clouds: true, birds: true, wind: true, banners: false },
 };
 
 export class Decor {

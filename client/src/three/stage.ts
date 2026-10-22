@@ -27,18 +27,22 @@ import { fade, flicker, prop, type PropKind } from './props';
 // before and after the 3D room by an orthographic camera); only the floor wash lies in the room,
 // under the bodies. The middle row's feet sit where the 3D floor's back edge lands on screen.
 
-export type SceneId = 'road' | 'fort' | 'hall';
+export type SceneId = 'road' | 'fort' | 'hall' | 'village';
 const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> = {
   road: { paper: 0xf1ece0, farTop: -274 },
   fort: { paper: 0xe9e4d7, farTop: -17 },
   // the hall's furniture stands in the room in 3D, so its flat foreground (the same burner and jar) is left out
   hall: { paper: 0x7a7d92, farTop: -600, props: true },
+  // 1-1's river village (a stopgap cut from the concept art, art/chapter1/bg); the shore sits on the floor's back edge
+  village: { paper: 0xd4e0cc, farTop: -380 },
 };
 const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   heifeng: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   horde: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   hall: ['hall'],
 };
+/** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
+const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
 const FAR = 0.2;
 const MID = 0.5;
 const FRONT = 1.25;
@@ -124,7 +128,7 @@ export class Stage {
   /** Fetches the scenery of every room of `dungeon` and hands it to the GPU up front, so walking
    * into a room never stalls a frame on decoding and uploading a painting. */
   async preload(dungeon: DungeonId, renderer: WebGLRenderer): Promise<void> {
-    const ids = [...new Set<SceneId>(ROOMS[dungeon] ?? ['road'])];
+    const ids = PICK && SCENES[PICK] ? [PICK] : [...new Set<SceneId>(ROOMS[dungeon] ?? ['road'])];
     const sets = await Promise.all(ids.map((id) => this.scenery(id)));
     for (const set of sets) for (const t of Object.values(set)) renderer.initTexture(t);
   }
@@ -144,7 +148,7 @@ export class Stage {
   }
 
   async show(dungeon: DungeonId, roomIndex: number, roomWidth: number): Promise<void> {
-    const id = ROOMS[dungeon]?.[roomIndex] ?? 'road';
+    const id = PICK && SCENES[PICK] ? PICK : (ROOMS[dungeon]?.[roomIndex] ?? 'road');
     const key = `${id}:${roomWidth}`;
     if (key === this.current) return;
     this.current = key;
