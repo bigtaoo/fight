@@ -98,6 +98,11 @@ export class View3D {
   private shake = 0;
   private airKey = '';
   private time = 0;
+  /** Where the last monster fell (world units), for the colour to flow back from. */
+  private readonly lastKill = new Vector3();
+  private killed = false;
+  /** Colour drains from a room monsters hold (Post.drained); ?drain=0 keeps it. */
+  drainOn: boolean;
 
   private constructor(
     private readonly params: URLSearchParams,
@@ -115,6 +120,7 @@ export class View3D {
     renderer.info.autoReset = false;
     this.fx = params.get('fx') !== '0';
     this.postOn = this.postWanted = this.fx;
+    this.drainOn = params.get('drain') !== '0';
     setGlow(this.fx);
     if (this.fx) {
       renderer.shadowMap.enabled = true;
@@ -146,6 +152,12 @@ export class View3D {
     if (this.fx) {
       this.stage.effects();
       this.post = new Post(renderer, Number(params.get('msaa') ?? 0));
+      // ?reveal[=seconds]: the first room painted in on blank paper, a moment after it is shown
+      if (params.has('reveal')) {
+        const post = this.post;
+        post.blank();
+        setTimeout(() => post.reveal(Number(params.get('reveal')) || undefined), 800);
+      }
     }
     scene.add(this.ink.points, this.cinnabar.points);
     if (!host) {
@@ -249,10 +261,22 @@ export class View3D {
         this.ink.burst(at, ev.dir, ev.blocked ? 12 : 40, power);
         if (ev.crit) this.cinnabar.burst(at, ev.dir, 24, power * 1.2);
         if (ev.stop >= 5 || ev.launch) this.shakeFor(0.14);
-      } else if (ev.type === 'roomClear') this.decor?.stroke();
-      else if (ev.type === 'roomEnter') {
+      } else if (ev.type === 'death') {
+        const e = s.entities.find((b) => b.id === ev.id);
+        if (e && e.team !== 0) {
+          this.lastKill.set(fromFp(e.x), fromFp(e.z) + 90, fromFp(e.y) * DEPTH_K);
+          this.killed = true;
+        }
+      } else if (ev.type === 'roomClear') {
+        this.decor?.stroke();
+        if (this.post) {
+          const v = this.killed ? this.lastKill.project(this.camera) : null;
+          this.post.restore(v ? (v.x + 1) / 2 : 0.5, v ? (v.y + 1) / 2 : 0.45);
+        }
+      } else if (ev.type === 'roomEnter') {
         this.decor?.stroke();
         this.clear();
+        this.killed = false;
       }
     }
   }
@@ -312,6 +336,7 @@ export class View3D {
     const room = () => renderer.render(scene, camera);
     if (post && this.postOn) {
       post.paper = this.stage.paperColor;
+      post.drained = this.drainOn && s.room >= 0 && !s.roomCleared && s.entities.some((e) => e.team === 1 && e.hp > 0);
       if (feet) {
         const v = at.clone().setY(at.y + 120).project(camera);
         post.focus((v.x + 1) / 2, (v.y + 1) / 2);
@@ -369,6 +394,23 @@ export class View3D {
       this.host?.onStats?.({ fps: frames / span, worstMs: worst * 1000, draws: r.calls, triangles: r.triangles });
       frames = span = worst = 0;
     });
+  }
+
+  /** Holds the view on blank paper (until `reveal`); the scene is still drawn underneath. */
+  blank(): void {
+    this.post?.blank();
+  }
+
+  /** Paints the scene in on the paper over `sec` seconds, outlines first and then the colour, as
+   * the first strokes of a chapter; without the finishing pass (?fx=0, the governor's last level)
+   * the scene just shows. */
+  reveal(sec?: number): void {
+    this.post?.reveal(sec);
+  }
+
+  /** The reveal is still painting (or is held on blank paper). */
+  get revealing(): boolean {
+    return this.post?.revealing ?? false;
   }
 
   /** P: the finishing pass on or off, to compare. */
