@@ -32,6 +32,14 @@ const COMMON: Weights = [75, 22, 3, 0, 0];
 const ELITE: Weights = [30, 50, 20, 0, 0];
 
 export const DUNGEON_LOOT: Partial<Record<DungeonId, DungeonLoot>> = {
+  // 1-1, the tutorial: a first piece of gear and the first level or so
+  luobi: {
+    lv: 1,
+    clearXp: 200,
+    clearGold: 40,
+    kills: { inkling: { pct: 8, rarity: COMMON }, brute: { pct: 60, rarity: COMMON } },
+    clear: { S: { draws: 1, rarity: [40, 50, 10, 0, 0] }, A: { draws: 1, rarity: [60, 35, 5, 0, 0] }, B: { draws: 1, rarity: COMMON }, C: { draws: 1, rarity: COMMON } },
+  },
   trial: {
     lv: 1,
     clearXp: 150,

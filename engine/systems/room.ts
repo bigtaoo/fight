@@ -30,6 +30,7 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
   });
   if (!s.roomCleared) {
     for (const sp of room.spawns) spawnMonster(s, sp.kind, sp.x, sp.y, true);
+    for (const it of room.items ?? []) s.items.push({ id: s.nextId++, kind: it.kind, x: it.x, y: it.y, tick: s.tick });
   }
   events.push({ type: 'roomEnter', room: index });
 }

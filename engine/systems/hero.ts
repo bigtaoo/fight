@@ -1,7 +1,7 @@
 import { DODGE, HERO, MOVES, SKILLS, WORLD, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { BTN, type PlayerCommand } from '../input';
-import { MAX_CDR, setState, skillLevel, type Entity, type PlayerSlot, type SimState } from '../state';
+import { MAX_CDR, openSlots, setState, skillLevel, type Entity, type PlayerSlot, type SimState } from '../state';
 import { moveVelocity, startMove } from './moves';
 
 // The hero: buttons in, presses and double taps derived, then the state machine. Recovery is
@@ -52,9 +52,9 @@ function wantsAttack(p: PlayerSlot): boolean {
 
 /** The slot of the skill the buffer asks for, if it holds one that is ready and not the one
  * being performed; -1 otherwise. */
-function wantedSlot(p: PlayerSlot, e: Entity): number {
+function wantedSlot(s: SimState, p: PlayerSlot, e: Entity): number {
   const slot = SLOT_BTN.indexOf(p.buf as (typeof SLOT_BTN)[number]);
-  if (slot < 0 || e.cd[slot] !== 0) return -1;
+  if (slot < 0 || slot >= openSlots(s) || e.cd[slot] !== 0) return -1;
   const id = p.skills[slot];
   return id === null || (e.state === 'act' && MOVES[e.move].of === id) ? -1 : slot;
 }
@@ -94,7 +94,7 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
   const st = e.state;
 
   if (st === 'idle' || st === 'walk' || st === 'run') {
-    const slot = wantedSlot(p, e);
+    const slot = wantedSlot(s, p, e);
     if (slot >= 0) {
       consume(p);
       useSkill(s, p, e, slot, events, dx, dy);
@@ -140,7 +140,7 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
         startMove(e, m.follow, events, dx, dy);
         return tickBuffer(p);
       }
-      const slot = wantedSlot(p, e);
+      const slot = wantedSlot(s, p, e);
       if (slot >= 0) {
         consume(p);
         useSkill(s, p, e, slot, events, dx, dy);

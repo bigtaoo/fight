@@ -24,4 +24,11 @@ export const WEB_FILES: ModelFiles = {
     hit: new URL('../../../art/archer3d/model/anim_hit.glb', import.meta.url).href,
     fall: new URL('../../../art/archer3d/model/anim_fall.glb', import.meta.url).href,
   },
+  // chapter one's villagers washed in ink (art/model3d/ink.py), for its monsters
+  bodies: {
+    inkfisher: new URL('../../../art/model3d/inkfisher/rig_v1.glb', import.meta.url).href,
+    inkwasher: new URL('../../../art/model3d/inkwasher/rig_v1.glb', import.meta.url).href,
+    inkboatman: new URL('../../../art/model3d/inkboatman/rig_v1.glb', import.meta.url).href,
+    inkwood: new URL('../../../art/model3d/inkwood/rig_v1.glb', import.meta.url).href,
+  },
 };

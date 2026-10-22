@@ -26,6 +26,7 @@ export const en = {
   'hud.onward': '→ Onward',
   'hud.bossMark': 'B',
   'boss.chief': 'Black Wind Chief',
+  'boss.woodcutter': 'The Ink-Eaten Woodcutter',
 
   'loot.got': 'Got  {items}',
   'loot.sep': ', ',
@@ -44,6 +45,7 @@ export const en = {
   'result.again': 'Play Again',
   'result.chief': 'Fight the Chief',
   'result.fort': 'Back to the Fort',
+  'result.toFort': 'On to Black Wind Fort',
   'result.bag': 'Character',
 
   'tier.0': 'Normal',
@@ -175,6 +177,15 @@ export const en = {
   'tip.side': 'The lower door leads to a side room with an elite who always drops a big potion; it is optional',
   'tip.chief': 'The chief can\'t be stopped mid-attack: dodge, then hit him as he recovers; when he leaps to slam, jump over the shockwave',
   'tip.roar': 'The chief is enraged: faster attacks, and he has called for help',
+  'tip.ink.move': 'Blank paper has no road; the brush makes one. {Arrows} to walk',
+  'tip.ink.jump': '{KeyC} to leap',
+  'tip.ink.attack': 'The ink has taken them. {KeyX} to strike',
+  'tip.ink.combo': 'Keep the brush moving: {KeyX} again and again',
+  'tip.ink.onward': 'The way is open: on to the right',
+  'tip.ink.dodge': 'A raised arm falls hard. {KeyZ} to slip away',
+  'tip.ink.potion': 'A potion on the ground: walk over it to drink',
+  'tip.ink.skill': 'Your first brush art: {KeyA}',
+  'tip.ink.roar': 'The woodcutter rages and calls the ink to him',
 
   'item.hemp_boots': 'Hemp Sandals',
   'item.iron_bracer': 'Iron Bracer',
