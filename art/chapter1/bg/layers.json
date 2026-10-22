@@ -1,5 +1,5 @@
 {
- "_doc": "1-1's river village. python -I tools/bg_layers.py art/chapter1/bg/layers.json",
+ "_doc": "Chapter one's places (design/CHAPTER1.md) and the mounting silk. python -I tools/bg_layers.py art/chapter1/bg/layers.json [name prefix...]",
  "out": "client/public/art/bg",
  "layers": {
   "village_far": {
@@ -76,6 +76,367 @@
     96,
     78
    ]
+  },
+  "plank_far": {
+   "kind": "far",
+   "src": "plank_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "plank_mid": {
+   "kind": "cut",
+   "src": "plank_mid_t2i.png",
+   "crop": [
+    0,
+    0.3,
+    1,
+    0.9
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "plank_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    224,
+    216,
+    198
+   ],
+   "ink": [
+    112,
+    92,
+    72
+   ],
+   "wash": 0.06,
+   "streaks": 4,
+   "boards": 5,
+   "seed": 11
+  },
+  "plank_front": {
+   "kind": "cut",
+   "src": "plank_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "manor_far": {
+   "kind": "far",
+   "src": "manor_far_t2i.png",
+   "crop": [
+    0,
+    0.08,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "manor_mid": {
+   "kind": "cut",
+   "src": "manor_mid_t2i.png",
+   "crop": [
+    0,
+    0.25,
+    1,
+    0.9
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "manor_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    218,
+    218,
+    208
+   ],
+   "ink": [
+    104,
+    108,
+    106
+   ],
+   "wash": 0.06,
+   "streaks": 4,
+   "boards": 4,
+   "seed": 12
+  },
+  "manor_front": {
+   "kind": "cut",
+   "src": "manor_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "ferry_far": {
+   "kind": "far",
+   "src": "ferry_far_t2i.png",
+   "crop": [
+    0,
+    0.08,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "ferry_mid": {
+   "kind": "cut",
+   "src": "ferry_mid_t2i.png",
+   "crop": [
+    0,
+    0.3,
+    1,
+    0.9
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "ferry_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    208,
+    224,
+    214
+   ],
+   "ink": [
+    84,
+    118,
+    114
+   ],
+   "wash": 0.07,
+   "streaks": 26,
+   "seed": 13
+  },
+  "ferry_front": {
+   "kind": "cut",
+   "src": "ferry_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "temple_far": {
+   "kind": "far",
+   "src": "temple_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.9
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "temple_mid": {
+   "kind": "cut",
+   "src": "temple_mid_t2i.png",
+   "crop": [
+    0,
+    0.2,
+    1,
+    0.66
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "temple_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    222,
+    216,
+    200
+   ],
+   "ink": [
+    112,
+    108,
+    94
+   ],
+   "wash": 0.06,
+   "streaks": 8,
+   "boards": 3,
+   "seed": 14
+  },
+  "temple_front": {
+   "kind": "cut",
+   "src": "temple_front_t2i.png",
+   "crop": [
+    0,
+    0.25,
+    1,
+    0.92
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2,
+   "erase": [
+    [
+     0.92,
+     0.84,
+     1,
+     0.94
+    ]
+   ]
+  },
+  "tail_far": {
+   "kind": "far",
+   "src": "tail_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.94
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "tail_mid": {
+   "kind": "cut",
+   "src": "tail_mid_t2i.png",
+   "crop": [
+    0,
+    0.2,
+    1,
+    0.95
+   ],
+   "wrap": 0.04,
+   "height": 420,
+   "alpha": 1
+  },
+  "tail_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    232,
+    224,
+    206
+   ],
+   "ink": [
+    150,
+    130,
+    100
+   ],
+   "wash": 0.04,
+   "streaks": 3,
+   "seed": 15
+  },
+  "tail_front": {
+   "kind": "empty"
+  },
+  "screen_far": {
+   "kind": "far",
+   "src": "screen_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "screen_mid": {
+   "kind": "cut",
+   "src": "screen_mid_t2i.png",
+   "crop": [
+    0,
+    0.3,
+    1,
+    0.95
+   ],
+   "wrap": 0.08,
+   "height": 420,
+   "alpha": 0.9
+  },
+  "screen_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    230,
+    216,
+    180
+   ],
+   "ink": [
+    168,
+    140,
+    92
+   ],
+   "wash": 0.05,
+   "streaks": 2,
+   "seed": 16
+  },
+  "screen_front": {
+   "kind": "cut",
+   "src": "screen_front_t2i.png",
+   "crop": [
+    0,
+    0.35,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "silk": {
+   "kind": "silk",
+   "width": 512,
+   "height": 48,
+   "silk": [
+    168,
+    184,
+    182
+   ],
+   "sheen": [
+    198,
+    210,
+    204
+   ],
+   "pitch": 48,
+   "damask": 0.45,
+   "rimH": 9,
+   "line": [
+    96,
+    78,
+    58
+   ],
+   "seed": 3
   }
  }
 }

@@ -295,6 +295,12 @@ const DRESS: Record<Air, { mist: number; mistAlpha: number; clouds: boolean; bir
   fort: { mist: 0xe4ded2, mistAlpha: 0.75, clouds: true, birds: true, wind: false, banners: true },
   hall: { mist: 0x5a5a70, mistAlpha: 0.35, clouds: false, birds: false, wind: false, banners: false },
   village: { mist: 0xf4f6ee, mistAlpha: 0.6, clouds: true, birds: true, wind: true, banners: false },
+  plank: { mist: 0xf6f7f2, mistAlpha: 0.75, clouds: true, birds: true, wind: true, banners: false },
+  manor: { mist: 0xf2f3ec, mistAlpha: 0.55, clouds: true, birds: true, wind: false, banners: false },
+  ferry: { mist: 0xf0f5ee, mistAlpha: 0.7, clouds: true, birds: true, wind: true, banners: false },
+  temple: { mist: 0xf6f6f0, mistAlpha: 0.8, clouds: true, birds: true, wind: true, banners: false },
+  tail: { mist: 0xf2ecdc, mistAlpha: 0.3, clouds: false, birds: false, wind: false, banners: false },
+  screen: { mist: 0xf4ead0, mistAlpha: 0.35, clouds: false, birds: false, wind: true, banners: false },
 };
 
 export class Decor {

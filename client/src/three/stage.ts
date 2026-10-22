@@ -27,7 +27,7 @@ import { fade, flicker, prop, type PropKind } from './props';
 // before and after the 3D room by an orthographic camera); only the floor wash lies in the room,
 // under the bodies. The middle row's feet sit where the 3D floor's back edge lands on screen.
 
-export type SceneId = 'road' | 'fort' | 'hall' | 'village';
+export type SceneId = 'road' | 'fort' | 'hall' | 'village' | 'plank' | 'manor' | 'ferry' | 'temple' | 'tail' | 'screen';
 const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> = {
   road: { paper: 0xf1ece0, farTop: -274 },
   fort: { paper: 0xe9e4d7, farTop: -17 },
@@ -35,6 +35,15 @@ const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> =
   hall: { paper: 0x7a7d92, farTop: -600, props: true },
   // 1-1's river village (a stopgap cut from the concept art, art/chapter1/bg); the shore sits on the floor's back edge
   village: { paper: 0xd4e0cc, farTop: -380 },
+  // the other places of chapter one's painting (art/chapter1/bg, design/CHAPTER1.md)
+  plank: { paper: 0xe6e8de, farTop: -380 },
+  manor: { paper: 0xdfe2d6, farTop: -380 },
+  ferry: { paper: 0xd8e4da, farTop: -380 },
+  temple: { paper: 0xe2e4da, farTop: -380 },
+  // the scroll's tail: plain mounted paper and the jiehua pattern page, no foreground
+  tail: { paper: 0xe8e0cc, farTop: -380 },
+  // inside the screen: a gongbi flower-and-bird painting on golden silk
+  screen: { paper: 0xe6d8b4, farTop: -380 },
 };
 const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   heifeng: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
@@ -46,6 +55,8 @@ const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(locat
 const FAR = 0.2;
 const MID = 0.5;
 const FRONT = 1.25;
+/** The mounting silk moves with the floor: it is the scroll itself. */
+const SILK = 1;
 /** The logical screen the layers were painted for. */
 const VIEW_H = 1080;
 /** In the 2D game the far painting's top is placed against a floor whose back edge is at 660. */
@@ -81,6 +92,9 @@ export class Stage {
   private mid: Mesh | null = null;
   private front: Mesh | null = null;
   private ground: Mesh | null = null;
+  /** The mounting silk along the top and bottom of the view (the second one flipped). */
+  private readonly silk: Mesh[] = [];
+  private silkTex: Promise<Texture> | null = null;
   private readonly props = new Group();
   private current = '';
   /** The scene the flat layers show now. */
@@ -129,8 +143,26 @@ export class Stage {
    * into a room never stalls a frame on decoding and uploading a painting. */
   async preload(dungeon: DungeonId, renderer: WebGLRenderer): Promise<void> {
     const ids = PICK && SCENES[PICK] ? [PICK] : [...new Set<SceneId>(ROOMS[dungeon] ?? ['road'])];
-    const sets = await Promise.all(ids.map((id) => this.scenery(id)));
+    const [silk, ...sets] = await Promise.all([this.mount(), ...ids.map((id) => this.scenery(id))]);
+    renderer.initTexture(silk);
     for (const set of sets) for (const t of Object.values(set)) renderer.initTexture(t);
+  }
+
+  /** The mounting silk, fetched once: the same strip above the painting and, upside down, below it,
+   * so the view never shows anything past the scroll's edges. */
+  private mount(): Promise<Texture> {
+    if (!this.silkTex) {
+      this.silkTex = load(`${this.base}silk.jpg`).then((top) => {
+        for (const tex of [top, top.clone()]) {
+          const m = layer(tex, false);
+          m.renderOrder = 10;
+          this.silk.push(m);
+          this.fore.add(m);
+        }
+        return top;
+      });
+    }
+    return this.silkTex;
   }
 
   /** The four paintings of a scene, fetched once. */
@@ -152,7 +184,7 @@ export class Stage {
     const key = `${id}:${roomWidth}`;
     if (key === this.current) return;
     this.current = key;
-    const { far, mid, ground, front } = await this.scenery(id);
+    const [{ far, mid, ground, front }] = await Promise.all([this.scenery(id), this.mount()]);
     if (this.current !== key) return;
     if (this.scene !== id) {
       this.scene = id;
@@ -259,6 +291,15 @@ export class Stage {
     if (this.far) put(this.far, this.farTop + (edge - GROUND_TOP), FAR);
     if (this.mid) put(this.mid, edge - 10 - size((this.mid.material as MeshBasicMaterial).map!).height, MID);
     if (this.front) put(this.front, VIEW_H + 10 - size((this.front.material as MeshBasicMaterial).map!).height, FRONT);
+    this.silk.forEach((m, i) => {
+      const tex = (m.material as MeshBasicMaterial).map!;
+      const s = size(tex);
+      const sh = s.height * k;
+      m.scale.set(w, sh, 1);
+      m.position.set(w / 2, i ? -(h - sh / 2) : -sh / 2, 0);
+      tex.repeat.set(w / k / s.width, i ? -1 : 1);
+      tex.offset.set((camX * SILK) / s.width, i ? 1 : 0);
+    });
   }
 
   /** Draws the back layers, the room through `camera`, then the foreground. */
