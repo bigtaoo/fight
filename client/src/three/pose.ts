@@ -87,6 +87,41 @@ const CUT_OF: Record<string, Cut> = {
   leapLandF: 'heavy',
 };
 
+/** Moves a body may play from a clip of its own (art/model3d/moves.py, keyed a tick a frame): the
+ * clip, its ticks at the move's marks (start, first active tick, end of the active ticks, end; or
+ * start and end for a move that hits nothing), and, when given, the move's own ticks to use as the
+ * marks instead. Each span of the move is stretched over the clip's, so the quicker second-phase
+ * moves play the same clip faster and the strike still lands on the active ticks. */
+const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = {
+  hack: ['chop', [0, 27, 31, 56]],
+  hackF: ['chop', [0, 27, 31, 56]],
+  rush: ['sweep', [0, 23, 49, 74]],
+  rushF: ['sweep', [0, 23, 49, 74]],
+  leap: ['leap', [0, 22]],
+  leapF: ['leap', [0, 22]],
+  // the axe lifts as it rises, then is held overhead however long the fall
+  leapAir: ['leap', [22, 32], [0, 10]],
+  leapAirF: ['leap', [22, 32], [0, 10]],
+  // lands with the chop's stroke
+  leapLand: ['chop', [27, 29, 31, 56]],
+  leapLandF: ['chop', [27, 29, 31, 56]],
+  roar: ['roar', [0, 40]],
+};
+
+/** The clip of a body's own for `move` and the tick in it `st` ticks (fractional) in, or null. */
+export function moveClip(move: string, st: number): { clip: string; tick: number } | null {
+  const m = MOVES[move];
+  const own = CLIP_OF[move];
+  if (!m || !own) return null;
+  const [clip, ticks, at] = own;
+  const marks = at ?? (ticks.length === 4 ? [0, m.active[0], m.active[1] + 1, m.total] : [0, m.total]);
+  if (st <= marks[0]) return { clip, tick: ticks[0] };
+  for (let i = 1; i < marks.length; i++) {
+    if (st < marks[i]) return { clip, tick: ticks[i - 1] + ((ticks[i] - ticks[i - 1]) * (st - marks[i - 1])) / (marks[i] - marks[i - 1]) };
+  }
+  return { clip, tick: ticks[ticks.length - 1] };
+}
+
 /** A wind-up held this many ticks or more trembles while it waits (the brute's raised arm). */
 const TREMBLE = 8;
 
