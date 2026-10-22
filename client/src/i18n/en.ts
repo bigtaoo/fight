@@ -46,6 +46,7 @@ export const en = {
   'result.chief': 'Fight the Chief',
   'result.fort': 'Back to the Fort',
   'result.toFort': 'On to Black Wind Fort',
+  'result.toVillage': 'On to the river village',
   'result.bag': 'Character',
 
   'tier.0': 'Normal',
@@ -186,6 +187,10 @@ export const en = {
   'tip.ink.potion': 'A potion on the ground: walk over it to drink',
   'tip.ink.skill': 'Your first brush art: {KeyA}',
   'tip.ink.roar': 'The woodcutter rages and calls the ink to him',
+  'tip.jc.lurk': 'The ink hides in the villagers. Careful as you pass',
+  'tip.jc.hook': 'Hooked! {KeyZ} to slip free',
+  'tip.jc.lob': 'Thrown ink stays where it lands: keep out of it',
+  'tip.jc.screen': 'A folding screen stands in the hall... go and look',
 
   'item.hemp_boots': 'Hemp Sandals',
   'item.iron_bracer': 'Iron Bracer',

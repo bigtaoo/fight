@@ -40,6 +40,14 @@ export const DUNGEON_LOOT: Partial<Record<DungeonId, DungeonLoot>> = {
     kills: { inkling: { pct: 8, rarity: COMMON }, brute: { pct: 60, rarity: COMMON } },
     clear: { S: { draws: 1, rarity: [40, 50, 10, 0, 0] }, A: { draws: 1, rarity: [60, 35, 5, 0, 0] }, B: { draws: 1, rarity: COMMON }, C: { draws: 1, rarity: COMMON } },
   },
+  // 1-2, the river village
+  jiangcun: {
+    lv: 2,
+    clearXp: 260,
+    clearGold: 60,
+    kills: { inkling: { pct: 8, rarity: COMMON }, fisher: { pct: 25, rarity: COMMON }, washer: { pct: 25, rarity: COMMON }, hewer: { pct: 40, rarity: COMMON } },
+    clear: { S: { draws: 1, rarity: [30, 55, 15, 0, 0] }, A: { draws: 1, rarity: [50, 42, 8, 0, 0] }, B: { draws: 1, rarity: COMMON }, C: { draws: 1, rarity: COMMON } },
+  },
   trial: {
     lv: 1,
     clearXp: 150,

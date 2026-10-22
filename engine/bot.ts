@@ -49,6 +49,8 @@ export function botButtons(s: SimState, owner: number): number {
   // a potion on the floor: once the room is clear, if hurt at all; in a fight, if badly hurt
   const potion = toPotion(s, hero, target ? 40 : 100);
   if (!target) return potion || toDoor(s, hero);
+  // reeled in by a hook: break free with the dodge as soon as it is ready (pressed every other tick)
+  if (hero.tow > 0 && hero.state === 'hurt' && hero.cd[DODGE.slot] === 0) return s.tick % 2 ? BTN.DODGE : 0;
   const dodge = laneDodge(s, hero) || bossDodge(s, hero);
   if (dodge) return dodge === HOLD ? 0 : dodge;
   if (potion) return potion;

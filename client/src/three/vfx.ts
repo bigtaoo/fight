@@ -1,6 +1,7 @@
-import { MOVES, fromFp, type Entity, type SimEvent, type SimState } from '@dnf/engine';
+import { INK as INK_DEF, MOVES, fromFp, type Entity, type SimEvent, type SimState } from '@dnf/engine';
 import {
   AdditiveBlending,
+  CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -10,7 +11,9 @@ import {
   MeshBasicMaterial,
   MeshToonMaterial,
   PlaneGeometry,
+  RingGeometry,
   ShaderMaterial,
+  SphereGeometry,
   Sprite,
   SpriteMaterial,
   Vector2,
@@ -39,6 +42,7 @@ const DASH = new Set(['tri1', 'tri2', 'tri3', 'dragon1', 'dragon2', 'dragon3', '
 const _v = new Vector3();
 const _w = new Vector3();
 const _c = new Color();
+const _up = new Vector3(0, 1, 0);
 const HOT = new Color(2.4, 1.5, 0.7);
 const BLOCK = new Color(2.2, 1.1, 0.35);
 const RED_HOT = new Color(2.2, 0.28, 0.12);
@@ -53,6 +57,16 @@ function arrowMesh(): Group {
   g.add(shaft, head, fl);
   return g;
 }
+
+/** A line from the fisher's hand: a unit-long thread along +y, stretched and turned between two points. */
+const ROPE_GEO = new CylinderGeometry(1.2, 1.2, 1, 4).translate(0, 0.5, 0);
+const ROPE_MAT = new MeshBasicMaterial({ color: INK });
+/** A ball of ink in flight, and where it will land: a ring closing in on the floor. */
+const BLOB_GEO = new SphereGeometry(18, 10, 8);
+const BLOB_MAT = new MeshBasicMaterial({ color: INK });
+const AIM_GEO = new RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2);
+/** Ink left on the ground: a flat blot, its size the patch's reach. */
+const BLOT_GEO = new CircleGeometry(1, 28).rotateX(-Math.PI / 2);
 
 /** A gourd of medicine, lit from within (red for a potion, gold for a big one). */
 const GOURD_GEO = new LatheGeometry(
@@ -122,6 +136,10 @@ export class Vfx {
   private readonly arrows = new Map<number, Group>();
   private readonly arrowPool: Group[] = [];
   private readonly items = new Map<number, Group>();
+  private readonly ropes: Mesh[] = [];
+  private readonly blobs = new Map<number, Mesh>();
+  private readonly aims = new Map<number, Mesh>();
+  private readonly blots = new Map<number, Mesh>();
   private readonly later: Later[] = [];
   private air: Air = 'road';
   private time = 0;
@@ -180,6 +198,10 @@ export class Vfx {
     this.arrows.clear();
     for (const g of this.items.values()) g.removeFromParent();
     this.items.clear();
+    for (const m of [this.blobs, this.aims, this.blots]) {
+      for (const o of m.values()) o.removeFromParent();
+      m.clear();
+    }
   }
 
   private at(x: number, y: number, z: number, up = 0): Vector3 {
@@ -315,6 +337,18 @@ export class Vfx {
         }
         break;
       }
+      case 'splash': {
+        // the ink ball bursts: drops flung low and a stain left under the patch
+        const f = this.at(ev.x, ev.y, 0);
+        this.stain.add(_w.set(f.x, 0.8, f.z), 170, this.stain.rand() * 6.28, INK, 4, 0.5, 1.6);
+        for (let i = 0; i < 14; i++) {
+          const a = this.smoke.rand() * Math.PI;
+          const v = 240 + this.smoke.rand() * 260;
+          this.smoke.add({ x: f.x, y: 20, z: f.z + 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, vz: (this.smoke.rand() - 0.5) * 200, size: 10 + this.smoke.rand() * 8, life: 0.55, alpha: 0.9, lift: -1400, drag: 1 });
+        }
+        this.dust.ring(f, 10, 220, { size: 40, grow: 90, life: 0.6, alpha: 0.3, drag: 3.5, lift: 20 });
+        break;
+      }
       case 'pickup': {
         const e = s.entities.find((b) => b.id === ev.id);
         if (!e) break;
@@ -352,6 +386,7 @@ export class Vfx {
     if (this.ghostAt <= 0) this.ghostAt = 0.055;
 
     this.shots(s, dt, alpha);
+    this.ink(s, alpha);
     this.floor(s, t);
     this.weather(dt, camX, t);
     for (const sh of this.shafts) (sh.material as ShaderMaterial).uniforms.time.value = t;
@@ -429,6 +464,91 @@ export class Vfx {
       g.removeFromParent();
       this.arrowPool.push(g);
       this.arrows.delete(id);
+    }
+  }
+
+  /** The village's ink: lines from the fisher to his hook or to whoever it has caught, balls of
+   * ink in flight with rings closing in where they will land, and blots left on the ground. */
+  private ink(s: SimState, alpha: number): void {
+    const lerp = (p: number, c: number) => fromFp(p + (c - p) * alpha);
+    const hand = (e: Entity) => _w.set(lerp(e.px, e.x) + e.facing * 40, lerp(e.pz, e.z) + 140, lerp(e.py, e.y) * DEPTH_K + 4);
+    let n = 0;
+    const rope = (from: Vector3, x: number, y: number, z: number) => {
+      let m = this.ropes[n];
+      if (!m) {
+        m = new Mesh(ROPE_GEO, ROPE_MAT);
+        this.ropes.push(m);
+        this.root.add(m);
+      }
+      n++;
+      _v.set(x, y, z).sub(from);
+      m.visible = true;
+      m.position.copy(from);
+      m.scale.set(1, Math.max(1, _v.length()), 1);
+      m.quaternion.setFromUnitVectors(_up, _v.normalize());
+    };
+    for (const sh of s.shots) {
+      if (sh.kind !== 'hook') continue;
+      const o = s.entities.find((b) => b.id === sh.owner);
+      if (o && o.hp > 0) rope(hand(o), lerp(sh.px, sh.x), lerp(sh.pz, sh.z), lerp(sh.py, sh.y) * DEPTH_K);
+    }
+    for (const e of s.entities) {
+      if (e.tow === 0) continue;
+      const o = s.entities.find((b) => b.id === e.towBy);
+      if (o && o.hp > 0) rope(hand(o), lerp(e.px, e.x), lerp(e.pz, e.z) + 120, lerp(e.py, e.y) * DEPTH_K);
+    }
+    for (let i = n; i < this.ropes.length; i++) this.ropes[i].visible = false;
+
+    const live = new Set<number>();
+    const T = INK_DEF.lob.flight;
+    for (const l of s.lobs) {
+      live.add(l.id);
+      let b = this.blobs.get(l.id);
+      let r = this.aims.get(l.id);
+      if (!b || !r) {
+        b = new Mesh(BLOB_GEO, BLOB_MAT);
+        r = new Mesh(AIM_GEO, new MeshBasicMaterial({ color: CINNABAR, transparent: true, depthWrite: false, toneMapped: false }));
+        r.renderOrder = 1;
+        this.blobs.set(l.id, b);
+        this.aims.set(l.id, r);
+        this.root.add(b, r);
+      }
+      b.position.set(lerp(l.px, l.x), lerp(l.pz, l.z), lerp(l.py, l.y) * DEPTH_K);
+      // the ring closes in on the landing spot as the ball comes down
+      const k = Math.min(1, (l.t + alpha) / T);
+      const w = fromFp(INK_DEF.lob.x) * (1.6 - 0.6 * k);
+      r.position.set(fromFp(l.tx), 1.2, fromFp(l.ty) * DEPTH_K);
+      r.scale.set(w, 1, (w * fromFp(INK_DEF.lob.y)) / fromFp(INK_DEF.lob.x));
+      (r.material as MeshBasicMaterial).opacity = 0.35 + 0.5 * k;
+    }
+    for (const [id, b] of this.blobs) {
+      if (live.has(id)) continue;
+      b.removeFromParent();
+      this.aims.get(id)?.removeFromParent();
+      this.blobs.delete(id);
+      this.aims.delete(id);
+    }
+
+    live.clear();
+    const pa = INK_DEF.patch;
+    for (const c of s.patches) {
+      live.add(c.id);
+      let m = this.blots.get(c.id);
+      if (!m) {
+        m = new Mesh(BLOT_GEO, new MeshBasicMaterial({ color: INK, transparent: true, depthWrite: false, toneMapped: false }));
+        m.renderOrder = 1;
+        this.blots.set(c.id, m);
+        this.root.add(m);
+      }
+      m.position.set(fromFp(c.x), 1, fromFp(c.y) * DEPTH_K);
+      m.scale.set(fromFp(pa.x), 1, fromFp(pa.y) * DEPTH_K * 1.6);
+      // fades over its last second
+      (m.material as MeshBasicMaterial).opacity = 0.55 * Math.min(1, c.life / 30);
+    }
+    for (const [id, m] of this.blots) {
+      if (live.has(id)) continue;
+      m.removeFromParent();
+      this.blots.delete(id);
     }
   }
 

@@ -40,6 +40,7 @@ const HIGH: Table = [['black_wind_token', 2], ['ink_blade', 2], ['tiger_mantle',
 export const CLEAR_LOOT: Partial<Record<DungeonId, Record<Grade, { draws: number; table: Table }>>> = {
   trial: { S: { draws: 1, table: LOW }, A: { draws: 1, table: LOW }, B: { draws: 1, table: LOW }, C: { draws: 1, table: LOW } },
   luobi: { S: { draws: 1, table: LOW }, A: { draws: 1, table: LOW }, B: { draws: 1, table: LOW }, C: { draws: 1, table: LOW } },
+  jiangcun: { S: { draws: 1, table: MID }, A: { draws: 1, table: LOW }, B: { draws: 1, table: LOW }, C: { draws: 1, table: LOW } },
   heifeng: { S: { draws: 2, table: HIGH }, A: { draws: 1, table: HIGH }, B: { draws: 1, table: MID }, C: { draws: 1, table: LOW } },
 };
 

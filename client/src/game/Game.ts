@@ -340,7 +340,8 @@ export class Game {
     const choices: Choice[] = [{ label: t('result.again'), main: true, act: click(() => this.restart()) }];
     if (dungeon === 'heifeng' && this.progress.cleared('heifeng')) choices.push({ label: t('result.chief'), act: click(() => this.play('hall')) });
     if (dungeon === 'hall') choices.push({ label: t('result.fort'), act: click(() => this.play('heifeng')) });
-    if (dungeon === 'luobi') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
+    if (dungeon === 'luobi') choices.push({ label: t('result.toVillage'), act: click(() => this.play('jiangcun')) });
+    if (dungeon === 'jiangcun') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
     if (this.freezes) choices.push({ label: t('result.bag'), act: click(() => this.toggleChar()) });
     this.menu.showResult(choices);
     this.tierRow(s, click);

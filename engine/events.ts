@@ -20,7 +20,9 @@ export type SimEvent =
   /** A monster's ward broke; a monster got up from its death (revive); a monster called help
    * (summon); a poison cloud rose where one died (miasma). */
   | { type: 'affix'; id: number; affix: Affix }
-  /** Poison from a cloud: `dmg` off hero `target`, no stun. */
+  /** Lob `id` came down at x, y and left ink on the ground there. */
+  | { type: 'splash'; id: number; x: number; y: number }
+  /** Poison from a cloud, or ink on the ground: `dmg` off hero `target`, no stun. */
   | { type: 'dot'; target: number; dmg: number; x: number; y: number; z: number }
   /** A boss went into its next phase. */
   | { type: 'phase'; id: number; phase: number }

@@ -21,15 +21,18 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
   s.shots = [];
   s.items = [];
   s.clouds = [];
+  s.lobs = [];
+  s.patches = [];
   const twin = room.doors.find((d) => d.side === via && d.to === from);
   s.entities.forEach((e, i) => {
     place(e, room, via, twin, i);
     e.z = e.pz = 0;
     e.vx = e.vy = e.vz = 0;
+    e.tow = 0;
     if (e.hp > 0) setState(e, 'idle');
   });
   if (!s.roomCleared) {
-    for (const sp of room.spawns) spawnMonster(s, sp.kind, sp.x, sp.y, true);
+    for (const sp of room.spawns) spawnMonster(s, sp.kind, sp.x, sp.y, true).lurk = sp.lurk ?? 0;
     for (const it of room.items ?? []) s.items.push({ id: s.nextId++, kind: it.kind, x: it.x, y: it.y, tick: s.tick });
   }
   events.push({ type: 'roomEnter', room: index });
@@ -76,7 +79,9 @@ export function roomSystem(s: SimState, events: SimEvent[]): void {
   }
   const dungeon = DUNGEONS[s.config.dungeon];
   const room = dungeon.rooms[s.room];
-  if (!s.roomCleared && !room.endless && !s.entities.some((e) => e.team === 1 && e.hp > 0)) {
+  // a goal room (no fight) clears once a hero walks up to its goal
+  const reached = room.goal === undefined || heroes.some((h) => h.hp > 0 && h.x >= room.goal!);
+  if (!s.roomCleared && !room.endless && reached && !s.entities.some((e) => e.team === 1 && e.hp > 0)) {
     s.roomCleared = true;
     s.cleared.push(s.room);
     events.push({ type: 'roomClear', room: s.room });

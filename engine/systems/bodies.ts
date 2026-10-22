@@ -1,7 +1,7 @@
 import { WORLD } from '../content';
 import type { SimEvent } from '../events';
 import { setState, type Entity, type SimState } from '../state';
-import { heroControl, quickRise, tickBuffer } from './hero';
+import { breakTow, heroControl, quickRise, tickBuffer } from './hero';
 import { mobControl } from './mob';
 
 // The start of every tick and each body's own step: hitstop, timers, cooldowns, the reaction
@@ -27,7 +27,7 @@ export function bodiesSystem(s: SimState, events: SimEvent[]): void {
     for (let i = 0; i < e.cd.length; i++) if (e.cd[i] > 0) e.cd[i]--;
     if (e.inv > 0) e.inv--;
     if (e.armor > 0) e.armor--;
-    if (e.team === 0 && quickRise(s, e, events)) continue;
+    if (e.team === 0 && (quickRise(s, e, events) || breakTow(s, e, events))) continue;
     if (react(e)) {
       if (e.team === 0) {
         const p = s.players.find((q) => q.hero === e.id);

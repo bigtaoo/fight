@@ -87,6 +87,9 @@ const CUT_OF: Record<string, Cut> = {
   rushF: 'ram',
   leapLand: 'heavy',
   leapLandF: 'heavy',
+  cast: 'side',
+  lob: 'up',
+  pounce: 'claw',
 };
 
 /** Moves a body may play from a clip of its own (art/model3d/moves.py, keyed a tick a frame): the
