@@ -5,8 +5,14 @@ import { Color, HalfFloatType, LinearFilter, Mesh, OrthographicCamera, PlaneGeom
 // what is past white and finishes the picture in the ink look: a slight grade towards paper, an ink
 // wash in the corners, paper grain, and the punches of a fight (chromatic split and a radial
 // smear on heavy hits, a two-tone impact frame on crits, speed lines on skills, a white flash).
+// Two slower beats of the story run through it too: a room held by ink monsters is drained to ink
+// and gets its colour back in a spreading wash when it is cleared (`drained`, `restore`), and a
+// scene can begin as blank paper and be painted in, outlines first and then colour (`blank`, `reveal`).
 
 const QUAD = new PlaneGeometry(2, 2);
+/** Seconds for the colour to wash back over a cleared room, and to drain out of a held one. */
+const WASH_SEC = 1.5;
+const DRAIN_SEC = 0.8;
 const VERT = /* glsl */ `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -53,6 +59,11 @@ const FINAL = /* glsl */ `
   uniform float bloom;
   uniform vec3 paper;
   uniform vec3 inkColor;
+  uniform float grey;
+  uniform vec2 washAt;
+  uniform float washR;
+  uniform float washFade;
+  uniform float reveal;
   varying vec2 vUv;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
@@ -89,6 +100,53 @@ const FINAL = /* glsl */ `
     col = mix(vec3(l), col, 0.9);
     col *= mix(vec3(1.0), paper / max(max(paper.r, paper.g), paper.b), 0.12);
     col = mix(col, col * col * (3.0 - 2.0 * col), 0.25);
+
+    // the room drained to ink while monsters hold it (its reds kept), the colour flowing back out
+    // from washAt as a wash with a ragged, wet front
+    if (grey > 0.001) {
+      float g = grey;
+      float lg = dot(col, vec3(0.299, 0.587, 0.114));
+      if (washR > 0.0) {
+        vec2 d = (uv - washAt) * vec2(res.x / res.y, 1.0);
+        float r = length(d) + (noise(uv * 7.0) - 0.5) * 0.16 + (noise(uv * 37.0) - 0.5) * 0.05;
+        float inside = 1.0 - smoothstep(washR - 0.07, washR, r);
+        // pigment pools at the front of a wash: a darker, richer ring just inside it; behind it the
+        // colour is still wet, warmer and fuller than it will dry
+        float rim = inside * smoothstep(washR - 0.16, washR - 0.04, r);
+        float wet = inside * exp(-max(washR - r, 0.0) * 3.0) * washFade;
+        col = mix(vec3(lg), col, 1.0 + wet * 0.7) * mix(vec3(1.0), vec3(1.04, 1.0, 0.93), wet);
+        col = mix(col, col * col * 1.1, rim * 0.45);
+        g *= 1.0 - inside;
+      }
+      // drained: ink on a cold grey sheet, flatter, the warmth gone out of the paper
+      float red = smoothstep(0.15, 0.35, col.r - max(col.g, col.b));
+      vec3 ink = mix(inkColor, vec3(0.77, 0.78, 0.79), smoothstep(0.0, 1.0, lg));
+      col = mix(col, ink, g * 0.9 * (1.0 - red * 0.6));
+    }
+
+    // the first strokes: blank paper, then the outlines brushed in band by band (where the action
+    // is first), then the colour washed in behind them
+    if (reveal < 1.0) {
+      vec2 a = uv * vec2(res.x / res.y, 1.0);
+      float yy = a.y * 7.0 + (noise(vec2(a.x * 1.7, 3.0)) - 0.5) * 1.1;
+      float k = floor(yy);
+      float along = hash(vec2(k, 9.7)) > 0.5 ? uv.x : 1.0 - uv.x;
+      float bristle = noise(vec2(along * 5.0, yy * 16.0));
+      float s = hash(vec2(k, 3.1)) * 0.5 + along * 0.38 + bristle * 0.12;
+      s *= mix(0.45, 1.0, smoothstep(0.08, 0.45, length(off * vec2(res.x / res.y, 1.0))));
+      float lineP = reveal * 1.9 - s;
+      float line = smoothstep(0.0, 0.05, lineP);
+      float wash = smoothstep(0.0, 0.18, (reveal - 0.42) * 1.9 - s);
+      vec2 px = 1.5 / res;
+      float lx = dot(texture2D(tScene, uv + vec2(px.x, 0.0)).rgb - texture2D(tScene, uv - vec2(px.x, 0.0)).rgb, vec3(0.5));
+      float ly = dot(texture2D(tScene, uv + vec2(0.0, px.y)).rgb - texture2D(tScene, uv - vec2(0.0, px.y)).rgb, vec3(0.5));
+      float edge = smoothstep(0.04, 0.16, length(vec2(lx, ly)));
+      // the drawing: ink lines, a pale ink shading of what is dark, and a wet brush tip leading the stroke
+      float tip = smoothstep(0.0, 0.03, lineP) * (1.0 - smoothstep(0.03, 0.1, lineP));
+      vec3 sketch = mix(paper, inkColor, max(edge * 0.9, (1.0 - smoothstep(0.05, 0.5, l)) * 0.3));
+      sketch = mix(sketch, inkColor, tip * 0.35);
+      col = mix(mix(paper, sketch, line), col, wash);
+    }
 
     // speed lines: ink streaks running out from the middle of the action
     if (speed > 0.001) {
@@ -166,6 +224,16 @@ export class Post {
   flash = 0;
   /** Off skips the glow's blur passes (to weigh what they cost). */
   bloomOn = true;
+  /** Monsters hold the room: its colour drains away (slowly), and comes back with `restore`. */
+  drained = false;
+  /** How drained the picture is (0: full colour, 1: ink). */
+  private grey = 0;
+  /** Seconds into the wash of colour coming back (`restore`), or -1. */
+  private washT = -1;
+  /** Seconds into painting the scene in (`reveal`), or how long it takes; `revealT` of `revealLen`. */
+  private revealT = 1;
+  private revealLen = 1;
+  private revealHeld = false;
 
   /** `samples`: MSAA on the scene's target. Resolving a multisampled half-float target costs a
    * Mali phone (A16) more than the rest of the effects together (19 fps against 42), so none by default. */
@@ -195,6 +263,11 @@ export class Post {
         bloom: { value: 1 },
         paper: { value: new Color(0xf1ece0) },
         inkColor: { value: new Color(0x16151a) },
+        grey: { value: 0 },
+        washAt: { value: new Vector2(0.5, 0.5) },
+        washR: { value: 0 },
+        washFade: { value: 0 },
+        reveal: { value: 1 },
       },
       depthTest: false,
       depthWrite: false,
@@ -212,6 +285,32 @@ export class Post {
   /** Where the action is, in 0..1 screen coordinates (y up): the smear and speed lines centre on it. */
   focus(x: number, y: number): void {
     (this.final.uniforms.center.value as Vector2).set(x, y);
+  }
+
+  /** The colour flows back into a drained room, spreading from (`x`, `y`) in 0..1 screen coordinates
+   * (y up) across the screen in `WASH_SEC`. */
+  restore(x: number, y: number): void {
+    if (this.grey < 0.01) return;
+    (this.final.uniforms.washAt.value as Vector2).set(x, y);
+    this.washT = 0;
+  }
+
+  /** Only paper shows until `reveal`. */
+  blank(): void {
+    this.revealT = 0;
+    this.revealHeld = true;
+  }
+
+  /** The scene painted in over `sec` seconds: outlines first, then the colour. */
+  reveal(sec = 3.2): void {
+    this.revealT = 0;
+    this.revealLen = sec;
+    this.revealHeld = false;
+  }
+
+  /** The paper is still being painted on. */
+  get revealing(): boolean {
+    return this.revealT < this.revealLen;
   }
 
   resize(renderer: WebGLRenderer): void {
@@ -270,6 +369,26 @@ export class Post {
     u.impact.value = this.impact > 0 ? 1 : 0;
     u.speed.value = this.speed;
     u.flash.value = this.flash;
+    if (this.washT >= 0) {
+      this.washT += dt;
+      const k = Math.min(1, this.washT / WASH_SEC);
+      // fast out of the kill, slowing as it reaches the far corner (an ink drop spreading in water)
+      const at = u.washAt.value as Vector2;
+      const aspect = w / h;
+      const far = Math.hypot(Math.max(at.x, 1 - at.x) * aspect, Math.max(at.y, 1 - at.y)) + 0.25;
+      u.washR.value = (1 - (1 - k) ** 1.5) * far;
+      u.washFade.value = 1 - k;
+      if (k >= 1) {
+        this.washT = -1;
+        this.grey = 0;
+      }
+    } else {
+      u.washR.value = 0;
+      this.grey = this.drained ? Math.min(1, this.grey + dt / DRAIN_SEC) : Math.max(0, this.grey - dt / DRAIN_SEC);
+    }
+    u.grey.value = this.grey;
+    if (!this.revealHeld && this.revealT < this.revealLen) this.revealT = Math.min(this.revealLen, this.revealT + dt);
+    u.reveal.value = this.revealHeld ? 0 : this.revealT / this.revealLen;
     this.pass(renderer, this.final, null);
     renderer.autoClear = auto;
     // every punch dies away on its own
