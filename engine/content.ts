@@ -278,7 +278,8 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     firstCooldown: [ticks(1.5), ticks(2.5)],
   },
   // 1-1's boss, the ink-eaten woodcutter: the chief's pattern made gentler, a hack in front, a
-  // low rush along its lane and a leap onto the hero, two inklings called in at half health
+  // sweep for a hero up close, a low rush along its lane and a leap onto the hero, two inklings
+  // called in at half health
   woodcutter: {
     body: { halfWidth: toFp(58), height: toFp(300), hp: 2600 },
     brain: 'boss',
@@ -293,7 +294,8 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     juggle: { decay: 30, floor: 0 },
     boss: {
       moves: [
-        { move: 'hack', fast: 'hackF', reach: toFp(230), alignY: toFp(45), weight: [5, 0, 0] },
+        { move: 'hack', fast: 'hackF', reach: toFp(230), alignY: toFp(45), weight: [4, 0, 0] },
+        { move: 'sweep', fast: 'sweepF', reach: toFp(260), alignY: toFp(80), weight: [3, 1, 0] },
         { move: 'rush', fast: 'rushF', reach: toFp(2400), alignY: toFp(30), weight: [1, 2, 3] },
         { move: 'leap', fast: 'leapF', reach: toFp(900), alignY: toFp(400), weight: [1, 2, 1] },
       ],
@@ -619,11 +621,14 @@ function chiefMoves(sfx: string, pct: number): Move[] {
 }
 
 /** The woodcutter's moves, windups and recoveries at `pct` percent: an axe hack in front that
- * knocks down; a rush along its lane, low enough to jump; and a crouch and a leap that comes down
+ * knocks down; a sweep, the axe swung flat back and forth three times as it wades in, wide in
+ * depth and behind it too (backing off or dodging out of it is the answer, not a step aside); a rush along its lane, low enough to jump; and a crouch and a leap that comes down
  * axe first on the hero (no shockwave: that is the chief's). */
 function woodMoves(sfx: string, pct: number): Move[] {
   const t = (n: number) => Math.trunc((n * pct) / 100);
   const hackW = t(26);
+  const sweepW = t(22);
+  const swings = 26;
   const rushW = t(22);
   const dash = 26;
   return [
@@ -631,6 +636,11 @@ function woodMoves(sfx: string, pct: number): Move[] {
       id: `hack${sfx}`, total: hackW + 4 + t(26), active: [hackW + 1, hackW + 4], box: box(0, 240, 55, 0, 260),
       damage: 55, hitstun: 22, stop: 6, push: toFp(12), launch: toFp(14), lift: toFp(12),
       cancel: 0, advance: { from: hackW - 2, to: hackW + 2, speed: toFp(5) }, armor: [1, hackW + 4],
+    },
+    {
+      id: `sweep${sfx}`, total: sweepW + swings + t(26), active: [sweepW + 1, sweepW + swings], box: box(-90, 220, 80, 0, 200),
+      damage: 20, hitstun: 12, stop: 4, push: toFp(10), launch: 0, lift: toFp(8),
+      cancel: 0, rehit: 9, advance: { from: sweepW + 1, to: sweepW + swings, speed: toFp(5) }, armor: [1, sweepW + swings],
     },
     {
       id: `rush${sfx}`, total: rushW + dash + t(26), active: [rushW + 1, rushW + dash], box: box(-20, 110, 40, 0, 80),

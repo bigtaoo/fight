@@ -32,4 +32,8 @@ export const WEB_FILES: ModelFiles = {
     inkboatman: new URL('../../../art/model3d/inkboatman/rig_v1.glb', import.meta.url).href,
     inkwood: new URL('../../../art/model3d/inkwood/rig_v1.glb', import.meta.url).href,
   },
+  // bodies' own move clips (art/model3d/moves.py)
+  moves: {
+    inkwood: new URL('../../../art/model3d/moves/woodcutter.glb', import.meta.url).href,
+  },
 };

@@ -97,8 +97,9 @@ export function variant(base: Model, v: Variant): Model {
   mesh.geometry = geo;
   mesh.bind(new Skeleton(bones, inverses), mesh.bindMatrix);
   const names = new Set(bones.map((b) => b.name));
+  const kept = (c: AnimationClip) => new AnimationClip(c.name, c.duration, c.tracks.filter((t) => names.has(t.name.split('.')[0])));
   const clips = {} as Record<ClipId, AnimationClip>;
-  for (const [id, c] of Object.entries(base.clips) as [ClipId, AnimationClip][])
-    clips[id] = new AnimationClip(c.name, c.duration, c.tracks.filter((t) => names.has(t.name.split('.')[0])));
-  return { scene, height: base.height, map: base.map, clips };
+  for (const [id, c] of Object.entries(base.clips) as [ClipId, AnimationClip][]) clips[id] = kept(c);
+  const moves = base.moves && Object.fromEntries(Object.entries(base.moves).map(([id, c]) => [id, kept(c)]));
+  return { scene, height: base.height, map: base.map, clips, ...(moves && { moves }) };
 }

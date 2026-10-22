@@ -26,14 +26,15 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { INK, bakeTone, bodyMaterial, inkMesh, outlineMaterial, ownOutline } from './ink';
-import { cutPose, cutting } from './pose';
+import { cutPose, cutting, moveClip } from './pose';
 import { Trail } from './trail';
 
 // A body of the engine drawn as a skinned 3D model. The model and its clips come from Tripo
 // (art/hero3d, art/archer3d): every Tripo humanoid shares one 41-bone skeleton, so the archer's
 // idle, walk, hit and fall clips play on any model. Only their rotations carry over (their bone
 // offsets would give every model the archer's proportions), plus the hips' height, scaled.
-// Attacks are posed in code from the engine's own move timing, so a cut lands on its active ticks.
+// Attacks are posed in code from the engine's own move timing, so a cut lands on its active ticks;
+// a body with clips of its own (art/model3d/moves.py) plays those instead, scrubbed to the same ticks.
 
 /** The world's depth (y) is drawn this much deeper than it is wide, so the floor band reads from a
  * camera above it. */
@@ -47,6 +48,8 @@ export interface Model {
   height: number;
   map: Texture | null;
   clips: Record<ClipId, AnimationClip>;
+  /** The body's own clips by name (moves.py): its moves, and an idle or walk that replace the archer's. */
+  moves?: Record<string, AnimationClip>;
 }
 
 const loader = new GLTFLoader();
@@ -58,19 +61,21 @@ export interface ModelFiles {
   clips: Record<ClipId, string>;
   /** Further bodies by name (chapter one's ink villagers), rigged on the same skeleton. */
   bodies?: Record<string, string>;
+  /** Clips of a body's own (a file of several), by the body's name in `bodies`. */
+  moves?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
 }
 
 /** Hip height at rest in the clips' source (the archer) model. */
 const CLIP_HIP = 0.5;
 
-/** The clips with only their rotations, and the hips' offset scaled from the archer to `hip`. */
-function retarget(clip: AnimationClip, hip: number): AnimationClip {
+/** The clips with only their rotations, and the hips' offset scaled from the source's `from` to `hip`. */
+function retarget(clip: AnimationClip, hip: number, from = CLIP_HIP): AnimationClip {
   const tracks = clip.tracks.flatMap((t) => {
     if (t instanceof QuaternionKeyframeTrack) return [t];
     if (t instanceof VectorKeyframeTrack && t.name === 'Hip.position') {
       const v = t.values.slice();
-      for (let i = 0; i < v.length; i++) v[i] *= hip / CLIP_HIP;
+      for (let i = 0; i < v.length; i++) v[i] *= hip / from;
       return [new VectorKeyframeTrack(t.name, Array.from(t.times), Array.from(v))];
     }
     return [];
@@ -82,12 +87,14 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
   // the archer's own model comes with its clips (its rig_v1.glb has another skeleton)
   const load = (u: string) => (files.read ? files.read(u).then((b) => loader.parseAsync(b, u.slice(0, u.lastIndexOf('/') + 1))) : loader.loadAsync(u));
   const names = Object.keys(files.bodies ?? {});
-  const [[hero, ...clips], bodies] = await Promise.all([
+  const own = Object.keys(files.moves ?? {}).filter((n) => names.includes(n));
+  const [[hero, ...clips], bodies, moves] = await Promise.all([
     Promise.all([files.hero, ...Object.values(files.clips)].map(load)),
     Promise.all(names.map((n) => load(files.bodies![n]))),
+    Promise.all(own.map((n) => load(files.moves![n]))),
   ]);
   const ids = Object.keys(files.clips) as ClipId[];
-  const model = (gltf: typeof hero): Model => {
+  const model = (gltf: typeof hero, name = ''): Model => {
     const scene = gltf.scene;
     const hipBone = scene.getObjectByName('Hip');
     const hip = hipBone ? hipBone.position.length() : CLIP_HIP;
@@ -99,9 +106,16 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
     const box = new Box3().setFromObject(scene);
     const c = {} as Record<ClipId, AnimationClip>;
     ids.forEach((id, i) => (c[id] = retarget(clips[i].animations[0], hip)));
-    return { scene, height: box.max.y - box.min.y, map, clips: c };
+    const m: Model = { scene, height: box.max.y - box.min.y, map, clips: c };
+    const mine = moves[own.indexOf(name)];
+    if (mine) {
+      // keyed on a body of their own: its hips' height is theirs
+      const from = mine.scene.getObjectByName('Hip')?.position.length() ?? CLIP_HIP;
+      m.moves = Object.fromEntries(mine.animations.map((a) => [a.name, retarget(a, hip, from)]));
+    }
+    return m;
   };
-  return { hero: model(hero), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i])])) };
+  return { hero: model(hero), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])) };
 }
 
 /** Model units: the bodies stand about one tall with their feet at the origin. */
@@ -152,8 +166,8 @@ export class Actor {
   readonly root = new Group();
   private readonly body: Group;
   private readonly mixer: AnimationMixer;
-  private readonly actions: Record<ClipId, AnimationAction>;
-  private current: ClipId | null = null;
+  private readonly actions: Record<string, AnimationAction> = {};
+  private current: string | null = null;
   private readonly mat: MeshToonMaterial;
   private readonly line: MeshBasicMaterial;
   private readonly shadow: Mesh;
@@ -203,13 +217,16 @@ export class Actor {
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.renderOrder = -1;
     this.mixer = new AnimationMixer(this.body);
-    this.actions = {} as Record<ClipId, AnimationAction>;
-    for (const id of Object.keys(model.clips) as ClipId[]) {
-      const a = this.mixer.clipAction(model.clips[id]);
-      if (id === 'hit' || id === 'fall') {
+    // the body's own clips: an idle or walk of its own loops in place of the archer's; its moves
+    // hold still and are scrubbed to the engine's ticks
+    const clips: Record<string, AnimationClip> = { ...model.clips, ...model.moves };
+    for (const [id, clip] of Object.entries(clips)) {
+      const a = this.mixer.clipAction(clip);
+      if (id === 'idle' || id === 'walk') a.setLoop(LoopRepeat, Infinity);
+      else {
         a.setLoop(LoopOnce, 1);
         a.clampWhenFinished = true;
-      } else a.setLoop(LoopRepeat, Infinity);
+      }
       this.actions[id] = a;
     }
   }
@@ -244,7 +261,7 @@ export class Actor {
     return this.shadow;
   }
 
-  private play(id: ClipId, fade = 0.12): AnimationAction {
+  private play(id: string, fade = 0.12): AnimationAction {
     const a = this.actions[id];
     if (this.current !== id) {
       const prev = this.current ? this.actions[this.current] : null;
@@ -272,7 +289,12 @@ export class Actor {
 
     const held = e.held;
     let speed = held ? 0 : 1;
-    switch (e.state) {
+    const own = e.state === 'act' ? moveClip(e.move, e.st + (held ? 0 : alpha)) : null;
+    if (own && this.actions[own.clip]) {
+      const a = this.play(own.clip, 0.08);
+      a.timeScale = 0;
+      a.time = Math.min(own.tick / 30, a.getClip().duration);
+    } else switch (e.state) {
       case 'walk':
         this.play('walk').timeScale = speed;
         break;
@@ -297,7 +319,7 @@ export class Actor {
     }
     this.mixer.update(dt);
     this.body.updateMatrixWorld(true);
-    if (e.state === 'act') this.pose(e, alpha);
+    if (e.state === 'act' && !own) this.pose(e, alpha);
     if (this.blade) {
       this.blade.localToWorld(_base.set(0, 0.14, 0));
       this.blade.localToWorld(_tip.set(0, 0.53, 0));
