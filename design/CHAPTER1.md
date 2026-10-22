@@ -310,7 +310,7 @@
 
 ## 未完成的美术（2026-10-22 归档的两个任务卡，都停在出图额度用完）
 
-### 场景背景（分支 `claude/ch1-scenes-57bea1`，提交 4b836a0，未合进 main）
+### 场景背景（分支 `claude/ch1-scenes-57bea1` 的 4b836a0，已合进 main）
 
 已做：六个地点的 prompt 和分层配置（`art/chapter1/bg/*_t2i.txt`、`layers.json`），`?scene=plank|manor|ferry|temple|tail|screen`
 切场景和摆件，画卷丝绸边框（`bg_layers.py` 的 `silk`，钉在画面上下），`bg_layers.py` 可按名字前缀只打包部分图层。
@@ -326,9 +326,9 @@
 | 屏风 screen | far、mid、front |
 | 题跋 tail | far、mid |
 
-接着做：先把这条分支合进 main（代码和山寺、边框已经能用），再补图。
+接着做：补图。
 
-### 关键帧概念图（文件已拷进 main 的 `art/chapter1/concept/`，未提交）
+### 关键帧概念图（已有的文件在 `art/chapter1/concept/`）
 
 | 关键帧 | 现状 |
 |---|---|
