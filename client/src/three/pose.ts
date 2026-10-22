@@ -81,6 +81,8 @@ const CUT_OF: Record<string, Cut> = {
   smash: 'heavy',
   hack: 'heavy',
   hackF: 'heavy',
+  sweep: 'side',
+  sweepF: 'side',
   rush: 'ram',
   rushF: 'ram',
   leapLand: 'heavy',
@@ -95,8 +97,10 @@ const CUT_OF: Record<string, Cut> = {
 const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = {
   hack: ['chop', [0, 27, 31, 56]],
   hackF: ['chop', [0, 27, 31, 56]],
-  rush: ['sweep', [0, 23, 49, 74]],
-  rushF: ['sweep', [0, 23, 49, 74]],
+  sweep: ['sweep', [0, 23, 49, 74]],
+  sweepF: ['sweep', [0, 23, 49, 74]],
+  rush: ['rush', [0, 23, 49, 74]],
+  rushF: ['rush', [0, 23, 49, 74]],
   leap: ['leap', [0, 22]],
   leapF: ['leap', [0, 22]],
   // the axe lifts as it rises, then is held overhead however long the fall

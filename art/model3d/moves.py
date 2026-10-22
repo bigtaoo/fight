@@ -67,16 +67,16 @@ def chop():
 
 
 def sweep():
-    """The rush (engine: windup 22, active 23..48 while it charges along its lane, total 74): the
-    axe drawn low behind the right hip in a crouch, then swung flat across the shins and back
-    again as it runs, low enough to jump; a stumble to a stop."""
+    """The sweep (engine: windup 22, active 23..48 as it wades in, a hit again every 9 ticks,
+    total 74): the axe drawn low behind the right hip in a crouch, then swung flat across and back
+    three times, a step under each swing; a stumble to a stop."""
     wound = P(drop=0.11, lean=30, turn=-25, twist=-40, nod=4, shift=-0.03, lf=(0.12, 0.05, 0.0), rf=(-0.12, -0.06, 0.0), **SWEEP_R)
     keys = [
         (0, P(), 'lin'),
         (16, wound, 'io'),
         (22, P(**{**wound, 'shake': 0.8}), 'io'),
     ]
-    # three swings across the dash, the feet running under them
+    # three swings, the feet stepping in under them
     run = [((0.14, 0.05, 0.05), (-0.12, -0.05, 0.0)), ((-0.12, 0.05, 0.0), (0.14, -0.05, 0.05))]
     for i, t in enumerate((30, 39, 48)):
         lf, rf = run[i % 2]
@@ -85,6 +85,30 @@ def sweep():
                           shift=0.04, lf=lf, rf=rf, **side), 'out'))
     keys += [
         (56, P(drop=0.10, lean=40, turn=10, twist=20, nod=10, shift=0.06, lf=(0.16, 0.05, 0.0), rf=(-0.06, -0.05, 0.0), **GRIP), 'io'),
+        (74, P(), 'io'),
+    ]
+    return 74, keys
+
+
+def rush():
+    """The rush (engine: windup 22, active 23..48 while it charges along its lane, total 74): a
+    crouch with the axe gripped low, then head down and a shoulder first, the axe trailing, the
+    feet running under it; skids to a stop and straightens."""
+    crouch = P(drop=0.14, lean=38, turn=-15, twist=-20, nod=6, shift=-0.04, lf=(0.10, 0.05, 0.0), rf=(-0.12, -0.06, 0.0), **GRIP)
+    keys = [
+        (0, P(), 'lin'),
+        (16, crouch, 'io'),
+        (22, P(**{**crouch, 'shake': 0.8}), 'io'),
+    ]
+    # a stride every 4 ticks across the dash
+    run = [((0.16, 0.05, 0.06), (-0.14, -0.05, 0.0)), ((-0.14, 0.05, 0.0), (0.16, -0.05, 0.06))]
+    for i, t in enumerate(range(25, 49, 4)):
+        lf, rf = run[i % 2]
+        keys.append((t, P(drop=0.10 if i % 2 else 0.12, lean=48, turn=15, twist=20, nod=-8, shift=0.05, lf=lf, rf=rf,
+                          lh=(-0.10, 0.20, -0.32), rh=(-0.22, -0.18, -0.30), le=(-0.6, 0.6, -0.4), re=(-0.6, -0.6, -0.4)),
+                     'out' if i == 0 else 'io'))
+    keys += [
+        (56, P(drop=0.12, lean=30, turn=5, twist=10, nod=4, shift=0.02, lf=(0.18, 0.05, 0.0), rf=(-0.10, -0.05, 0.0), **GRIP), 'out'),
         (74, P(), 'io'),
     ]
     return 74, keys
@@ -143,7 +167,7 @@ def walk():
     return n, keys
 
 
-SETS = {'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}}}
+SETS = {'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}}}
 BODY = args[1] if len(args) > 1 else SETS[SET]['body']
 CLIPS = SETS[SET]['clips']
 
