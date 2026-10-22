@@ -1,35 +1,43 @@
 import { BODIES, MOVES, WORLD } from '../content';
 import type { SimEvent } from '../events';
 import { setState, type Entity, type SimState } from '../state';
+import { flying, surfaceUnder } from './ground';
 import { startMove } from './moves';
 
-// Moves every unfrozen body by its speed: gravity in the air, landing, the once-only bounce
-// of a launched body, sliding out of a hit, and the room's walls and floor band.
+// Moves every unfrozen body by its speed: gravity in the air, landing on the floor or a platform
+// (ground.ts), the once-only bounce of a launched body, sliding out of a hit, and the room's walls
+// and floor band. A hero walking off a platform falls as if it had jumped; a flyer under its own
+// power moves without gravity and stops at the floor under it.
 
 export function physicsSystem(s: SimState, events: SimEvent[]): void {
   for (const e of s.entities) {
     if (e.held) continue;
     e.x += e.vx;
     e.y += e.vy;
-    if (e.z > 0 || e.vz > 0) {
+    const hw = BODIES[e.kind].halfWidth;
+    e.x = Math.min(Math.max(e.x, hw), s.roomWidth - hw);
+    e.y = Math.min(Math.max(e.y, 0), WORLD.depth);
+    const floor = surfaceUnder(s, e.x, e.y, e.z);
+    if (flying(e)) {
+      e.z = Math.max(floor, e.z + e.vz);
+      if (e.z === floor && e.vz < 0) e.vz = 0;
+    } else if (e.z > floor || e.vz > 0) {
+      if (e.team === 0 && (e.state === 'idle' || e.state === 'walk' || e.state === 'run')) setState(e, 'jump');
       e.vz -= e.state === 'air' ? WORLD.launchGravity : WORLD.gravity;
       e.z += e.vz;
-      if (e.z <= 0) {
-        e.z = 0;
+      if (e.z <= floor) {
+        e.z = floor;
         land(e, events);
       }
     } else {
       e.vz = 0;
     }
-    if (sliding(e)) e.vx = towardZero(e.vx, WORLD.friction);
-    const hw = BODIES[e.kind].halfWidth;
-    e.x = Math.min(Math.max(e.x, hw), s.roomWidth - hw);
-    e.y = Math.min(Math.max(e.y, 0), WORLD.depth);
+    if (sliding(e, floor)) e.vx = towardZero(e.vx, WORLD.friction);
   }
 }
 
-function sliding(e: Entity): boolean {
-  return e.state === 'hurt' || e.state === 'down' || e.state === 'getup' || e.state === 'dead' || (e.state === 'air' && e.z === 0);
+function sliding(e: Entity, floor: number): boolean {
+  return e.state === 'hurt' || e.state === 'down' || e.state === 'getup' || e.state === 'dead' || (e.state === 'air' && e.z === floor);
 }
 
 function towardZero(v: number, by: number): number {

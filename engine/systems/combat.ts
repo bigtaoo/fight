@@ -4,6 +4,7 @@ import { toFp } from '../math/fixed';
 import { randInt, randRange } from '../math/prng';
 import { hittable, monsterDmgPct, setState, skillDamagePct, type Entity, type SimState } from '../state';
 import { dropAffix, hasAffix } from './affix';
+import { aloft, groundOf } from './ground';
 import { armored } from './moves';
 
 // Hit detection on the 2.5D floor and what a hit does. A hit lands when the attack box and the
@@ -48,10 +49,11 @@ export function overlaps(a: { x: number; y: number; z: number }, facing: number,
   return a.z + b.z0 <= t.z + body.height && a.z + b.z1 >= t.z;
 }
 
-/** Whether `e` has its shield up: on its feet, standing, walking, or in its own attack up to the
- * end of the strike (the recovery after it, and turning round, leave it open). */
-export function guarding(e: Entity): boolean {
-  if (e.kind === 'hero' || !MONSTERS[e.kind].guard || e.z > 0) return false;
+/** Whether `e` has its shield up: on its feet (on the floor, or on a platform `ground` high),
+ * standing, walking, or in its own attack up to the end of the strike (the recovery after it, and
+ * turning round, leave it open). */
+export function guarding(e: Entity, ground = 0): boolean {
+  if (e.kind === 'hero' || !MONSTERS[e.kind].guard || e.z > ground) return false;
   if (e.state === 'idle' || e.state === 'walk') return true;
   return e.state === 'act' && e.move === MONSTERS[e.kind].attack && e.st <= MOVES[e.move].active[1];
 }
@@ -75,7 +77,7 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
   }
   dmg = Math.max(1, Math.trunc((dmg * randRange(s.rng, 'combat', 90, 110)) / 100));
   const guard = t.kind === 'hero' ? undefined : MONSTERS[t.kind].guard;
-  if (guard && !m.breaks && t.facing === -facing && guarding(t)) {
+  if (guard && !m.breaks && t.facing === -facing && guarding(t, groundOf(s, t))) {
     const chip = Math.max(1, Math.trunc((dmg * guard.pct) / 100));
     // a block that would kill is a hit: the last blow goes through
     if (chip < t.hp) {
@@ -108,7 +110,7 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
   }
   if (!guard) t.facing = -facing;
 
-  const airborne = t.z > 0 || t.state === 'air';
+  const airborne = aloft(s, t) || t.state === 'air';
   const kill = t.hp <= 0;
   if (kill || airborne || m.launch > 0) {
     const j = (t.kind !== 'hero' && MONSTERS[t.kind].juggle) || JUGGLE;

@@ -1,4 +1,4 @@
-import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, HERO, WORLD, type Door, type Room, type Side } from '../content';
+import { BODIES, DOOR_DEPTH, DOOR_HALF, DOOR_STEP, DOOR_ZONE, DUNGEONS, ENTRY, HERO, MONSTERS, WORLD, type Door, type Room, type Side } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { setState, type Entity, type SimState } from '../state';
@@ -29,7 +29,10 @@ export function enterRoom(s: SimState, index: number, events: SimEvent[], via: S
     if (e.hp > 0) setState(e, 'idle');
   });
   if (!s.roomCleared) {
-    for (const sp of room.spawns) spawnMonster(s, sp.kind, sp.x, sp.y, true);
+    for (const sp of room.spawns) {
+      const m = spawnMonster(s, sp.kind, sp.x, sp.y, true);
+      m.z = m.pz = sp.z ?? MONSTERS[sp.kind].fly?.hover ?? 0;
+    }
     for (const it of room.items ?? []) s.items.push({ id: s.nextId++, kind: it.kind, x: it.x, y: it.y, tick: s.tick });
   }
   events.push({ type: 'roomEnter', room: index });
