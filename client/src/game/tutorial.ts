@@ -1,6 +1,5 @@
 import { MONSTERS, TICK_RATE, type SimState } from '@dnf/engine';
-import { Text } from 'pixi.js';
-import { VIEW_W } from './layout';
+import { FONT, INK, el, halo, setText } from './dom';
 import { t, type Key } from '../i18n';
 
 // Black Wind Fort doubles as the tutorial: a line of advice at the top of the screen when
@@ -8,7 +7,6 @@ import { t, type Key } from '../i18n';
 // floor, the side room's door, the chief), each once a run. Read only from the state the client
 // already draws; nothing here touches the simulation.
 
-const FONT = 'Georgia, "Songti SC", "SimSun", serif';
 /** How long a tip stays up, and how long a newer one waits behind it at least. */
 const SHOW = 6 * TICK_RATE;
 const MIN = 3 * TICK_RATE;
@@ -47,19 +45,24 @@ const TIPS: readonly Tip[] = [
 ];
 
 export class Tutorial {
-  readonly text = new Text({
-    text: '',
-    style: { fontFamily: FONT, fontSize: 40, fill: 0x141317, fontWeight: 'bold', stroke: { color: 0xf3eee2, width: 8 }, align: 'center', wordWrap: true, wordWrapWidth: VIEW_W * 0.6 },
-  });
+  private readonly text: HTMLDivElement;
+  private alpha = '';
   private seen = new Set<string>();
   private queue: Key[] = [];
   private showing: Key | null = null;
   private shownAt = -1;
   private lastTick = 0;
 
-  constructor(private readonly on: boolean) {
-    this.text.anchor.set(0.5, 0);
-    this.text.position.set(VIEW_W / 2, 200);
+  /** `parent`: the frame pinned at the top's middle. */
+  constructor(
+    private readonly on: boolean,
+    parent: HTMLElement,
+  ) {
+    this.text = el(
+      'div',
+      `position:absolute;left:960px;top:200px;width:1152px;margin-left:-576px;text-align:center;font:bold 40px ${FONT};color:${INK};text-shadow:${halo(4)}`,
+      parent,
+    );
   }
 
   update(s: SimState): void {
@@ -67,7 +70,7 @@ export class Tutorial {
     if (s.tick + TICK_RATE < this.lastTick) this.reset();
     this.lastTick = s.tick;
     if (!this.on || s.config.dungeon !== 'heifeng' || s.outcome !== 'playing') {
-      this.text.text = '';
+      setText(this.text, '');
       return;
     }
     for (const tip of TIPS) {
@@ -83,9 +86,10 @@ export class Tutorial {
       this.shownAt = s.tick;
     } else if (!showing) this.showing = null;
     // looked up each frame: the language can change in the pause menu
-    this.text.text = this.showing ? t(this.showing) : '';
+    setText(this.text, this.showing ? t(this.showing) : '');
     // fade out over the last second
-    this.text.alpha = Math.min(1, (SHOW - (s.tick - this.shownAt)) / TICK_RATE);
+    const alpha = Math.max(0, Math.min(1, (SHOW - (s.tick - this.shownAt)) / TICK_RATE)).toFixed(2);
+    if (alpha !== this.alpha) this.text.style.opacity = this.alpha = alpha;
   }
 
   private reset(): void {
@@ -93,6 +97,6 @@ export class Tutorial {
     this.queue = [];
     this.shownAt = -1;
     this.showing = null;
-    this.text.text = '';
+    setText(this.text, '');
   }
 }

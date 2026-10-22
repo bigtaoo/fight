@@ -12,7 +12,6 @@
     "build:wechat3d": "tsc --noEmit && vite build --config vite.wechat3d.config.js"
   },
   "dependencies": {
-    "pixi.js": "^8.6.6",
     "three": "^0.186.1"
   },
   "devDependencies": {

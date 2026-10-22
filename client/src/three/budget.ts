@@ -15,11 +15,11 @@ import {
 import { Actor, DEPTH_K, loadModels, type Model } from './actor';
 import { meshOf, variant, type Variant } from './lod';
 import { Post } from './post';
-import { AIM_Y, DIST, FOV, PITCH, level } from './proto';
+import { AIM_Y, DIST, FOV, PITCH, level } from './view';
 import { Stage } from './stage';
 import { WEB_FILES } from './webModels';
 
-// What a body may cost (?three&budget, dev only): the hero's model rebuilt with fewer triangles
+// What a body may cost (?budget, dev only): the hero's model rebuilt with fewer triangles
 // (meshoptimizer) and fewer or more bones (the twist bones folded into their parents, or chains of
 // hair and robe bones added and swayed in code), stood in rows in the room with the effects on, and
 // timed. Each case runs a few seconds; the results go to window.budget and the page.

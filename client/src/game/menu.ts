@@ -1,5 +1,4 @@
-import { Container, Graphics, Rectangle, Text, type TextStyleOptions } from 'pixi.js';
-import { VIEW_H, VIEW_W } from './layout';
+import { INK, PAPER, RED, VIEW_H, VIEW_W, button, el, label, show, type Overlay } from './dom';
 import { t } from '../i18n';
 
 // The menus over the game: the pause button in the top-right corner (and, single player, the
@@ -8,13 +7,6 @@ import { t } from '../i18n';
 // above the on-screen controls, so a tap on them never reaches the stick or a button underneath;
 // while the pause panel is open a veil over the whole view takes every tap. The credits are not
 // in the game: they ship beside it as credits.html (client/public).
-
-const FONT = 'Georgia, "Songti SC", "SimSun", serif';
-const style = (size: number, fill = 0x141317): TextStyleOptions => ({ fontFamily: FONT, fontSize: size, fill, fontWeight: 'bold', align: 'center' });
-
-const PAPER = 0xf3eee2;
-const INK = 0x141317;
-const RED = 0xc8281e;
 
 /** The pause button's square, its right edge and top on the view. */
 export const PAUSE_SIZE = 76;
@@ -36,35 +28,54 @@ export interface TierChoice {
   act: () => void;
 }
 
-/** A tappable rounded button. */
-function button(label: string, w: number, h: number, size: number, act: () => void, main = false): { root: Container; text: Text } {
-  const root = new Container();
-  const g = new Graphics().roundRect(-w / 2, -h / 2, w, h, 14).fill({ color: main ? RED : INK, alpha: 0.88 }).stroke({ width: 3, color: INK });
-  const text = new Text({ text: label, style: style(size, PAPER) });
-  text.anchor.set(0.5);
-  root.addChild(g, text);
-  root.eventMode = 'static';
-  root.cursor = 'pointer';
-  root.hitArea = new Rectangle(-w / 2, -h / 2, w, h);
-  root.on('pointertap', act);
-  return { root, text };
+const S = PAUSE_SIZE;
+/** The corner buttons' pictures, on a 76 square. */
+const ICONS = {
+  // two ink bars
+  pause: `<rect x="${S * 0.3}" y="${S * 0.25}" width="${S * 0.13}" height="${S * 0.5}"/><rect x="${S * 0.57}" y="${S * 0.25}" width="${S * 0.13}" height="${S * 0.5}"/>`,
+  // a robe's outline: a collar and two sleeves
+  char:
+    `<polygon points="${[0.5, 0.22, 0.78, 0.3, 0.86, 0.52, 0.72, 0.52, 0.7, 0.8, 0.3, 0.8, 0.28, 0.52, 0.14, 0.52, 0.22, 0.3].map((v) => v * S).join(' ')}"/>` +
+    `<polyline points="${[0.4, 0.25, 0.5, 0.42, 0.6, 0.25].map((v) => v * S).join(' ')}" fill="none" stroke="${PAPER}" stroke-width="4"/>`,
+  // a brush stroke slanting up, its tip a blade's
+  skills:
+    `<polygon points="${[0.18, 0.8, 0.26, 0.66, 0.74, 0.18, 0.84, 0.16, 0.8, 0.28, 0.34, 0.76].map((v) => v * S).join(' ')}"/>` +
+    `<line x1="${S * 0.2}" y1="${S * 0.44}" x2="${S * 0.48}" y2="${S * 0.72}" stroke="${INK}" stroke-width="5"/>`,
+};
+
+/** A paper square with a picture in the top-right corner, `slot` squares left of the edge. */
+function corner(parent: HTMLElement, icon: string, slot: number, act: () => void): HTMLDivElement {
+  const x = PAUSE_RIGHT - (slot + 1) * S - slot * 24;
+  // a little more than it shows, for a thumb
+  const hit = el('div', `position:absolute;left:${x - 12}px;top:${PAUSE_TOP - 16}px;width:${S + 24}px;height:${S + 32}px;pointer-events:auto;cursor:pointer`, parent);
+  const sq = el(
+    'div',
+    `position:absolute;left:12px;top:16px;width:${S}px;height:${S}px;border-radius:12px;background:rgba(243,238,226,.75);box-shadow:inset 0 0 0 3px ${INK}`,
+    hit,
+  );
+  sq.innerHTML = `<svg width="${S}" height="${S}" fill="${INK}" style="position:absolute;inset:0">${icon}</svg>`;
+  hit.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    act();
+  });
+  return hit;
 }
 
 export class Menu {
-  readonly layer = new Container();
-  private readonly pauseButton = new Container();
+  private readonly pauseButton: HTMLDivElement;
   /** The character button, left of the pause button (single player only). */
-  private readonly charButton = new Container();
+  private readonly charButton: HTMLDivElement;
   /** The skill button, left of the character button, with a red dot while points are free. */
-  private readonly skillButton = new Container();
-  private readonly skillDot = new Graphics();
+  private readonly skillButton: HTMLDivElement;
+  private readonly skillDot: HTMLDivElement;
   private charShown = false;
-  private readonly veil = new Graphics();
-  private readonly panel = new Container();
-  private readonly result = new Container();
-  private readonly tiers = new Container();
+  private paused = false;
+  private readonly veil: HTMLDivElement;
+  private readonly panel: HTMLDivElement;
+  private readonly result: HTMLDivElement;
+  private readonly tiers: HTMLDivElement;
   private tiersKey = '';
-  private readonly labels: { title: Text; resume: Text; restart: Text; sound: Text; lang: Text };
+  private readonly labels: { title: HTMLDivElement; resume: HTMLDivElement; restart: HTMLDivElement; sound: HTMLDivElement; lang: HTMLDivElement };
   private resultKey = '';
 
   onResume: () => void = () => {};
@@ -75,113 +86,60 @@ export class Menu {
   onChar: () => void = () => {};
   onSkills: () => void = () => {};
 
-  constructor() {
-    // the pause button: two ink bars on a paper square
-    const s = PAUSE_SIZE;
-    const pg = new Graphics()
-      .roundRect(0, 0, s, s, 12)
-      .fill({ color: PAPER, alpha: 0.75 })
-      .stroke({ width: 3, color: INK })
-      .rect(s * 0.3, s * 0.25, s * 0.13, s * 0.5)
-      .rect(s * 0.57, s * 0.25, s * 0.13, s * 0.5)
-      .fill(INK);
-    this.pauseButton.addChild(pg);
-    this.pauseButton.position.set(PAUSE_RIGHT - s, PAUSE_TOP);
-    this.pauseButton.eventMode = 'static';
-    this.pauseButton.cursor = 'pointer';
-    // a little more than it shows, for a thumb
-    this.pauseButton.hitArea = new Rectangle(-16, -16, s + 32, s + 32);
-    this.pauseButton.on('pointertap', () => this.onPause());
+  constructor(ui: Overlay) {
+    // the result's buttons, under the HUD's result text
+    const mid = ui.frame('cm');
+    this.result = el('div', `position:absolute;left:0;top:${VIEW_H * 0.75}px;width:${VIEW_W}px`, mid);
+    this.tiers = el('div', `position:absolute;left:0;top:${VIEW_H * 0.75 + 118}px;width:${VIEW_W}px`, mid);
 
-    // the character button: a robe's outline (a collar and two sleeves) on a paper square
-    const cg = new Graphics()
-      .roundRect(0, 0, s, s, 12)
-      .fill({ color: PAPER, alpha: 0.75 })
-      .stroke({ width: 3, color: INK })
-      .poly([s * 0.5, s * 0.22, s * 0.78, s * 0.3, s * 0.86, s * 0.52, s * 0.72, s * 0.52, s * 0.7, s * 0.8, s * 0.3, s * 0.8, s * 0.28, s * 0.52, s * 0.14, s * 0.52, s * 0.22, s * 0.3])
-      .fill(INK)
-      .moveTo(s * 0.4, s * 0.25)
-      .lineTo(s * 0.5, s * 0.42)
-      .lineTo(s * 0.6, s * 0.25)
-      .stroke({ width: 4, color: PAPER });
-    this.charButton.addChild(cg);
-    this.charButton.position.set(PAUSE_RIGHT - 2 * s - 24, PAUSE_TOP);
-    this.charButton.eventMode = 'static';
-    this.charButton.cursor = 'pointer';
-    this.charButton.hitArea = new Rectangle(-12, -16, s + 24, s + 32);
-    this.charButton.on('pointertap', () => this.onChar());
+    const top = ui.frame('rt');
+    this.pauseButton = corner(top, ICONS.pause, 0, () => this.onPause());
+    this.charButton = corner(top, ICONS.char, 1, () => this.onChar());
+    this.skillButton = corner(top, ICONS.skills, 2, () => this.onSkills());
+    this.skillDot = el('div', `position:absolute;left:${12 + S - 18}px;top:${16 - 12}px;width:24px;height:24px;border-radius:50%;background:${RED};box-shadow:0 0 0 3px ${PAPER}`, this.skillButton);
 
-    // the skill button: a brush stroke slanting up, its tip a blade's
-    const kg = new Graphics()
-      .roundRect(0, 0, s, s, 12)
-      .fill({ color: PAPER, alpha: 0.75 })
-      .stroke({ width: 3, color: INK })
-      .poly([s * 0.18, s * 0.8, s * 0.26, s * 0.66, s * 0.74, s * 0.18, s * 0.84, s * 0.16, s * 0.8, s * 0.28, s * 0.34, s * 0.76])
-      .fill(INK)
-      .moveTo(s * 0.2, s * 0.44)
-      .lineTo(s * 0.48, s * 0.72)
-      .stroke({ width: 5, color: INK });
-    this.skillDot.circle(s - 6, 6, 12).fill(RED).stroke({ width: 3, color: PAPER });
-    this.skillDot.visible = false;
-    this.skillButton.addChild(kg, this.skillDot);
-    this.skillButton.position.set(PAUSE_RIGHT - 3 * s - 48, PAUSE_TOP);
-    this.skillButton.eventMode = 'static';
-    this.skillButton.cursor = 'pointer';
-    this.skillButton.hitArea = new Rectangle(-12, -16, s + 24, s + 32);
-    this.skillButton.on('pointertap', () => this.onSkills());
-
-    this.veil.rect(0, 0, VIEW_W, VIEW_H).fill({ color: INK, alpha: 0.55 });
-    this.veil.eventMode = 'static';
+    this.veil = ui.layer(`background:rgba(20,19,23,.55);pointer-events:auto`);
+    this.veil.addEventListener('click', (ev) => ev.stopPropagation());
 
     // the pause panel
     const pw = 560;
     const ph = 600;
-    const card = new Graphics().roundRect(-pw / 2, -ph / 2, pw, ph, 20).fill({ color: PAPER, alpha: 0.96 }).stroke({ width: 4, color: INK });
-    const title = new Text({ text: '', style: style(64) });
-    title.anchor.set(0.5);
-    title.y = -ph / 2 + 70;
-    const items = [
-      button('', 380, 84, 40, () => this.onResume(), true),
-      button('', 380, 84, 40, () => this.onRestart()),
-      button('', 380, 84, 40, () => this.onSound()),
-      button('', 380, 84, 40, () => this.onLang()),
-    ];
-    items.forEach((b, i) => (b.root.y = -ph / 2 + 180 + i * 104));
-    this.labels = { title, resume: items[0].text, restart: items[1].text, sound: items[2].text, lang: items[3].text };
-    this.panel.addChild(card, title, ...items.map((b) => b.root));
-    this.panel.position.set(VIEW_W / 2, VIEW_H / 2);
-
-    this.result.position.set(VIEW_W / 2, VIEW_H * 0.75);
-    this.tiers.position.set(VIEW_W / 2, VIEW_H * 0.75 + 118);
-    this.layer.addChild(this.result, this.tiers, this.pauseButton, this.charButton, this.skillButton, this.veil, this.panel);
+    this.panel = el('div', `position:absolute;left:${(VIEW_W - pw) / 2}px;top:${(VIEW_H - ph) / 2}px;width:${pw}px;height:${ph}px;border-radius:20px;background:rgba(243,238,226,.96);box-shadow:inset 0 0 0 4px ${INK};pointer-events:auto`, ui.frame('cm'));
+    const title = label(this.panel, '', pw / 2, 70, 64, INK, 0.5, 0.5);
+    const items = [() => this.onResume(), () => this.onRestart(), () => this.onSound(), () => this.onLang()].map((act, i) => button(this.panel, '', pw / 2, 180 + i * 104, 380, 84, 40, i === 0 ? RED : INK, act, 14));
+    this.labels = { title, resume: items[0], restart: items[1], sound: items[2], lang: items[3] };
     this.showPaused(false);
   }
 
   /** Writes the panel's text again (the sound switched, or the language). */
   relabel(muted: boolean): void {
     const l = this.labels;
-    l.title.text = t('menu.paused');
-    l.resume.text = t('menu.resume');
-    l.restart.text = t('menu.restart');
-    l.sound.text = t(muted ? 'menu.soundOff' : 'menu.soundOn');
-    l.lang.text = t('menu.otherLang');
+    l.title.textContent = t('menu.paused');
+    l.resume.textContent = t('menu.resume');
+    l.restart.textContent = t('menu.restart');
+    l.sound.textContent = t(muted ? 'menu.soundOff' : 'menu.soundOn');
+    l.lang.textContent = t('menu.otherLang');
   }
 
   showPaused(paused: boolean): void {
-    this.veil.visible = this.panel.visible = paused;
-    this.pauseButton.visible = !paused;
-    this.charButton.visible = this.skillButton.visible = !paused && this.charShown;
+    this.paused = paused;
+    show(this.veil, paused);
+    show(this.panel, paused);
+    show(this.pauseButton, !paused);
+    show(this.charButton, !paused && this.charShown);
+    show(this.skillButton, !paused && this.charShown);
   }
 
   /** Shows the character button (single player) or hides it. */
   showChar(shown: boolean): void {
     this.charShown = shown;
-    this.charButton.visible = this.skillButton.visible = shown && this.pauseButton.visible;
+    show(this.charButton, shown && !this.paused);
+    show(this.skillButton, shown && !this.paused);
   }
 
   /** Marks the skill button while skill points wait to be spent. */
   markSkills(on: boolean): void {
-    this.skillDot.visible = on;
+    show(this.skillDot, on);
   }
 
   /** The buttons under a finished run's result, or none (null) while it goes on. */
@@ -189,15 +147,11 @@ export class Menu {
     const key = choices?.map((c) => c.label).join('|') ?? '';
     if (key === this.resultKey) return;
     this.resultKey = key;
-    for (const c of this.result.removeChildren()) c.destroy({ children: true });
+    this.result.replaceChildren();
     if (!choices) return;
     const w = 400;
     const gap = 40;
-    choices.forEach((c, i) => {
-      const b = button(c.label, w, 92, 42, c.act, c.main);
-      b.root.x = (i - (choices.length - 1) / 2) * (w + gap);
-      this.result.addChild(b.root);
-    });
+    choices.forEach((c, i) => button(this.result, c.label, VIEW_W / 2 + (i - (choices.length - 1) / 2) * (w + gap), 0, w, 92, 42, c.main ? RED : INK, c.act, 14));
   }
 
   /** The difficulty row under the result's buttons and a line under it (what the tier picked
@@ -206,23 +160,16 @@ export class Menu {
     const key = row ? `${title}|${row.map((c) => c.label + c.state).join('|')}|${note}` : '';
     if (key === this.tiersKey) return;
     this.tiersKey = key;
-    for (const c of this.tiers.removeChildren()) c.destroy({ children: true });
+    this.tiers.replaceChildren();
     if (!row) return;
     const w = 200;
     const gap = 20;
-    const head = new Text({ text: title, style: style(30) });
-    head.anchor.set(1, 0.5);
-    head.x = -(row.length / 2) * (w + gap) - 10;
-    this.tiers.addChild(head);
+    const cx = VIEW_W / 2;
+    label(this.tiers, title, cx - (row.length / 2) * (w + gap) - 10, 0, 30, INK, 1, 0.5);
     row.forEach((c, i) => {
-      const b = button(c.label, w, 64, 30, c.act, c.state === 'on');
-      b.root.x = (i - (row.length - 1) / 2) * (w + gap);
-      if (c.state === 'shut') b.root.alpha = 0.4;
-      this.tiers.addChild(b.root);
+      const b = button(this.tiers, c.label, cx + (i - (row.length - 1) / 2) * (w + gap), 0, w, 64, 30, c.state === 'on' ? RED : INK, c.act, 14);
+      if (c.state === 'shut') b.style.opacity = '0.4';
     });
-    const line = new Text({ text: note, style: style(26) });
-    line.anchor.set(0.5, 0);
-    line.y = 44;
-    this.tiers.addChild(line);
+    label(this.tiers, note, cx, 44, 26, INK, 0.5, 0);
   }
 }

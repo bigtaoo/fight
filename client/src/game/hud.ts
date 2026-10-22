@@ -1,24 +1,21 @@
 import { DUNGEONS, MONSTERS, TICK_RATE, rateRun, type Dungeon, type Entity, type Rating, type SimState } from '@dnf/engine';
 import { PAUSE_SIZE } from './menu';
 import type { Best } from './progress';
-import { Container, Graphics, Text, type TextStyleOptions } from 'pixi.js';
 import { OnlineSession } from '../net/OnlineSession';
 import { OfflineSession, type Session } from '../net/Session';
 import type { Item } from '@dnf/server/protocol';
 import { Controls } from './controls';
 import { Tutorial } from './tutorial';
-import { VIEW_H, VIEW_W } from './layout';
+import { CELL_BG, DARK, FONT, GREY, INK, PAPER, RED, VIEW_H, VIEW_W, css, el, halo, label, setText, show, type Overlay } from './dom';
 import { MAX_LEVEL, RARITY_INK, gearNameKey } from '../rpg/gear';
 import { xpToNext } from '../rpg/character';
 import { getLang, t, tOr, type Key } from '../i18n';
 import { tierName } from '../rpg/tiers';
 
-// Screen-space overlay: health, a boss's health in bars across the top, the on-screen controls with the cooldowns, the room, the combo
-// counter, the key help, the end-of-run banner with the server's verdict, the connection and
-// the inventory. The text is looked up each frame, so a language switch shows at once.
-
-const FONT = 'Georgia, "Songti SC", "SimSun", serif';
-const style = (size: number, fill = 0x141317): TextStyleOptions => ({ fontFamily: FONT, fontSize: size, fill, fontWeight: 'bold' });
+// The HUD, in the HTML overlay: health, a boss's health in bars across the top, the on-screen
+// controls with the cooldowns, the room, the combo counter, the key help, the end-of-run banner
+// with the server's verdict, the connection and the inventory. The text is looked up each frame
+// (and written only when it changed), so a language switch shows at once.
 
 /** A boss's health in bars of this much each (DNF style: the bar runs out and the next one
  * under it shows, in another colour), and the colours they cycle through, top bar first. */
@@ -42,7 +39,7 @@ const REASONS: Record<string, Key> = {
 const CELL_W = 56;
 const CELL_H = 36;
 const CELL_GAP = 20;
-const MAP_RIGHT = VIEW_W - 40 - 2 * PAUSE_SIZE - 24 - 30;
+const MAP_RIGHT = VIEW_W - 40 - 3 * PAUSE_SIZE - 2 * 24 - 30;
 const MAP_TOP = 36;
 const STEP: Record<string, [number, number]> = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
 
@@ -71,96 +68,129 @@ function layout(d: Dungeon): [number, number][] {
 const BOSS_W = 900;
 const BOSS_LEFT = (VIEW_W - BOSS_W) / 2;
 const BOSS_TOP = 200;
+/** The height of the end-of-run banner. */
+const MID = VIEW_H * 0.36;
+
+/** A bar: a dark back, a fill scaled along x from the left (over an `under` one, for the boss's
+ * next bar), an ink outline. */
+interface Bar {
+  root: HTMLDivElement;
+  under: HTMLDivElement;
+  fill: HTMLDivElement;
+  frac: number;
+}
+
+function bar(parent: HTMLElement, x: number, y: number, w: number, h: number, back: string, fill: string, line: number): Bar {
+  const edge = line ? `outline:${line}px solid ${INK};outline-offset:${-line / 2}px` : '';
+  const root = el('div', `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${back};${edge}`, parent);
+  const under = el('div', 'position:absolute;inset:0;display:none', root);
+  const f = el('div', `position:absolute;inset:0;background:${fill};transform-origin:0 0`, root);
+  return { root, under, fill: f, frac: 1 };
+}
+
+function setBar(b: Bar, frac: number): void {
+  const f = Math.round(Math.max(0, Math.min(1, frac)) * 1000) / 1000;
+  if (f === b.frac) return;
+  b.frac = f;
+  b.fill.style.transform = `scaleX(${f})`;
+}
 
 export class Hud {
-  readonly layer = new Container();
-  private readonly g = new Graphics();
-  private readonly room = new Text({ text: '', style: style(34) });
-  private readonly map = new Graphics();
-  private readonly bossMark = new Text({ text: '', style: style(24, 0xf3eee2) });
-  private readonly help = new Text({ text: '', style: style(22, 0x4a4640) });
+  private readonly hp: Bar;
+  private readonly xp: Bar;
+  private readonly bossBar: Bar;
+  private bossLeft = -1;
+  private readonly room: HTMLDivElement;
+  private readonly map: HTMLCanvasElement;
+  private mapKey = '';
+  private readonly help: HTMLDivElement;
   private cells: { dungeon: string; at: [number, number][] } | null = null;
-  private readonly combo = new Text({ text: '', style: { ...style(84, 0xc8281e), stroke: { color: 0xf3eee2, width: 8 } } });
-  private readonly banner = new Text({ text: '', style: { ...style(110), stroke: { color: 0xf3eee2, width: 10 } } });
+  private readonly combo: HTMLDivElement;
+  private readonly banner: HTMLDivElement;
   /** The clear's rating: the grade, and the time, longest combo and hits taken under it. */
-  private readonly grade = new Text({ text: '', style: { ...style(180, 0xc8281e), stroke: { color: 0xf3eee2, width: 12 } } });
-  private readonly stats = new Text({ text: '', style: { ...style(36), stroke: { color: 0xf3eee2, width: 6 } } });
-  private readonly verdict = new Text({ text: '', style: { ...style(44), stroke: { color: 0xf3eee2, width: 6 }, align: 'center' } });
-  private readonly net = new Text({ text: '', style: style(24, 0x4a4640) });
-  private readonly bag = new Text({ text: '', style: { ...style(24, 0x4a4640), align: 'right' } });
+  private readonly grade: HTMLDivElement;
+  private readonly stats: HTMLDivElement;
+  private readonly verdict: HTMLDivElement;
+  private readonly net: HTMLDivElement;
+  private readonly bag: HTMLDivElement;
   /** Single player: the character's level beside the health bar, and what a run earned under
    * its result (experience, a level gained, each piece in its rarity's colour). */
-  private readonly level = new Text({ text: '', style: { ...style(30), stroke: { color: 0xf3eee2, width: 5 } } });
-  private readonly reward = new Container();
+  private readonly level: HTMLDivElement;
+  private readonly reward: HTMLDivElement;
   private rewardKey = '';
-  private readonly bossName = new Text({ text: '', style: { ...style(30), stroke: { color: 0xf3eee2, width: 5 } } });
-  private readonly bossBars = new Text({ text: '', style: { ...style(30, 0xc8281e), stroke: { color: 0xf3eee2, width: 5 } } });
+  private readonly bossName: HTMLDivElement;
+  private readonly bossBars: HTMLDivElement;
   /** The best clear of this dungeon on this device, shown under a clear's rating, and what the
    * clear just shown improved on it. */
   best: { best: Best | null; better: { grade: boolean; time: boolean } } = { best: null, better: { grade: false, time: false } };
   /** Why the game is offline, when it tried to go online. */
   offlineNote: Key | null = null;
-  readonly controls = new Controls();
+  readonly controls: Controls;
 
   private readonly tutorial: Tutorial;
 
   /** `tutorial`: the advice lines in Black Wind Fort (off with ?notutorial). */
-  constructor(tutorial = true) {
-    this.tutorial = new Tutorial(tutorial);
-    this.help.position.set(40, 124);
-    this.room.anchor.set(1, 0);
-    this.bossMark.anchor.set(0.5);
-    this.combo.anchor.set(1, 0);
-    this.combo.position.set(VIEW_W - 40, 190);
-    this.banner.anchor.set(0.5);
-    this.banner.position.set(VIEW_W / 2, VIEW_H * 0.36);
-    this.grade.anchor.set(0, 0.5);
-    this.grade.position.set(VIEW_W / 2 + 170, VIEW_H * 0.36);
-    this.stats.anchor.set(0.5, 0);
-    this.stats.position.set(VIEW_W / 2, VIEW_H * 0.36 + 80);
-    this.verdict.anchor.set(0.5, 0);
-    this.verdict.position.set(VIEW_W / 2, VIEW_H * 0.36 + 200);
-    this.net.position.set(40, 84);
-    this.bag.anchor.set(1, 0);
-    this.bag.position.set(VIEW_W - 40, 290);
-    this.level.anchor.set(0, 0.5);
-    this.level.position.set(580, 55);
-    this.reward.position.set(VIEW_W / 2, VIEW_H * 0.36 + 200);
-    this.bossName.position.set(BOSS_LEFT, BOSS_TOP - 40);
-    this.bossBars.anchor.set(1, 0);
-    this.bossBars.position.set(BOSS_LEFT + BOSS_W, BOSS_TOP - 40);
-    this.layer.addChild(this.g, this.controls.layer, this.map, this.bossMark, this.room, this.combo, this.banner, this.grade, this.stats, this.verdict, this.net, this.bag, this.help, this.level, this.reward, this.bossName, this.bossBars, this.tutorial.text);
+  constructor(ui: Overlay, tutorial = true) {
+    // the controls first: their touch layer lies under everything else
+    this.controls = new Controls(ui);
+    const lt = ui.frame('lt');
+    const rt = ui.frame('rt');
+    const ct = ui.frame('ct');
+    const cm = ui.frame('cm');
+    const ring = (w: number) => `text-shadow:${halo(w)}`;
+
+    this.hp = bar(lt, 40, 40, 520, 30, 'rgba(0,0,0,.25)', RED, 3);
+    this.xp = bar(lt, 40, 74, 520, 8, 'rgba(0,0,0,.2)', '#b8742a', 0);
+    this.level = label(lt, '', 580, 55, 30, INK, 0, 0.5, ring(2.5));
+    this.net = label(lt, '', 40, 84, 24, DARK);
+    this.help = label(lt, '', 40, 124, 22, DARK);
+
+    this.map = el('canvas', 'position:absolute;display:none', rt);
+    this.room = label(rt, '', MAP_RIGHT, MAP_TOP, 34, INK, 1, 0);
+    this.combo = label(rt, '', VIEW_W - 40, 190, 84, RED, 1, 0, ring(4));
+    this.bag = label(rt, '', VIEW_W - 40, 290, 24, DARK, 1, 0, 'text-align:right');
+
+    this.bossBar = bar(ct, BOSS_LEFT, BOSS_TOP, BOSS_W, 26, 'rgba(0,0,0,.3)', RED, 3);
+    this.bossName = label(ct, '', BOSS_LEFT, BOSS_TOP - 40, 30, INK, 0, 0, ring(2.5));
+    this.bossBars = label(ct, '', BOSS_LEFT + BOSS_W, BOSS_TOP - 40, 30, RED, 1, 0, ring(2.5));
+    this.tutorial = new Tutorial(tutorial, ct);
+
+    this.banner = label(cm, '', VIEW_W / 2, MID, 110, INK, 0.5, 0.5, ring(5));
+    this.grade = label(cm, '', VIEW_W / 2 + 170, MID, 180, RED, 0, 0.5, ring(6));
+    this.stats = label(cm, '', VIEW_W / 2, MID + 80, 36, INK, 0.5, 0, `text-align:center;${ring(3)}`);
+    this.verdict = label(cm, '', VIEW_W / 2, MID + 200, 44, INK, 0.5, 0, `text-align:center;${ring(3)}`);
+    this.reward = el('div', `position:absolute;left:0;top:${MID + 200}px;width:${VIEW_W}px;${ring(3)}`, cm);
   }
 
   /** `keys`: the keyboard's held buttons, lit on the controls too. */
   update(s: SimState, session: Session, keys: number): void {
     const hero = s.entities.find((e) => e.team === 0);
-    this.help.text = t('help');
-    const g = this.g.clear();
-    if (hero) {
-      g.rect(40, 40, 520, 30).fill({ color: 0x000000, alpha: 0.25 });
-      g.rect(40, 40, (520 * Math.max(0, hero.hp)) / hero.maxHp, 30).fill(0xc8281e);
-      g.rect(40, 40, 520, 30).stroke({ width: 3, color: 0x141317 });
-    }
-    this.boss(g, s);
+    setText(this.help, t('help'));
+    show(this.hp.root, !!hero);
+    if (hero) setBar(this.hp, Math.max(0, hero.hp) / hero.maxHp);
+    this.boss(s);
     this.controls.update(s, keys);
     this.minimap(s);
     this.tutorial.update(s);
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
-    this.combo.text = combo >= 2 ? t('hud.combo', { n: combo }) : '';
-    this.banner.text = s.outcome === 'cleared' ? t('hud.cleared') : s.outcome === 'failed' ? t('hud.failed') : '';
+    setText(this.combo, combo >= 2 ? t('hud.combo', { n: combo }) : '');
+    setText(this.banner, s.outcome === 'cleared' ? t('hud.cleared') : s.outcome === 'failed' ? t('hud.failed') : '');
     // online, the server's rating once it has replayed the run (it is the same unless the client
     // was tampered with, which the checkpoints catch first)
     const res = session instanceof OnlineSession ? reached(session, s) : null;
     const r = res?.ok ? res.rating : null;
     this.rating(s.outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
-    this.net.text = session.status() || (this.offlineNote ? t(this.offlineNote) : '');
+    setText(this.net, session.status() || (this.offlineNote ? t(this.offlineNote) : ''));
     if (session instanceof OnlineSession) this.online(session, s);
     else if (session instanceof OfflineSession) this.offline(session, s);
-    else this.verdict.text = this.bag.text = '';
+    else {
+      setText(this.verdict, '');
+      setText(this.bag, '');
+    }
     if (!(session instanceof OfflineSession)) {
-      this.level.text = '';
+      setText(this.level, '');
+      show(this.xp.root, false);
       this.showReward(null);
     }
   }
@@ -170,14 +200,14 @@ export class Hud {
   private offline(session: OfflineSession, s: SimState): void {
     const ch = session.character;
     // the tier, when above normal, beside the level
-    this.level.text = t('hud.level', { n: ch.level }) + (s.config.tier > 0 ? `    ${tierName(s.config.tier)}` : '');
+    setText(this.level, t('hud.level', { n: ch.level }) + (s.config.tier > 0 ? `    ${tierName(s.config.tier)}` : ''));
+    show(this.xp.root, ch.level < MAX_LEVEL);
     if (ch.level < MAX_LEVEL) {
       const need = xpToNext(ch.level);
-      this.g.rect(40, 74, 520, 8).fill({ color: 0x000000, alpha: 0.2 });
-      this.g.rect(40, 74, (520 * Math.min(ch.xp, need)) / need, 8).fill(0xb8742a);
+      setBar(this.xp, Math.min(ch.xp, need) / need);
     }
-    this.verdict.text = s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '';
-    this.bag.text = '';
+    setText(this.verdict, s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '');
+    setText(this.bag, '');
     this.showReward(session.reward);
   }
 
@@ -186,122 +216,152 @@ export class Hud {
     const key = r ? `${getLang()}|${r.xp}|${r.level}|${r.gear.map((g) => g.id).join(',')}` : '';
     if (key === this.rewardKey) return;
     this.rewardKey = key;
-    for (const c of this.reward.removeChildren()) c.destroy();
+    this.reward.replaceChildren();
     if (!r) return;
-    const stroke = { color: 0xf3eee2, width: 6 };
-    const lines: Text[][] = [[new Text({ text: t('reward.xp', { n: r.xp }) + '    ' + t('reward.gold', { n: r.gold }) + (r.levels ? t('reward.levelUp', { n: r.level }) : ''), style: { ...style(40), stroke } })]];
-    if (!r.gear.length && !r.lost.length) lines[0][0].text += `    ${t('loot.none')}`;
-    for (let i = 0; i < r.gear.length; i += 5) {
-      lines.push(r.gear.slice(i, i + 5).map((g) => new Text({ text: t(gearNameKey(g)), style: { ...style(36, RARITY_INK[g.rarity]), stroke } })));
-    }
-    if (r.lost.length) lines.push([new Text({ text: t('reward.lost', { n: r.lost.length }), style: { ...style(30, 0xc8281e), stroke } })]);
-    lines.forEach((row, i) => {
-      const gap = 36;
-      const width = row.reduce((n, x) => n + x.width, 0) + gap * (row.length - 1);
-      let x = -width / 2;
-      for (const tx of row) {
-        tx.position.set(x, i * 52);
-        x += tx.width + gap;
-        this.reward.addChild(tx);
-      }
-    });
+    const line = (items: [string, string, number][]) => {
+      const row = el('div', 'display:flex;justify-content:center;gap:36px;height:52px;white-space:pre', this.reward);
+      for (const [text, color, size] of items) el('div', `color:${color};font-size:${size}px`, row, text);
+    };
+    let head = t('reward.xp', { n: r.xp }) + '    ' + t('reward.gold', { n: r.gold }) + (r.levels ? t('reward.levelUp', { n: r.level }) : '');
+    if (!r.gear.length && !r.lost.length) head += `    ${t('loot.none')}`;
+    line([[head, INK, 40]]);
+    for (let i = 0; i < r.gear.length; i += 5) line(r.gear.slice(i, i + 5).map((g) => [t(gearNameKey(g)), css(RARITY_INK[g.rarity]), 36]));
+    if (r.lost.length) line([[t('reward.lost', { n: r.lost.length }), RED, 30]]);
   }
 
   private showBag(items: readonly Item[]): void {
-    this.bag.text = items.length ? `${t('hud.bag', { n: items.length })}\n${items.slice(-6).map(itemName).join('\n')}` : '';
+    setText(this.bag, items.length ? `${t('hud.bag', { n: items.length })}\n${items.slice(-6).map(itemName).join('\n')}` : '');
   }
 
   private rating(r: Rating | null): void {
-    this.grade.text = r?.grade ?? '';
+    setText(this.grade, r?.grade ?? '');
     if (!r) {
-      this.stats.text = '';
+      setText(this.stats, '');
       return;
     }
-    this.stats.text = t('hud.stats', { time: clock(r.ticks), combo: r.maxCombo, hits: r.hitsTaken });
+    let text = t('hud.stats', { time: clock(r.ticks), combo: r.maxCombo, hits: r.hitsTaken });
     const { best, better } = this.best;
     if (best) {
       const mark = better.grade || better.time ? t('hud.record') : '';
-      this.stats.text += `\n${t('hud.best', { grade: best.grade, time: clock(best.ticks), n: best.clears })}${mark}`;
+      text += `\n${t('hud.best', { grade: best.grade, time: clock(best.ticks), n: best.clears })}${mark}`;
     }
+    setText(this.stats, text);
   }
 
   /** The rooms been in (the ones cleared and this one), the rooms their doors lead to as
    * outlines, the boss's room marked from the start, and where the heroes are; under it, a
-   * pointer onward once this room is clear. */
+   * pointer onward once this room is clear. Drawn on a small canvas, again only on a change. */
   private minimap(s: SimState): void {
-    const m = this.map.clear();
-    this.bossMark.visible = false;
     const dungeon = DUNGEONS[s.config.dungeon];
     if (s.config.dungeon === 'training' || s.room < 0) {
-      this.room.text = s.config.dungeon === 'training' ? t('hud.training') : '';
-      this.room.position.set(MAP_RIGHT, MAP_TOP);
+      show(this.map, false);
+      this.mapKey = '';
+      setText(this.room, s.config.dungeon === 'training' ? t('hud.training') : '');
+      this.room.style.top = `${MAP_TOP}px`;
       return;
     }
-    this.bossMark.text = t('hud.bossMark');
     if (this.cells?.dungeon !== s.config.dungeon) this.cells = { dungeon: s.config.dungeon, at: layout(dungeon) };
     const at = this.cells.at;
     const cols = Math.max(...at.map((c) => c[0])) + 1;
     const rows = Math.max(...at.map((c) => c[1])) + 1;
+    const mapH = rows * CELL_H + (rows - 1) * CELL_GAP;
+    setText(this.room, s.roomCleared && s.room !== dungeon.boss ? t('hud.onward') : '');
+    this.room.style.top = `${MAP_TOP + mapH + 18}px`;
+    const key = `${s.config.dungeon}|${s.room}|${[...s.cleared].join(',')}|${getLang()}`;
+    if (key === this.mapKey) return;
+    this.mapKey = key;
+
     const left = MAP_RIGHT - cols * CELL_W - (cols - 1) * CELL_GAP;
+    const x0 = left - 10;
+    const y0 = MAP_TOP - 10;
+    const w = MAP_RIGHT - left + 20;
+    const h = mapH + 20;
+    // drawn at twice the logical size, sharp on a dense screen
+    const c = this.map;
+    c.width = w * 2;
+    c.height = h * 2;
+    c.style.cssText = `position:absolute;left:${x0}px;top:${y0}px;width:${w}px;height:${h}px`;
+    const g = c.getContext('2d')!;
+    g.scale(2, 2);
+    g.translate(-x0, -y0);
     const pos = (i: number) => ({ x: left + at[i][0] * (CELL_W + CELL_GAP), y: MAP_TOP + at[i][1] * (CELL_H + CELL_GAP) });
     const been = new Set([...s.cleared, s.room]);
     const known = new Set(been);
     for (const i of been) for (const d of dungeon.rooms[i].doors) known.add(d.to);
     known.add(dungeon.boss);
-    m.roundRect(left - 10, MAP_TOP - 10, MAP_RIGHT - left + 20, rows * CELL_H + (rows - 1) * CELL_GAP + 20, 8).fill({ color: 0xf3eee2, alpha: 0.6 });
+    g.fillStyle = 'rgba(243,238,226,.6)';
+    g.beginPath();
+    g.roundRect(x0, y0, w, h, 8);
+    g.fill();
     // the links between rooms, once one end has been visited
+    g.strokeStyle = DARK;
+    g.lineWidth = 5;
     for (const i of been) {
       const a = pos(i);
       for (const d of dungeon.rooms[i].doors) {
         const b = pos(d.to);
-        m.moveTo(a.x + CELL_W / 2, a.y + CELL_H / 2).lineTo(b.x + CELL_W / 2, b.y + CELL_H / 2).stroke({ width: 5, color: 0x4a4640 });
+        g.beginPath();
+        g.moveTo(a.x + CELL_W / 2, a.y + CELL_H / 2);
+        g.lineTo(b.x + CELL_W / 2, b.y + CELL_H / 2);
+        g.stroke();
       }
     }
+    g.lineWidth = 3;
+    g.strokeStyle = INK;
+    g.font = `bold 24px ${FONT}`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
     for (const i of known) {
       const { x, y } = pos(i);
       const here = i === s.room;
-      if (been.has(i)) m.rect(x, y, CELL_W, CELL_H).fill(here ? 0xc8281e : 0x6f6a60);
-      else m.rect(x, y, CELL_W, CELL_H).fill(0xe6dfcf);
-      m.rect(x, y, CELL_W, CELL_H).stroke({ width: 3, color: 0x141317 });
+      g.fillStyle = been.has(i) ? (here ? RED : GREY) : CELL_BG;
+      g.fillRect(x, y, CELL_W, CELL_H);
+      g.strokeRect(x, y, CELL_W, CELL_H);
       if (i === dungeon.boss && !here) {
-        this.bossMark.visible = true;
-        this.bossMark.style.fill = been.has(i) ? 0xf3eee2 : 0xc8281e;
-        this.bossMark.position.set(x + CELL_W / 2, y + CELL_H / 2);
+        g.fillStyle = been.has(i) ? PAPER : RED;
+        g.fillText(t('hud.bossMark'), x + CELL_W / 2, y + CELL_H / 2);
       }
     }
-    this.room.text = s.roomCleared && s.room !== dungeon.boss ? t('hud.onward') : '';
-    this.room.position.set(MAP_RIGHT, MAP_TOP + rows * CELL_H + (rows - 1) * CELL_GAP + 18);
   }
 
   /** The boss's bars, while one is in the room: the top bar over the one under it, the count of
    * bars left, its name. */
-  private boss(g: Graphics, s: SimState): void {
+  private boss(s: SimState): void {
     const b = s.entities.find((e) => e.kind !== 'hero' && MONSTERS[e.kind].boss);
-    this.bossName.text = this.bossBars.text = '';
-    if (!b) return;
+    show(this.bossBar.root, !!b);
+    if (!b) {
+      setText(this.bossName, '');
+      setText(this.bossBars, '');
+      return;
+    }
     const hp = Math.max(0, b.hp);
     const bars = Math.ceil(b.maxHp / BOSS_BAR);
     const left = Math.ceil(hp / BOSS_BAR);
     const inTop = hp - (left - 1) * BOSS_BAR;
-    const ink = (i: number) => BAR_INK[(bars - i) % BAR_INK.length];
-    g.rect(BOSS_LEFT, BOSS_TOP, BOSS_W, 26).fill({ color: 0x000000, alpha: 0.3 });
-    if (left > 1) g.rect(BOSS_LEFT, BOSS_TOP, BOSS_W, 26).fill(ink(left - 1));
-    if (left > 0) g.rect(BOSS_LEFT, BOSS_TOP, (BOSS_W * inTop) / BOSS_BAR, 26).fill(ink(left));
-    g.rect(BOSS_LEFT, BOSS_TOP, BOSS_W, 26).stroke({ width: 3, color: 0x141317 });
+    const ink = (i: number) => css(BAR_INK[(bars - i) % BAR_INK.length]);
+    if (left !== this.bossLeft) {
+      this.bossLeft = left;
+      const { under, fill } = this.bossBar;
+      show(under, left > 1);
+      if (left > 1) under.style.background = ink(left - 1);
+      show(fill, left > 0);
+      if (left > 0) fill.style.background = ink(left);
+    }
+    setBar(this.bossBar, inTop / BOSS_BAR);
     const name = BOSS_NAME[b.kind];
-    this.bossName.text = name ? t(name) : '';
-    this.bossBars.text = left > 1 ? `×${left}` : '';
+    setText(this.bossName, name ? t(name) : '');
+    setText(this.bossBars, left > 1 ? `×${left}` : '');
   }
 
   private online(session: OnlineSession, s: SimState): void {
     const r = reached(session, s);
     const why = (reason: string) => (REASONS[reason] ? t(REASONS[reason]) : reason);
-    if (session.flag) this.verdict.text = t('verdict.flag', { why: why(session.flag.reason), tick: session.flag.tick });
-    else if (r?.ok) {
-      this.verdict.text = `${lootLine(r.loot)}${r.settleMs !== null ? `\n${t('verdict.settled', { ms: Math.round(r.settleMs) })}` : ''}`;
-    }
-    else if (r) this.verdict.text = t('verdict.noLoot', { why: why(r.reason) });
-    else this.verdict.text = s.outcome === 'cleared' ? t('verdict.waiting') : '';
+    let text = '';
+    if (session.flag) text = t('verdict.flag', { why: why(session.flag.reason), tick: session.flag.tick });
+    else if (r?.ok) text = `${lootLine(r.loot)}${r.settleMs !== null ? `\n${t('verdict.settled', { ms: Math.round(r.settleMs) })}` : ''}`;
+    else if (r) text = t('verdict.noLoot', { why: why(r.reason) });
+    else if (s.outcome === 'cleared') text = t('verdict.waiting');
+    setText(this.verdict, text);
     this.showBag(session.inventory);
   }
 }

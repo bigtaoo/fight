@@ -1,10 +1,11 @@
-import { Application } from 'pixi.js';
+import { DUNGEONS, type DungeonId } from '@dnf/engine';
 import { Game } from './game/Game';
 import { initLang, readKeyboardLayout } from './i18n';
 import { initPlatform, platform } from './platform';
+import { View3D } from './three/view';
 
 async function main(): Promise<void> {
-  // the URL switches (?bot, ?seed, ?dungeon, ?debug, ?bench...) are for development: a release
+  // the URL switches (?bot, ?seed, ?dungeon, ?bench...) are for development: a release
   // build reads none, so a player on the platform cannot cheat or break the game with one
   const params = new URLSearchParams(import.meta.env.DEV ? location.search : '');
   if (params.has('bench')) {
@@ -17,12 +18,13 @@ async function main(): Promise<void> {
     const { runBench } = await import('./bench/bench');
     return runBench(out);
   }
-  if (import.meta.env.DEV && params.has('three')) {
-    // the 3D renderer trial instead of the game (three/proto.ts), or what its bodies may cost (three/budget.ts)
-    if (params.has('budget')) {
-      const { runBudget } = await import('./three/budget');
-      return runBudget(params);
-    }
+  if (import.meta.env.DEV && params.has('budget')) {
+    // what the 3D bodies may cost (three/budget.ts)
+    const { runBudget } = await import('./three/budget');
+    return runBudget(params);
+  }
+  if (import.meta.env.DEV && params.has('proto')) {
+    // the 3D renderer's bare harness: the bot or the keyboard in a dungeon, no menus (three/proto.ts)
     const { runProto } = await import('./three/proto');
     return runProto(params);
   }
@@ -31,10 +33,10 @@ async function main(): Promise<void> {
   platform.loadingStart();
   initLang(platform.locale, params.get('lang'));
   await readKeyboardLayout();
-  const app = new Application();
-  await app.init({ resizeTo: window, background: 0x1c1b1f, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio, 2) });
-  document.body.appendChild(app.canvas);
-  const game = new Game(app, params);
+  const d = params.get('dungeon');
+  const dungeon: DungeonId = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'heifeng';
+  const view = await View3D.create(params, dungeon);
+  const game = new Game(view, params);
   await game.load();
   platform.loadingStop();
 }

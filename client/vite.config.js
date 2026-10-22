@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           if (req.url !== '/t') return next();
-          res.writeHead(302, { Location: '/?three&bot&dungeon=horde&fps=30' });
+          res.writeHead(302, { Location: '/?bot&dungeon=horde&fps=30' });
           res.end();
         });
       },
