@@ -2,6 +2,7 @@ import { DODGE, HERO, MOVES, SKILLS, WORLD, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { BTN, type PlayerCommand } from '../input';
 import { MAX_CDR, openSlots, setState, skillLevel, type Entity, type PlayerSlot, type SimState } from '../state';
+import { aloft, groundOf } from './ground';
 import { moveVelocity, startMove } from './moves';
 
 // The hero: buttons in, presses and double taps derived, then the state machine. Recovery is
@@ -101,6 +102,15 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
     } else if (wantsDodge(p, e)) {
       consume(p);
       dodge(e, events);
+    } else if (p.buf === BTN.JUMP && dy > 0 && e.z > 0 && e.z === groundOf(s, e)) {
+      // down + jump on a platform: step through it (just below its top, so it no longer holds)
+      consume(p);
+      setState(e, 'jump');
+      e.z--;
+      e.vz = 0;
+      e.vx = dx * HERO.walkX;
+      e.vy = 0;
+      events.push({ type: 'jump', id: e.id });
     } else if (p.buf === BTN.JUMP) {
       consume(p);
       setState(e, 'jump');
@@ -159,7 +169,7 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
     }
     if (e.st >= m.total) {
       if (m.then) startMove(e, m.then, events, dx, dy);
-      else setState(e, m.air && e.z > 0 ? 'jump' : 'idle');
+      else setState(e, m.air && aloft(s, e) ? 'jump' : 'idle');
     }
   }
   tickBuffer(p);

@@ -35,8 +35,22 @@ export interface Body {
 /** What drives a monster: `melee` walks up, lines up in depth and swings; `ranged` keeps its
  * distance, lines up in depth and shoots, hopping back when the hero gets close; `guard` walks up
  * and swings like `melee` behind a shield, turning slowly to a hero behind it; `boss` picks one of
- * its moves by the distance to the hero (see Boss); `still` stands there. */
-export type Brain = 'melee' | 'ranged' | 'guard' | 'boss' | 'still';
+ * its moves by the distance to the hero (see Boss); `still` stands there; `flyer` hovers out of
+ * reach of ground moves and dives at the hero (see Fly, systems/flyer.ts). */
+export type Brain = 'melee' | 'ranged' | 'guard' | 'boss' | 'still' | 'flyer';
+
+/** A flying monster: it hovers at `hover` (FP, above the floor), climbing or sinking `climb` a
+ * tick, near the hero; once lined up it shows `windup`, then dives along `dive` onto where the
+ * hero stood (`diveTicks` to get there) and, down on the ground, plays `peck`: the opening, when
+ * ground moves reach it. Gravity takes it only once it is launched by a hit. */
+export interface Fly {
+  hover: number;
+  climb: number;
+  windup: string;
+  dive: string;
+  diveTicks: number;
+  peck: string;
+}
 
 /** How a ranged monster keeps its distance. */
 export interface Ranged {
@@ -109,6 +123,8 @@ export interface Monster {
   boss?: Boss;
   /** An elite: on the harder tiers it rolls the tier's elite affixes (see TIERS), like a boss. */
   elite?: boolean;
+  /** A flyer (brain `flyer`). */
+  fly?: Fly;
   /** What it may leave behind when it dies: `item`, `pct` percent of the time. */
   drop?: { item: ItemKind; pct: number };
 }
@@ -162,7 +178,7 @@ export const AFFIX = {
 /** A hero this close to an item in x and depth picks it up. */
 export const PICKUP = { x: toFp(60), y: toFp(40) };
 
-export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter' | 'fisher' | 'washer' | 'hewer';
+export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter' | 'fisher' | 'washer' | 'hewer' | 'finch';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -353,6 +369,20 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     juggle: { decay: 20, floor: 20 },
     drop: { item: 'bigPotion', pct: 50 },
   },
+  // 1-3's finch flock (design/CHAPTER1.md): small and frail, hovering above the reach of ground
+  // moves; a flash, a dive onto the hero, a moment pecking on the ground, then up again
+  finch: {
+    body: { halfWidth: toFp(30), height: toFp(70), hp: 80 },
+    brain: 'flyer',
+    walkX: toFp(4),
+    walkY: toFp(2.6),
+    range: toFp(150),
+    alignY: toFp(40),
+    attack: 'dive',
+    cooldown: [ticks(1.6), ticks(3.2)],
+    firstCooldown: [ticks(1), ticks(3)],
+    fly: { hover: toFp(250), climb: toFp(6), windup: 'flash', dive: 'dive', diveTicks: 12, peck: 'peck' },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -380,6 +410,7 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   fisher: MONSTERS.fisher.body,
   washer: MONSTERS.washer.body,
   hewer: MONSTERS.hewer.body,
+  finch: MONSTERS.finch.body,
 };
 
 /** 1-2's ink (systems/ink.ts). A hook that lands reels its target in for up to `ticks` ticks at
@@ -650,6 +681,23 @@ const MOVE_LIST: Move[] = [
     damage: 20, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
     cancel: 0, air: true, hop: { back: -toFp(14), up: toFp(16) },
   },
+  // the finch: a flash as it hovers, the dive (the brain steers it; it hits whatever it passes
+  // through on the way down) and the peck on the ground after it, its opening
+  {
+    id: 'flash', total: 12, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0,
+  },
+  {
+    id: 'dive', total: 40, active: [1, 40], box: box(-20, 60, 30, -40, 70),
+    damage: 12, hitstun: 12, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
+    cancel: 0,
+  },
+  {
+    id: 'peck', total: 20, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0,
+  },
   ...woodMoves('', 100),
   ...woodMoves('F', 70),
   // the chief, each move in two speeds (the second phase's is quicker to start and to recover)
@@ -842,6 +890,19 @@ export interface Spawn {
   y: number;
   /** Lurks (behind a door, a fence) until a hero is this close in x (see INK). */
   lurk?: number;
+  /** Height it appears at (none: on the floor, or a flyer at its hover). */
+  z?: number;
+}
+
+/** A raised floor: the top of a wall, a rock, a branch. Bodies stand on it over x0..x1 and depth
+ * y0..y1 at height z (FP); they come up through it from below and land on it from above, walk off
+ * its edges and fall, and a hero drops through it with DOWN + JUMP (systems/ground.ts). */
+export interface Platform {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  z: number;
 }
 
 /** Which wall a door is in: left and right walls, the back edge of the floor (up) or its front (down). */
@@ -866,6 +927,7 @@ export interface Room {
   items?: readonly { kind: ItemKind; x: number; y: number }[];
   /** The room clears only once a hero has walked this far along it (and its monsters are dead). */
   goal?: number;
+  platforms?: readonly Platform[];
 }
 
 export interface Dungeon {
@@ -890,7 +952,7 @@ export interface Par {
   hits: number;
 }
 
-export type DungeonId = 'luobi' | 'jiangcun' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
+export type DungeonId = 'luobi' | 'jiangcun' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde' | 'screen';
 
 /** A room `width` wide; each spawn is a kind, x, y and, for a lurker, its lurk distance. */
 function room(width: number, spawns: [MonsterKind, number, number, number?][], doors: [Side, number, number?][], endless = false): Room {
@@ -989,7 +1051,29 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
     scale: { hpPct: 35, dmgPct: 30 },
     par: PAR_FORT,
   },
+  // inside the folding screen (1-3's mechanics, ?dungeon=screen): a low wall and a rock above it to
+  // stand on, an inkling up on the wall, a finch flock overhead; practice, so it gives nothing
+  screen: {
+    rooms: [
+      {
+        ...room(2400, [], []),
+        spawns: [
+          { kind: 'inkling', x: toFp(1250), y: toFp(150), z: toFp(110) },
+          ...[900, 1100, 1300, 1500, 1700, 1900].map((x, i) => ({ kind: 'finch' as const, x: toFp(x), y: toFp([120, 240, 160, 80, 280, 200][i]) })),
+        ],
+        platforms: [platform(700, 1500, 90, 210, 110), platform(1050, 1350, 110, 190, 220), platform(1800, 2100, 200, 320, 90)],
+      },
+    ],
+    boss: 0,
+    practice: true,
+    par: PAR_TRIAL,
+  },
 };
+
+/** A platform over x0..x1 and depth y0..y1 at height z, in world units. */
+function platform(x0: number, x1: number, y0: number, y1: number, z: number): Platform {
+  return { x0: toFp(x0), x1: toFp(x1), y0: toFp(y0), y1: toFp(y1), z: toFp(z) };
+}
 
 /** `groups` of monsters spread over a room `width` wide, clear of the entry on the left: the first
  * in the middle, the rest in a scatter that steps through the depth so no two stand together. */

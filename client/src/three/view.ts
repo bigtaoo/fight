@@ -1,5 +1,5 @@
-import { DOOR_HALF, DUNGEONS, WORLD, fromFp, type DungeonId, type Entity, type SimEvent, type SimState } from '@dnf/engine';
-import { Vector3, AmbientLight, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
+import { DOOR_HALF, DUNGEONS, WORLD, fromFp, surfaceUnder, type DungeonId, type Entity, type SimEvent, type SimState } from '@dnf/engine';
+import { Vector3, AmbientLight, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
 import { Decor } from './decor';
 import { Governor } from './governor';
 import { lodReady, variant } from './lod';
@@ -76,10 +76,16 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
   fisher: { bodies: ['inkfisher'], tint: 0xc8d0d4 },
   washer: { bodies: ['inkwasher'], tint: 0xd8ccd0 },
   hewer: { bodies: ['inkwood'], tint: 0xc8c0b8 },
+  // placeholder until the finch has a model of its own: a small, dark ink villager
+  finch: { bodies: ['inkwasher'], tint: 0x585058 },
 };
 
 /** Bodies that fight bare-handed or with a bow: no dao in the hand. */
-const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer']);
+const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch']);
+
+/** Raised floors (Room.platforms): a pale wash on top, a thick ink stroke along the front. */
+const PLATFORM_TOP = new MeshBasicMaterial({ color: 0x8a8276, transparent: true, opacity: 0.55, toneMapped: false });
+const PLATFORM_EDGE = new MeshBasicMaterial({ color: 0x1a1816, toneMapped: false });
 
 export class View3D {
   readonly renderer: WebGLRenderer;
@@ -109,6 +115,8 @@ export class View3D {
   private readonly cinnabar = new Splash(0xb3261e);
   private readonly at = new Vector3();
   private readonly doors: Mesh[] = [];
+  private readonly platforms = new Group();
+  private platformKey = '';
   private models!: { hero: Model; mob: Model; lead: Model; ink: Partial<Record<InkBody, Model>> };
   private shake = 0;
   private airKey = '';
@@ -314,11 +322,12 @@ export class View3D {
     const roomW = fromFp(s.roomWidth);
     void this.stage.show(s.config.dungeon, s.room, roomW);
     this.sync(s);
-    for (const e of s.entities) this.actors.get(e.id)!.update(e, alpha, dt);
+    for (const e of s.entities) this.actors.get(e.id)!.update(e, alpha, dt, fromFp(surfaceUnder(s, e.x, e.y, e.z)));
     const pxPerUnit = renderer.domElement.height / (2 * Math.tan((FOV * Math.PI) / 360));
     this.ink.update(dt, pxPerUnit);
     this.cinnabar.update(dt, pxPerUnit);
     this.drawDoors(s);
+    this.drawPlatforms(s);
 
     // the camera follows the hero along x, kept inside the room
     const hero = s.entities.find((e) => e.team === 0);
@@ -463,6 +472,32 @@ export class View3D {
     }
     if (kind === 'elite' || kind === 'chief') return { model: m.lead, tint: kind === 'elite' ? 0xd08870 : 0xa07060 };
     return { model: m.mob, tint: 0xb8bcc8 };
+  }
+
+  /** The room's platforms, built when the room changes: each a slab with its top at the
+   * platform's height, a pale top and an ink-black front stroke. */
+  private drawPlatforms(s: SimState): void {
+    const key = `${s.config.dungeon}:${s.room}`;
+    if (key === this.platformKey) return;
+    this.platformKey = key;
+    for (const m of this.platforms.children) (m as Mesh).geometry.dispose();
+    this.platforms.clear();
+    if (!this.platforms.parent) this.scene.add(this.platforms);
+    const list = s.room >= 0 ? (DUNGEONS[s.config.dungeon].rooms[s.room].platforms ?? []) : [];
+    for (const p of list) {
+      const [x0, x1, z0, z1, h] = [fromFp(p.x0), fromFp(p.x1), fromFp(p.y0) * DEPTH_K, fromFp(p.y1) * DEPTH_K, fromFp(p.z)];
+      const top = new Mesh(new BoxGeometry(x1 - x0, 6, z1 - z0), PLATFORM_TOP);
+      top.position.set((x0 + x1) / 2, h - 3, (z0 + z1) / 2);
+      const edge = new Mesh(new BoxGeometry(x1 - x0 + 8, 14, 10), PLATFORM_EDGE);
+      edge.position.set((x0 + x1) / 2, h - 7, z1);
+      // the stroke's legs down to the floor at the front corners, thin as a screen frame
+      for (const x of [x0 + 6, x1 - 6]) {
+        const leg = new Mesh(new BoxGeometry(6, h, 6), PLATFORM_EDGE);
+        leg.position.set(x, h / 2, z1);
+        this.platforms.add(leg);
+      }
+      this.platforms.add(top, edge);
+    }
   }
 
   /** A cleared room's doors, washed in pulsing cinnabar on the floor where they lead out. */

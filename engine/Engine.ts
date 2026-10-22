@@ -19,7 +19,7 @@ import { fireSystem, shotsSystem } from './systems/shots';
 // a system or any number in content.ts, changes every replay, so bump ENGINE_VERSION (and
 // record the new golden hash in Engine.test.ts on purpose).
 
-export const ENGINE_VERSION = 17;
+export const ENGINE_VERSION = 18;
 
 export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'ink', 'physics', 'separate', 'combat', 'shots', 'affix', 'items', 'cleanup', 'room'] as const;
 

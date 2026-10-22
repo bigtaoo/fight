@@ -3,6 +3,8 @@ import type { SimEvent } from '../events';
 import { randInt, randRange } from '../math/prng';
 import { setState, type Entity, type SimState } from '../state';
 import { pace, rest, spawnMonster } from './affix';
+import { flyerControl } from './flyer';
+import { aloft, climb } from './ground';
 import { moveVelocity, startMove } from './moves';
 
 // Monster brains, picked by each kind's `brain` in content.ts. A melee monster walks up to the
@@ -31,6 +33,7 @@ function nearestHero(s: SimState, m: Entity): Entity | undefined {
 export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   const def = MONSTERS[m.kind as MonsterKind];
   if (def.immortal) m.hp = m.maxHp;
+  if (def.fly) return flyerControl(s, m, def, events);
   if (def.brain === 'still') {
     m.vx = 0;
     m.vy = 0;
@@ -55,6 +58,7 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
     if (m.state !== 'idle') setState(m, 'idle');
     return;
   }
+  if (climb(s, m, def, t)) return;
   const dx = t.x - m.x;
   const dy = t.y - m.y;
   if (def.guard && dx * m.facing < 0) {
@@ -193,7 +197,7 @@ function phase2(s: SimState, m: Entity, def: Monster, events: SimEvent[]): void 
 
 /** Monsters standing on the same spot push apart, in array order. */
 export function separate(s: SimState): void {
-  const mobs = s.entities.filter((e) => e.team === 1 && e.hp > 0 && e.z === 0 && !e.held);
+  const mobs = s.entities.filter((e) => e.team === 1 && e.hp > 0 && !aloft(s, e) && !e.held);
   for (let i = 0; i < mobs.length; i++) {
     for (let j = i + 1; j < mobs.length; j++) {
       const a = mobs[i];

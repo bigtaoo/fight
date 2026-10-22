@@ -272,13 +272,14 @@ export class Actor {
     return a;
   }
 
-  update(e: Entity, alpha: number, dt: number): void {
+  /** `ground`: the height of the floor (or platform) under it, where its shadow lies. */
+  update(e: Entity, alpha: number, dt: number, ground = 0): void {
     const x = fromFp(e.px + (e.x - e.px) * alpha);
     const y = fromFp(e.py + (e.y - e.py) * alpha);
     const z = fromFp(e.pz + (e.z - e.pz) * alpha);
     this.root.position.set(x, z, y * DEPTH_K);
-    const r = fromFp(BODIES[e.kind].halfWidth) * 1.4 * Math.max(0.4, 1 - z / 400);
-    this.shadow.position.set(x, 0.5, y * DEPTH_K);
+    const r = fromFp(BODIES[e.kind].halfWidth) * 1.4 * Math.max(0.4, 1 - (z - ground) / 400);
+    this.shadow.position.set(x, ground + 0.5, y * DEPTH_K);
     this.shadow.scale.set(r, r * 0.45, 1);
 
     // turn to face the way the engine faces (the clips themselves turn the hips a quarter, so the
