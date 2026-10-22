@@ -1,7 +1,7 @@
 import { BODIES, DODGE, DUNGEONS, MONSTERS, MOVES, PICKUP, SHOTS, WORLD, type Door } from './content';
 import { BTN } from './input';
 import { toFp } from './math/fixed';
-import type { Entity, SimState } from './state';
+import { openSlots, type Entity, type SimState } from './state';
 import { armored } from './systems/moves';
 
 // A plain bot for tests and headless runs: lines up with the nearest monster in depth (a boss's
@@ -75,6 +75,8 @@ export function botButtons(s: SimState, owner: number): number {
     if ((dx > 0) !== (hero.facing > 0)) b |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
     const chain = hero.state === 'act' && MOVES[hero.move].follow;
     const boss = target.kind !== 'hero' && !!MONSTERS[target.kind].boss;
+    // a skill in a slot the room opens (a tutorial opens them one room at a time), off cooldown
+    const ready = (slot: number) => slot < openSlots(s) && hero.cd[slot] === 0;
     if (boss && armored(target)) {
       // a boss in its armour: plain cuts while it stands or walks, nothing while it winds up;
       // the skills wait for an opening
@@ -83,18 +85,18 @@ export function botButtons(s: SimState, owner: number): number {
       // the recovery of a boss's move: quick skills only, the rising slash first to lift it
       if (chain) {
         if (s.tick % 4 === 0) b |= BTN.SKILL1;
-      } else if (hero.cd[1] === 0 && s.tick % 6 === 0) b |= BTN.SKILL2;
-      else if (hero.cd[0] === 0 && s.tick % 6 === 3) b |= BTN.SKILL1;
+      } else if (ready(1) && s.tick % 6 === 0) b |= BTN.SKILL2;
+      else if (ready(0) && s.tick % 6 === 3) b |= BTN.SKILL1;
       else b |= BTN.ATTACK;
     } else if (shieldUp) {
       // only the slot 2 skill goes through the shield
       if (s.tick % 2 === 0) b |= BTN.SKILL2;
     } else if (chain) {
       if (s.tick % 4 === 0) b |= BTN.SKILL1;
-    } else if (hero.cd[3] === 0 && s.tick % 12 === 0 && !boss && !s.entities.some((e) => e.hp > 0 && e.kind !== 'hero' && MONSTERS[e.kind].ranged)) b |= BTN.SKILL4;
-    else if (hero.cd[2] === 0 && s.tick % 12 === 3) b |= BTN.SKILL3;
-    else if (hero.cd[1] === 0 && s.tick % 12 === 6) b |= BTN.SKILL2;
-    else if (hero.cd[0] === 0 && s.tick % 12 === 9) b |= BTN.SKILL1;
+    } else if (ready(3) && s.tick % 12 === 0 && !boss && !s.entities.some((e) => e.hp > 0 && e.kind !== 'hero' && MONSTERS[e.kind].ranged)) b |= BTN.SKILL4;
+    else if (ready(2) && s.tick % 12 === 3) b |= BTN.SKILL3;
+    else if (ready(1) && s.tick % 12 === 6) b |= BTN.SKILL2;
+    else if (ready(0) && s.tick % 12 === 9) b |= BTN.SKILL1;
     else b |= BTN.ATTACK;
   }
   return b;

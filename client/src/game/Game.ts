@@ -5,6 +5,7 @@ import { Overlay } from './dom';
 import { Hud } from './hud';
 import { Keyboard } from './keyboard';
 import { Numbers } from './numbers';
+import { Tutorial } from './tutorial';
 import type { View3D } from '../three/view';
 import { WsLink } from '../net/Link';
 import { OnlineSession } from '../net/OnlineSession';
@@ -29,8 +30,8 @@ import { platform } from '../platform';
 // page, the deployed server) drawn by the 3D view (three/view.ts) every frame with interpolation
 // between ticks, the HUD, menus and panels an HTML overlay over it (dom.ts). URL switches:
 // ?offline (no server), ?server=ws://host:port, ?lag=N (ms added each way), ?dungeon=trial (or
-// training, or hall: the chief alone; the fort by default), ?seed=N (offline), ?bot (the engine's
-// bot plays), ?notutorial (no advice lines in the fort), ?cheat=dmg (hero damage x10 locally,
+// training, heifeng: the fort, or hall: the chief alone; 1-1 by default), ?seed=N (offline), ?bot (the engine's
+// bot plays), ?notutorial (no advice on the scroll), ?cheat=dmg (hero damage x10 locally,
 // which the server must catch), ?loadout=dragon,-,crush (the skills on the bar, in order, '-' an
 // empty slot, instead of the character's), ?fps=N (the frame cap: 30 on a touch device, every
 // display frame otherwise), and the 3D view's own. The switches work in a dev build only (main.ts).
@@ -41,6 +42,8 @@ export class Game {
   private readonly ui = new Overlay();
   /** Made first, so the numbers sit under the HUD and the controls. */
   private readonly numbers = new Numbers(this.ui);
+  /** The advice written on the scroll, over the numbers and under the HUD. */
+  private readonly tutorial = new Tutorial(this.ui);
   private readonly hud: Hud;
   private readonly keys = new Keyboard();
   /** The single-player character: offline runs earn it experience and gear, and its stats go
@@ -73,13 +76,14 @@ export class Game {
 
   constructor(private readonly view: View3D, private readonly params: URLSearchParams) {
     // made in the order they stack: the HUD and the controls, the menus over them, the panels on top
-    this.hud = new Hud(this.ui, !params.has('notutorial'));
+    this.tutorial.on = !params.has('notutorial');
+    this.hud = new Hud(this.ui);
     this.menu = new Menu(this.ui);
     this.charPanel = new CharPanel(this.ui);
     this.skillPanel = new SkillPanel(this.ui);
     this.seed = Number(params.get('seed') ?? 1);
     const d = params.get('dungeon');
-    this.dungeon = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'heifeng';
+    this.dungeon = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'luobi';
     if (params.has('tier')) {
       this.tier = Math.max(0, Math.min(TIER_COUNT - 1, Number(params.get('tier')) || 0));
       this.forceTier = true;
@@ -329,6 +333,7 @@ export class Game {
     const choices: Choice[] = [{ label: t('result.again'), main: true, act: click(() => this.restart()) }];
     if (dungeon === 'heifeng' && this.progress.cleared('heifeng')) choices.push({ label: t('result.chief'), act: click(() => this.play('hall')) });
     if (dungeon === 'hall') choices.push({ label: t('result.fort'), act: click(() => this.play('heifeng')) });
+    if (dungeon === 'luobi') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
     if (this.freezes) choices.push({ label: t('result.bag'), act: click(() => this.toggleChar()) });
     this.menu.showResult(choices);
     this.tierRow(s, click);
@@ -397,6 +402,7 @@ export class Game {
     const s = this.engine.state;
     this.view.draw(s, dt, alpha);
     this.numbers.update(this.view, dt);
+    this.tutorial.update(s, this.view, dt);
     this.hud.update(s, this.session!, this.keys.down);
   }
 }

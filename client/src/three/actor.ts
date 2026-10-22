@@ -56,6 +56,8 @@ const loader = new GLTFLoader();
 export interface ModelFiles {
   hero: string;
   clips: Record<ClipId, string>;
+  /** Further bodies by name (chapter one's ink villagers), rigged on the same skeleton. */
+  bodies?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
 }
 
@@ -76,10 +78,14 @@ function retarget(clip: AnimationClip, hip: number): AnimationClip {
   return new AnimationClip(clip.name, clip.duration, tracks);
 }
 
-export async function loadModels(files: ModelFiles): Promise<{ hero: Model; archer: Model }> {
+export async function loadModels(files: ModelFiles): Promise<{ hero: Model; archer: Model; bodies: Record<string, Model> }> {
   // the archer's own model comes with its clips (its rig_v1.glb has another skeleton)
   const load = (u: string) => (files.read ? files.read(u).then((b) => loader.parseAsync(b, u.slice(0, u.lastIndexOf('/') + 1))) : loader.loadAsync(u));
-  const [hero, ...clips] = await Promise.all([files.hero, ...Object.values(files.clips)].map(load));
+  const names = Object.keys(files.bodies ?? {});
+  const [[hero, ...clips], bodies] = await Promise.all([
+    Promise.all([files.hero, ...Object.values(files.clips)].map(load)),
+    Promise.all(names.map((n) => load(files.bodies![n]))),
+  ]);
   const ids = Object.keys(files.clips) as ClipId[];
   const model = (gltf: typeof hero): Model => {
     const scene = gltf.scene;
@@ -95,7 +101,7 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
     ids.forEach((id, i) => (c[id] = retarget(clips[i].animations[0], hip)));
     return { scene, height: box.max.y - box.min.y, map, clips: c };
   };
-  return { hero: model(hero), archer: model(clips[0]) };
+  return { hero: model(hero), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i])])) };
 }
 
 /** Model units: the bodies stand about one tall with their feet at the origin. */
@@ -180,7 +186,7 @@ export class Actor {
         inkMesh(m, this.mat, this.line);
         // the sun's shadow only for the hero and the boss: the shadow pass skins every caster again,
         // and a room of bandits doing so held an A16 under 40 fps (the rest keep their blob)
-        m.castShadow = kind === 'hero' || kind === 'chief';
+        m.castShadow = kind === 'hero' || kind === 'chief' || kind === 'woodcutter';
         m.frustumCulled = false;
         // a fixed sphere round the body: left unset, three works one out on the first frame by
         // skinning every vertex on the CPU (it is only used to sort, so it need not be tight)

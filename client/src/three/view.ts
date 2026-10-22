@@ -66,6 +66,18 @@ const LEVELS = [
 /** The open doors of a cleared room: a cinnabar wash on the floor, pulsing. */
 const DOOR_INK = new MeshBasicMaterial({ color: 0xc8281e, transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false });
 
+type InkBody = 'inkfisher' | 'inkwasher' | 'inkboatman' | 'inkwood';
+
+/** Chapter one's monsters: which ink villagers they are drawn as (varied by id), and their tint. */
+const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: number }>> = {
+  inkling: { bodies: ['inkfisher', 'inkwasher'], tint: 0xe0dcd4 },
+  brute: { bodies: ['inkboatman'], tint: 0xd8c8c0 },
+  woodcutter: { bodies: ['inkwood'], tint: 0xffffff },
+};
+
+/** Bodies that fight bare-handed or with a bow: no dao in the hand. */
+const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter']);
+
 export class View3D {
   readonly renderer: WebGLRenderer;
   readonly scene = new Scene();
@@ -94,7 +106,7 @@ export class View3D {
   private readonly cinnabar = new Splash(0xb3261e);
   private readonly at = new Vector3();
   private readonly doors: Mesh[] = [];
-  private models!: { hero: Model; mob: Model; lead: Model };
+  private models!: { hero: Model; mob: Model; lead: Model; ink: Partial<Record<InkBody, Model>> };
   private shake = 0;
   private airKey = '';
   private time = 0;
@@ -183,7 +195,10 @@ export class View3D {
     const models = await loadModels(this.host?.models ?? WEB_FILES);
     // the budget bench (budget.ts): rank-and-file at 5k tris on the lean skeleton, the boss and elites at 8k
     await lodReady;
-    this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }) };
+    // chapter one's ink villagers on the same budgets (left out of a build that does not pack them)
+    const ink: Partial<Record<InkBody, Model>> = {};
+    for (const [name, b] of Object.entries(models.bodies)) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
+    this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink };
     const vfx = (this.vfx = this.fx ? new Vfx(models.hero, this.post) : null);
     if (vfx) scene.add(vfx.root);
     const decor = (this.decor = this.fx ? new Decor() : null);
@@ -385,16 +400,22 @@ export class View3D {
     }
     for (const e of s.entities) {
       if (this.actors.has(e.id)) continue;
-      const { model, tint } = this.modelFor(e.kind);
-      const a = new Actor(e.id, e.kind, model, tint, e.kind !== 'archer');
+      const { model, tint } = this.modelFor(e.kind, e.id);
+      const a = new Actor(e.id, e.kind, model, tint, !UNARMED.has(e.kind));
       this.actors.set(e.id, a);
       this.scene.add(a.root, a.floorShadow, a.trail.mesh);
     }
   }
 
-  private modelFor(kind: string): { model: Model; tint: number } {
+  private modelFor(kind: string, id: number): { model: Model; tint: number } {
     const m = this.models;
     if (kind === 'hero') return { model: m.hero, tint: 0xffffff };
+    const ink = INK_BODY[kind];
+    if (ink) {
+      const model = m.ink[ink.bodies[id % ink.bodies.length]];
+      if (model) return { model, tint: ink.tint };
+      return { model: kind === 'woodcutter' ? m.lead : m.mob, tint: 0x606068 };
+    }
     if (kind === 'elite' || kind === 'chief') return { model: m.lead, tint: kind === 'elite' ? 0xd08870 : 0xa07060 };
     return { model: m.mob, tint: 0xb8bcc8 };
   }

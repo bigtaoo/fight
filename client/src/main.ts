@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   initLang(platform.locale, params.get('lang'));
   await readKeyboardLayout();
   const d = params.get('dungeon');
-  const dungeon: DungeonId = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'heifeng';
+  const dungeon: DungeonId = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'luobi';
   const view = await View3D.create(params, dungeon);
   const game = new Game(view, params);
   await game.load();

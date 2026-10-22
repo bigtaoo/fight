@@ -162,7 +162,7 @@ export const AFFIX = {
 /** A hero this close to an item in x and depth picks it up. */
 export const PICKUP = { x: toFp(60), y: toFp(40) };
 
-export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy';
+export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -250,6 +250,63 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
       fastPct: 60,
     },
   },
+  // chapter one (design/CHAPTER1.md): villagers the ink has turned. The inkling is the first
+  // thing the player ever hits: slow, soft, a long reach back before a weak claw
+  inkling: {
+    body: { halfWidth: toFp(40), height: toFp(225), hp: 260 },
+    brain: 'melee',
+    walkX: toFp(2.6),
+    walkY: toFp(2),
+    range: toFp(130),
+    alignY: toFp(20),
+    attack: 'claw',
+    cooldown: [ticks(2), ticks(3.4)],
+    firstCooldown: [ticks(1.2), ticks(2.4)],
+    drop: { item: 'potion', pct: 10 },
+  },
+  // the one that teaches the dodge: an arm raised high for a second under super armour (no
+  // cutting it short), then a blow that knocks down
+  brute: {
+    body: { halfWidth: toFp(48), height: toFp(250), hp: 900 },
+    brain: 'melee',
+    walkX: toFp(2.2),
+    walkY: toFp(1.8),
+    range: toFp(170),
+    alignY: toFp(26),
+    attack: 'smash',
+    cooldown: [ticks(2.2), ticks(3.2)],
+    firstCooldown: [ticks(1.5), ticks(2.5)],
+  },
+  // 1-1's boss, the ink-eaten woodcutter: the chief's pattern made gentler, a hack in front, a
+  // low rush along its lane and a leap onto the hero, two inklings called in at half health
+  woodcutter: {
+    body: { halfWidth: toFp(58), height: toFp(300), hp: 2600 },
+    brain: 'boss',
+    walkX: toFp(2.4),
+    walkY: toFp(1.8),
+    range: toFp(220),
+    alignY: toFp(40),
+    attack: '',
+    cooldown: [ticks(2.8), ticks(3.8)],
+    firstCooldown: [ticks(1.5), ticks(2)],
+    armor: true,
+    juggle: { decay: 30, floor: 0 },
+    boss: {
+      moves: [
+        { move: 'hack', fast: 'hackF', reach: toFp(230), alignY: toFp(45), weight: [5, 0, 0] },
+        { move: 'rush', fast: 'rushF', reach: toFp(2400), alignY: toFp(30), weight: [1, 2, 3] },
+        { move: 'leap', fast: 'leapF', reach: toFp(900), alignY: toFp(400), weight: [1, 2, 1] },
+      ],
+      bands: [toFp(280), toFp(650)],
+      phase2Pct: 50,
+      roar: 'roar',
+      summon: [
+        { kind: 'inkling', x: toFp(250), y: toFp(90) },
+        { kind: 'inkling', x: toFp(250), y: toFp(270) },
+      ],
+      fastPct: 75,
+    },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -271,6 +328,9 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   shield: MONSTERS.shield.body,
   chief: MONSTERS.chief.body,
   dummy: MONSTERS.dummy.body,
+  inkling: MONSTERS.inkling.body,
+  brute: MONSTERS.brute.body,
+  woodcutter: MONSTERS.woodcutter.body,
 };
 
 /** Two monsters closer than this in x and depth push apart. A melee monster lines up on the
@@ -496,6 +556,19 @@ const MOVE_LIST: Move[] = [
     damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
     cancel: 0, turn: true,
   },
+  // chapter one's ink monsters: the inkling's reach back and claw; the brute's raised arm and smash
+  {
+    id: 'claw', total: 38, active: [17, 19], box: box(0, 140, 35, 20, 200),
+    damage: 18, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
+    cancel: 0, advance: { from: 14, to: 18, speed: toFp(3) },
+  },
+  {
+    id: 'smash', total: 56, active: [31, 34], box: box(0, 200, 45, 0, 240),
+    damage: 70, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
+    cancel: 0, advance: { from: 28, to: 32, speed: toFp(5) }, armor: [6, 34],
+  },
+  ...woodMoves('', 100),
+  ...woodMoves('F', 70),
   // the chief, each move in two speeds (the second phase's is quicker to start and to recover)
   ...chiefMoves('', 100),
   ...chiefMoves('F', 65),
@@ -541,6 +614,43 @@ function chiefMoves(sfx: string, pct: number): Move[] {
       id: `slamLand${sfx}`, total: t(30), active: [1, 2], box: box(-140, 140, 70, 0, 180),
       damage: 60, hitstun: 20, stop: 5, push: toFp(16), launch: toFp(18), lift: toFp(14),
       cancel: 0, armor: [1, 2], fire: { at: 1, shot: 'quake', x: toFp(60), z: 0, twin: true },
+    },
+  ];
+}
+
+/** The woodcutter's moves, windups and recoveries at `pct` percent: an axe hack in front that
+ * knocks down; a rush along its lane, low enough to jump; and a crouch and a leap that comes down
+ * axe first on the hero (no shockwave: that is the chief's). */
+function woodMoves(sfx: string, pct: number): Move[] {
+  const t = (n: number) => Math.trunc((n * pct) / 100);
+  const hackW = t(26);
+  const rushW = t(22);
+  const dash = 26;
+  return [
+    {
+      id: `hack${sfx}`, total: hackW + 4 + t(26), active: [hackW + 1, hackW + 4], box: box(0, 240, 55, 0, 260),
+      damage: 55, hitstun: 22, stop: 6, push: toFp(12), launch: toFp(14), lift: toFp(12),
+      cancel: 0, advance: { from: hackW - 2, to: hackW + 2, speed: toFp(5) }, armor: [1, hackW + 4],
+    },
+    {
+      id: `rush${sfx}`, total: rushW + dash + t(26), active: [rushW + 1, rushW + dash], box: box(-20, 110, 40, 0, 80),
+      damage: 40, hitstun: 20, stop: 4, push: toFp(18), launch: toFp(16), lift: toFp(12),
+      cancel: 0, advance: { from: rushW + 1, to: rushW + dash, speed: toFp(26) }, armor: [1, rushW + dash],
+    },
+    {
+      id: `leap${sfx}`, total: t(22), active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, then: `leapAir${sfx}`, armor: [1, t(22)],
+    },
+    {
+      id: `leapAir${sfx}`, total: 90, active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, air: true, hop: { back: 0, up: toFp(32) }, leap: toFp(26), land: `leapLand${sfx}`, armor: [1, 90],
+    },
+    {
+      id: `leapLand${sfx}`, total: t(30), active: [1, 2], box: box(-130, 130, 65, 0, 180),
+      damage: 45, hitstun: 20, stop: 5, push: toFp(14), launch: toFp(16), lift: toFp(12),
+      cancel: 0, armor: [1, 2],
     },
   ];
 }
@@ -652,6 +762,8 @@ export interface Room {
   doors: readonly Door[];
   /** A room that never clears (the training ground). */
   endless?: boolean;
+  /** Lying on the floor as the room opens (until it is cleared). */
+  items?: readonly { kind: ItemKind; x: number; y: number }[];
 }
 
 export interface Dungeon {
@@ -666,6 +778,8 @@ export interface Dungeon {
   /** What a clear is rated against (see rateRun): the time in ticks, the longest combo and the
    * hits taken that earn the top marks. */
   par: Par;
+  /** For a tutorial: how many skill slots are open in each room, by index (none: all of them). */
+  slots?: readonly number[];
 }
 
 export interface Par {
@@ -674,7 +788,7 @@ export interface Par {
   hits: number;
 }
 
-export type DungeonId = 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
+export type DungeonId = 'luobi' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
 
 function room(width: number, spawns: [MonsterKind, number, number][], doors: [Side, number, number?][], endless = false): Room {
   return {
@@ -690,8 +804,26 @@ function room(width: number, spawns: [MonsterKind, number, number][], doors: [Si
 const PAR_TRIAL: Par = { ticks: ticks(60), combo: 20, hits: 3 };
 const PAR_FORT: Par = { ticks: ticks(240), combo: 30, hits: 10 };
 const PAR_HALL: Par = { ticks: ticks(90), combo: 20, hits: 4 };
+const PAR_LUOBI: Par = { ticks: ticks(150), combo: 15, hits: 4 };
 
 export const DUNGEONS: Record<DungeonId, Dungeon> = {
+  // 1-1 "落笔", the tutorial (design/CHAPTER1.md), one thing taught a room:
+  //   0 blank paper (move, jump) > 1 river village (attack, combo) > 2 village gate (dodge, potion)
+  //   > 3 threshing floor (the first skill; the woodcutter)
+  luobi: {
+    rooms: [
+      room(2000, [], [['right', 1]]),
+      room(2400, [['inkling', 1000, 120], ['inkling', 1250, 260], ['inkling', 1500, 170]], [['left', 0], ['right', 2]]),
+      {
+        ...room(2600, [['inkling', 1000, 90], ['inkling', 1200, 270], ['brute', 1600, 180], ['inkling', 1950, 60], ['inkling', 2100, 250]], [['left', 1], ['right', 3]]),
+        items: [{ kind: 'potion', x: toFp(700), y: toFp(250) }],
+      },
+      room(2200, [['woodcutter', 1500, 180]], [['left', 2]]),
+    ],
+    boss: 3,
+    slots: [0, 0, 0, 1],
+    par: PAR_LUOBI,
+  },
   trial: {
     rooms: [
       room(2600, [['bandit', 1100, 120], ['bandit', 1300, 260], ['bandit', 1500, 60]], [['right', 1]]),

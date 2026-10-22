@@ -5,7 +5,6 @@ import { OnlineSession } from '../net/OnlineSession';
 import { OfflineSession, type Session } from '../net/Session';
 import type { Item } from '@dnf/server/protocol';
 import { Controls } from './controls';
-import { Tutorial } from './tutorial';
 import { CELL_BG, DARK, FONT, GREY, INK, PAPER, RED, VIEW_H, VIEW_W, css, el, halo, label, setText, show, type Overlay } from './dom';
 import { MAX_LEVEL, RARITY_INK, gearNameKey } from '../rpg/gear';
 import { xpToNext } from '../rpg/character';
@@ -22,7 +21,7 @@ import { tierName } from '../rpg/tiers';
 const BOSS_BAR = 600;
 const BAR_INK = [0xc8281e, 0xb8742a, 0x6a7a2e, 0x2e6a6a, 0x4a3a7a] as const;
 /** Boss names, for the bar. */
-const BOSS_NAME: Partial<Record<Entity['kind'], Key>> = { chief: 'boss.chief' };
+const BOSS_NAME: Partial<Record<Entity['kind'], Key>> = { chief: 'boss.chief', woodcutter: 'boss.woodcutter' };
 
 /** The server's reasons, for the player. */
 const REASONS: Record<string, Key> = {
@@ -127,10 +126,7 @@ export class Hud {
   offlineNote: Key | null = null;
   readonly controls: Controls;
 
-  private readonly tutorial: Tutorial;
-
-  /** `tutorial`: the advice lines in Black Wind Fort (off with ?notutorial). */
-  constructor(ui: Overlay, tutorial = true) {
+  constructor(ui: Overlay) {
     // the controls first: their touch layer lies under everything else
     this.controls = new Controls(ui);
     const lt = ui.frame('lt');
@@ -153,7 +149,6 @@ export class Hud {
     this.bossBar = bar(ct, BOSS_LEFT, BOSS_TOP, BOSS_W, 26, 'rgba(0,0,0,.3)', RED, 3);
     this.bossName = label(ct, '', BOSS_LEFT, BOSS_TOP - 40, 30, INK, 0, 0, ring(2.5));
     this.bossBars = label(ct, '', BOSS_LEFT + BOSS_W, BOSS_TOP - 40, 30, RED, 1, 0, ring(2.5));
-    this.tutorial = new Tutorial(tutorial, ct);
 
     this.banner = label(cm, '', VIEW_W / 2, MID, 110, INK, 0.5, 0.5, ring(5));
     this.grade = label(cm, '', VIEW_W / 2 + 170, MID, 180, RED, 0, 0.5, ring(6));
@@ -171,7 +166,6 @@ export class Hud {
     this.boss(s);
     this.controls.update(s, keys);
     this.minimap(s);
-    this.tutorial.update(s);
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
     setText(this.combo, combo >= 2 ? t('hud.combo', { n: combo }) : '');

@@ -26,6 +26,7 @@ export const zh: Record<Key, string> = {
   'hud.onward': '→ 前进',
   'hud.bossMark': '王',
   'boss.chief': '黑风寨主',
+  'boss.woodcutter': '墨蚀的樵夫',
 
   'loot.got': '获得  {items}',
   'loot.sep': '、',
@@ -43,6 +44,7 @@ export const zh: Record<Key, string> = {
   'result.again': '再来一局',
   'result.chief': '挑战寨主',
   'result.fort': '回黑风寨',
+  'result.toFort': '前往黑风寨',
   'result.bag': '角色',
 
   'tier.0': '普通',
@@ -174,6 +176,15 @@ export const zh: Record<Key, string> = {
   'tip.side': '下面的门通往侧室，里面有个精英，打赢必掉大药水；也可以不去',
   'tip.chief': '寨主出招时不会被打断：先躲开，等他收招的空隙再打；他跳起来砸地时，你也跳起来躲冲击波',
   'tip.roar': '寨主怒了：出招更快，还叫来了帮手',
+  'tip.ink.move': '白纸无路，落笔成路。{Arrows} 行走',
+  'tip.ink.jump': '{KeyC} 腾跃',
+  'tip.ink.attack': '墨染人心。{KeyX} 出刀',
+  'tip.ink.combo': '笔不停，刀不停。{KeyX} 连斩',
+  'tip.ink.onward': '前路已开，向右行',
+  'tip.ink.dodge': '举臂者必重击。{KeyZ} 闪身',
+  'tip.ink.potion': '地上有药，走过即饮',
+  'tip.ink.skill': '第一式笔技：{KeyA}',
+  'tip.ink.roar': '樵夫狂怒，唤墨来助',
 
   'item.hemp_boots': '麻履',
   'item.iron_bracer': '铁护腕',

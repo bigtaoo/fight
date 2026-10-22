@@ -1,4 +1,4 @@
-import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, MAX_SKILL_LV, SKILL_DMG_PCT, TIERS, type DungeonId, type ItemKind, type Kind, type Loadout, type MonsterKind, type ShotKind, type SkillId } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, MAX_SKILL_LV, SKILL_DMG_PCT, SLOTS, TIERS, type DungeonId, type ItemKind, type Kind, type Loadout, type MonsterKind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -66,6 +66,12 @@ export function monsterDmgPct(s: SimState): number {
 export function skillLevel(s: SimState, id: SkillId): number {
   const lv = s.config.skillLv[id] ?? 1;
   return Number.isSafeInteger(lv) ? Math.max(1, Math.min(MAX_SKILL_LV, lv)) : 1;
+}
+
+/** How many of the skill slots, from the first, can be used in this room (a tutorial opens them
+ * one room at a time). */
+export function openSlots(s: SimState): number {
+  return DUNGEONS[s.config.dungeon].slots?.[s.room] ?? SLOTS;
 }
 
 /** The damage of skill `id` in percent of its moves' own, by its level. */

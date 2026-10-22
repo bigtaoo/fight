@@ -17,7 +17,7 @@ export interface Pose {
 
 export const REST: Pose = { arm: 0, elbow: 0, lean: 0, twist: 0, off: 0 };
 
-type Cut = 'down' | 'side' | 'up' | 'thrust';
+type Cut = 'down' | 'side' | 'up' | 'thrust' | 'claw' | 'heavy' | 'ram';
 
 const CUTS: Record<Cut, [wind: Pose, through: Pose]> = {
   // overhead, cutting down to the front
@@ -40,6 +40,22 @@ const CUTS: Record<Cut, [wind: Pose, through: Pose]> = {
     { arm: 70, elbow: 110, lean: -6, twist: -45, off: 60 },
     { arm: 50, elbow: 0, lean: 18, twist: 40, off: 20 },
   ],
+  // the ink monsters, bare-handed: both hands reared up and back, then raked down in front
+  claw: [
+    { arm: 150, elbow: 60, lean: -14, twist: -20, off: 135 },
+    { arm: 15, elbow: 10, lean: 28, twist: 25, off: 30 },
+  ],
+  // both arms high over the head and the chest thrown back, then brought down with the whole body:
+  // the wind-up that has to read from across the room
+  heavy: [
+    { arm: 210, elbow: 45, lean: -24, twist: -10, off: 205 },
+    { arm: 5, elbow: 0, lean: 38, twist: 15, off: 10 },
+  ],
+  // head down and arms swept back, a shoulder first
+  ram: [
+    { arm: -45, elbow: 25, lean: 34, twist: -20, off: -40 },
+    { arm: -35, elbow: 15, lean: 42, twist: -10, off: -30 },
+  ],
 };
 
 const CUT_OF: Record<string, Cut> = {
@@ -61,7 +77,18 @@ const CUT_OF: Record<string, Cut> = {
   phantom: 'side',
   slash: 'down',
   bash: 'down',
+  claw: 'claw',
+  smash: 'heavy',
+  hack: 'heavy',
+  hackF: 'heavy',
+  rush: 'ram',
+  rushF: 'ram',
+  leapLand: 'heavy',
+  leapLandF: 'heavy',
 };
+
+/** A wind-up held this many ticks or more trembles while it waits (the brute's raised arm). */
+const TREMBLE = 8;
 
 /** Smoothstep 0..1. */
 function ease(t: number): number {
@@ -100,7 +127,17 @@ export function cutPose(move: string, st: number): Pose | null {
   const [wind, through] = CUTS[cut];
   const [a0, a1] = m.active;
   const end = a1 + 1;
-  if (st < a0) return mix(REST, wind, ease(st / Math.max(1, a0 * 0.75)), _out);
+  if (st < a0) {
+    const reach = Math.max(1, a0 * 0.75);
+    mix(REST, wind, ease(st / reach), _out);
+    if (a0 - reach >= TREMBLE && st > reach) {
+      const k = Math.sin(st * 2.6) * Math.min(1, (st - reach) / 4);
+      _out.arm += k * 5;
+      _out.off += k * 5;
+      _out.lean -= Math.abs(k) * 3;
+    }
+    return _out;
+  }
   if (st < end) {
     const span = end - a0;
     // a long active window is many cuts: back and forth every few ticks
