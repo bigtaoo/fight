@@ -41,6 +41,7 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   horde: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   hall: ['hall'],
   luobi: ['village', 'village', 'village', 'village'],
+  jiangcun: ['village', 'village', 'village', 'village', 'village'],
 };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
 const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);

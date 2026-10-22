@@ -45,6 +45,7 @@ export const zh: Record<Key, string> = {
   'result.chief': '挑战寨主',
   'result.fort': '回黑风寨',
   'result.toFort': '前往黑风寨',
+  'result.toVillage': '前往江村',
   'result.bag': '角色',
 
   'tier.0': '普通',
@@ -185,6 +186,10 @@ export const zh: Record<Key, string> = {
   'tip.ink.potion': '地上有药，走过即饮',
   'tip.ink.skill': '第一式笔技：{KeyA}',
   'tip.ink.roar': '樵夫狂怒，唤墨来助',
+  'tip.jc.lurk': '墨藏在村人身上。走近时当心',
+  'tip.jc.hook': '被鱼钩钩住了！{KeyZ} 闪身挣脱',
+  'tip.jc.lob': '墨团落处会留下墨渍，别站在里面',
+  'tip.jc.screen': '堂屋里有一扇屏风……走近看看',
 
   'item.hemp_boots': '麻履',
   'item.iron_bracer': '铁护腕',

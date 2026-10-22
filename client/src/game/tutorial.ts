@@ -41,6 +41,13 @@ const TIPS: Partial<Record<DungeonId, readonly Tip[]>> = {
     { id: 'tip.ink.skill', when: (s) => s.room === 3 },
     { id: 'tip.ink.roar', when: (s) => phase2(s, 'woodcutter') },
   ],
+  // 1-2, the river village: each new foe gets its line as it first shows its trick
+  jiangcun: [
+    { id: 'tip.jc.lurk', when: (s) => s.room === 0 && s.tick > TICK_RATE },
+    { id: 'tip.jc.hook', when: (s) => (hero(s)?.tow ?? 0) > 0, urgent: true },
+    { id: 'tip.jc.lob', when: (s) => s.lobs.length > 0 || s.patches.length > 0, urgent: true },
+    { id: 'tip.jc.screen', when: (s) => s.room === 4 },
+  ],
   heifeng: [
     { id: 'tip.move', when: (s) => s.room === 0 },
     { id: 'tip.jump', when: (s) => s.room === 0 && s.tick > 7 * TICK_RATE },

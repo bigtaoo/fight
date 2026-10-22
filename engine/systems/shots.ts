@@ -2,6 +2,7 @@ import { MOVES, SHOTS } from '../content';
 import type { SimEvent } from '../events';
 import { hittable, type Entity, type SimState } from '../state';
 import { applyHit, overlaps } from './combat';
+import { reel } from './ink';
 
 // Projectiles: fired on a tick of a move, then flying straight along x on their own, regardless
 // of what happens to whoever fired them. They are not frozen by hitstop. Each target is hit at
@@ -43,6 +44,7 @@ export function shotsSystem(s: SimState, events: SimEvent[]): void {
       p.hitList.push(t.id);
       p.pierce--;
       applyHit(s, events, { id: p.owner, team: p.team }, dir, t, def, p.of || undefined);
+      if (def.tow && t.state === 'hurt') reel(t, p.owner);
     }
   }
   s.shots = s.shots.filter((p) => p.pierce > 0 && p.life > 0 && p.x > 0 && p.x < s.roomWidth);

@@ -178,6 +178,17 @@ export function quickRise(s: SimState, e: Entity, events: SimEvent[]): boolean {
   return true;
 }
 
+/** A hero being reeled in by a hook breaks free with the dodge, if it is ready. True when it did. */
+export function breakTow(s: SimState, e: Entity, events: SimEvent[]): boolean {
+  const p = s.players.find((q) => q.hero === e.id);
+  if (!p || e.tow === 0 || e.state !== 'hurt' || !wantsDodge(p, e)) return false;
+  consume(p);
+  e.tow = 0;
+  e.vy = 0;
+  dodge(e, events);
+  return true;
+}
+
 /** Counts the buffered press down by one unfrozen tick. */
 export function tickBuffer(p: PlayerSlot): void {
   if (p.buf !== 0 && --p.bufLeft <= 0) consume(p);

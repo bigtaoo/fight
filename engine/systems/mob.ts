@@ -1,4 +1,4 @@
-import { BODIES, CROWD, MONSTERS, MOVES, WORLD, type BossMove, type Monster, type MonsterKind } from '../content';
+import { BODIES, CROWD, INK, MONSTERS, MOVES, WORLD, type BossMove, type Monster, type MonsterKind } from '../content';
 import type { SimEvent } from '../events';
 import { randInt, randRange } from '../math/prng';
 import { setState, type Entity, type SimState } from '../state';
@@ -36,6 +36,7 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
     m.vy = 0;
     return;
   }
+  if (m.lurk > 0) return lurking(s, m, def, events);
   if (m.state === 'act') {
     const mv = MOVES[m.move];
     moveVelocity(m, mv);
@@ -81,6 +82,19 @@ export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   m.vy = Math.abs(ldy) > Math.trunc(def.alignY / 2) ? Math.sign(ldy) * pace(m, def.walkY) : 0;
   const next = m.vx === 0 && m.vy === 0 ? 'idle' : 'walk';
   if (next !== m.state) setState(m, next);
+}
+
+/** A lurker waits where it is, unseen, until a hero comes within its lurk distance in x; then it
+ * springs out at the hero (INK.pounce) and swings no sooner than its shortest cooldown after. */
+function lurking(s: SimState, m: Entity, def: Monster, events: SimEvent[]): void {
+  m.vx = 0;
+  m.vy = 0;
+  const t = nearestHero(s, m);
+  if (!t || Math.abs(t.x - m.x) > m.lurk) return;
+  m.lurk = 0;
+  if (t.x !== m.x) m.facing = Math.sign(t.x - m.x);
+  startMove(m, INK.pounce, events);
+  m.cd[0] = Math.max(m.cd[0], def.cooldown[0]);
 }
 
 /** The depth melee monster `m` lines up at against hero `t` (see CROWD): the hero's own, or, taken

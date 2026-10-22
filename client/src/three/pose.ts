@@ -85,6 +85,9 @@ const CUT_OF: Record<string, Cut> = {
   rushF: 'ram',
   leapLand: 'heavy',
   leapLandF: 'heavy',
+  cast: 'side',
+  lob: 'up',
+  pounce: 'claw',
 };
 
 /** A wind-up held this many ticks or more trembles while it waits (the brute's raised arm). */

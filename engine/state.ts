@@ -154,6 +154,41 @@ export interface Entity {
   ward: number;
   summons: number;
   summonCd: number;
+  /** Ticks left being reeled in by a hook, and the id of the body reeling (see INK.tow). */
+  tow: number;
+  towBy: number;
+  /** A lurking monster's distance in x at which it springs out, 0 once out (see INK). */
+  lurk: number;
+}
+
+/** A ball of ink in flight from (x0, y0, z0) to the floor at (tx, ty), `t` of INK.lob.flight
+ * ticks along; x, y, z (and px, py, pz the tick before) follow from those. */
+export interface Lob {
+  id: number;
+  team: number;
+  owner: number;
+  x0: number;
+  y0: number;
+  z0: number;
+  tx: number;
+  ty: number;
+  t: number;
+  x: number;
+  y: number;
+  z: number;
+  px: number;
+  py: number;
+  pz: number;
+}
+
+/** Ink on the ground where a lob came down (INK.patch). */
+export interface Patch {
+  id: number;
+  team: number;
+  x: number;
+  y: number;
+  /** Ticks left. */
+  life: number;
 }
 
 /** A poison cloud left where a monster with miasma died. */
@@ -241,6 +276,9 @@ export interface SimState {
   items: Item[];
   /** Poison clouds in this room. */
   clouds: Cloud[];
+  /** Lobbed ink in flight, and the ink it left on the ground, in this room. */
+  lobs: Lob[];
+  patches: Patch[];
   players: PlayerSlot[];
   /** Monsters killed, by kind (the server draws their loot once the run is cleared). */
   kills: Partial<Record<MonsterKind, number>>;
@@ -264,6 +302,8 @@ export function createState(config: RunConfig): SimState {
     shots: [],
     items: [],
     clouds: [],
+    lobs: [],
+    patches: [],
     players: [],
     kills: {},
     outcome: 'playing',
@@ -282,6 +322,7 @@ export function newEntity(s: SimState, kind: Kind, team: number, owner: number, 
     stop: 0, held: false, timer: 0, juggle: 0, bounced: false, airAtk: false,
     cd: team === 0 ? new Array<number>(DODGE.slot + 1).fill(0) : [0, 0],
     inv: 0, armor: 0, aimX: 1, aimY: 0, phase: 0, affixes: 0, ward: 0, summons: 0, summonCd: 0,
+    tow: 0, towBy: 0, lurk: 0,
   };
   s.entities.push(e);
   return e;
@@ -297,7 +338,7 @@ export function setState(e: Entity, state: BodyState): void {
   if (state !== 'act') e.move = '';
 }
 
-/** Alive, not lying down and not untouchable: something a hit can land on. */
+/** Alive, not lying down, not untouchable and not lurking: something a hit can land on. */
 export function hittable(e: Entity): boolean {
-  return e.hp > 0 && e.inv === 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
+  return e.hp > 0 && e.inv === 0 && e.lurk === 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
 }

@@ -73,10 +73,13 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
   inkling: { bodies: ['inkfisher', 'inkwasher'], tint: 0xe0dcd4 },
   brute: { bodies: ['inkboatman'], tint: 0xd8c8c0 },
   woodcutter: { bodies: ['inkwood'], tint: 0xffffff },
+  fisher: { bodies: ['inkfisher'], tint: 0xc8d0d4 },
+  washer: { bodies: ['inkwasher'], tint: 0xd8ccd0 },
+  hewer: { bodies: ['inkwood'], tint: 0xc8c0b8 },
 };
 
 /** Bodies that fight bare-handed or with a bow: no dao in the hand. */
-const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter']);
+const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer']);
 
 export class View3D {
   readonly renderer: WebGLRenderer;

@@ -9,6 +9,7 @@ import { combatSystem } from './systems/combat';
 import { applyInput } from './systems/hero';
 import { separate } from './systems/mob';
 import { physicsSystem } from './systems/physics';
+import { inkSystem } from './systems/ink';
 import { itemsSystem } from './systems/items';
 import { cleanup, enterRoom, roomSystem } from './systems/room';
 import { fireSystem, shotsSystem } from './systems/shots';
@@ -18,9 +19,9 @@ import { fireSystem, shotsSystem } from './systems/shots';
 // a system or any number in content.ts, changes every replay, so bump ENGINE_VERSION (and
 // record the new golden hash in Engine.test.ts on purpose).
 
-export const ENGINE_VERSION = 16;
+export const ENGINE_VERSION = 17;
 
-export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'physics', 'separate', 'combat', 'shots', 'affix', 'items', 'cleanup', 'room'] as const;
+export const STEP_ORDER = ['prologue', 'input', 'bodies', 'fire', 'ink', 'physics', 'separate', 'combat', 'shots', 'affix', 'items', 'cleanup', 'room'] as const;
 
 export class Engine {
   state: SimState;
@@ -56,6 +57,7 @@ export class Engine {
     applyInput(s, cmds);
     bodiesSystem(s, events);
     fireSystem(s, events);
+    inkSystem(s, events);
     physicsSystem(s, events);
     separate(s);
     combatSystem(s, events);

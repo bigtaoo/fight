@@ -162,7 +162,7 @@ export const AFFIX = {
 /** A hero this close to an item in x and depth picks it up. */
 export const PICKUP = { x: toFp(60), y: toFp(40) };
 
-export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter';
+export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter' | 'fisher' | 'washer' | 'hewer';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -307,6 +307,50 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
       fastPct: 75,
     },
   },
+  // 1-2's ink villagers (see INK): the fisher casts a hook down its lane that reels the hero in;
+  // the washerwoman lobs ink over the crowd at where the hero stands, which stains the ground
+  fisher: {
+    body: { halfWidth: toFp(40), height: toFp(230), hp: 380 },
+    brain: 'ranged',
+    walkX: toFp(2.4),
+    walkY: toFp(2),
+    range: toFp(680),
+    alignY: toFp(18),
+    attack: 'cast',
+    cooldown: [ticks(2.4), ticks(3.4)],
+    firstCooldown: [ticks(1.2), ticks(2)],
+    ranged: { keep: toFp(300), flee: toFp(110), fleeY: toFp(60), backstep: 'hop', backstepCd: ticks(3) },
+    drop: { item: 'potion', pct: 15 },
+  },
+  washer: {
+    body: { halfWidth: toFp(40), height: toFp(220), hp: 340 },
+    brain: 'ranged',
+    walkX: toFp(2.2),
+    walkY: toFp(2),
+    range: toFp(820),
+    // a lob comes down wherever the hero stands: no need to line up
+    alignY: toFp(400),
+    attack: 'lob',
+    cooldown: [ticks(2.2), ticks(3.2)],
+    firstCooldown: [ticks(1), ticks(2)],
+    ranged: { keep: toFp(420), flee: toFp(160), fleeY: toFp(70), backstep: 'hop', backstepCd: ticks(2.5) },
+    drop: { item: 'potion', pct: 15 },
+  },
+  // the threshing floor's woodcutters: the boss's hack without the rest of the boss, under
+  // super armour as it winds up; one may leave a big potion
+  hewer: {
+    body: { halfWidth: toFp(50), height: toFp(260), hp: 1300 },
+    brain: 'melee',
+    walkX: toFp(2.2),
+    walkY: toFp(1.8),
+    range: toFp(200),
+    alignY: toFp(30),
+    attack: 'hack',
+    cooldown: [ticks(3), ticks(4)],
+    firstCooldown: [ticks(1.5), ticks(2.5)],
+    juggle: { decay: 20, floor: 20 },
+    drop: { item: 'bigPotion', pct: 50 },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -331,6 +375,25 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   inkling: MONSTERS.inkling.body,
   brute: MONSTERS.brute.body,
   woodcutter: MONSTERS.woodcutter.body,
+  fisher: MONSTERS.fisher.body,
+  washer: MONSTERS.washer.body,
+  hewer: MONSTERS.hewer.body,
+};
+
+/** 1-2's ink (systems/ink.ts). A hook that lands reels its target in for up to `ticks` ticks at
+ * `speed`, until it is `gap` from the fisher, then lets go `release` ticks later (a dodge breaks
+ * free sooner; see breakTow in hero.ts). A lob flies `flight` ticks in an arc `apex` high to where
+ * the hero stood (at most `reach` away), splashes whoever is under it (within x, y, z) and leaves a
+ * patch that for `life` ticks hurts each hero inside every `every` ticks by `damage` (scaled by
+ * the tier; it never kills) and slows their walking to `slowPct` percent. A lurking monster waits
+ * unseen and untouchable until a hero comes within its lurk distance in x, then springs out with
+ * `pounce`. */
+export const INK = {
+  tow: { ticks: ticks(0.8), speed: toFp(22), gap: toFp(130), release: 4 },
+  lob: { flight: 26, apex: toFp(200), reach: toFp(820), x: toFp(70), y: toFp(36), z: toFp(80) },
+  splash: { damage: 22, hitstun: 14, stop: 3, push: toFp(4), launch: 0, lift: toFp(8) } as HitData,
+  patch: { life: ticks(5), every: ticks(0.5), damage: 12, x: toFp(100), y: toFp(44), slowPct: 50 },
+  pounce: 'pounce',
 };
 
 /** Two monsters closer than this in x and depth push apart. A melee monster lines up on the
@@ -435,6 +498,8 @@ export interface Move extends HitData {
   leap?: number;
   /** With `air`: the move that starts as it lands. */
   land?: string;
+  /** Lobs a ball of ink (INK.lob) on tick `at`, from `x` ahead of the body and `z` above its feet. */
+  lob?: { at: number; x: number; z: number };
 }
 
 function box(x0: number, x1: number, depth: number, z0: number, z1: number): HitBox {
@@ -567,6 +632,22 @@ const MOVE_LIST: Move[] = [
     damage: 70, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
     cancel: 0, advance: { from: 28, to: 32, speed: toFp(5) }, armor: [6, 34],
   },
+  // 1-2: the fisher's cast and the washerwoman's lob, each a long wind-up; a lurker's pounce
+  {
+    id: 'cast', total: 40, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, fire: { at: 24, shot: 'hook', x: toFp(50), z: toFp(140) },
+  },
+  {
+    id: 'lob', total: 40, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, lob: { at: 22, x: toFp(30), z: toFp(170) },
+  },
+  {
+    id: 'pounce', total: 40, active: [2, 40], box: box(0, 120, 35, 0, 200),
+    damage: 20, hitstun: 14, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
+    cancel: 0, air: true, hop: { back: -toFp(14), up: toFp(16) },
+  },
   ...woodMoves('', 100),
   ...woodMoves('F', 70),
   // the chief, each move in two speeds (the second phase's is quicker to start and to recover)
@@ -657,7 +738,7 @@ function woodMoves(sfx: string, pct: number): Move[] {
 
 export const MOVES: Readonly<Record<string, Move>> = Object.fromEntries(MOVE_LIST.map((m) => [m.id, m]));
 
-export type ShotKind = 'arrow' | 'wave' | 'quake';
+export type ShotKind = 'arrow' | 'wave' | 'quake' | 'hook';
 
 /** A projectile: flies straight along x at `speed`, hits what its box touches (`box` is around
  * its own position, x forward of its flight), and is gone after `life` ticks, `pierce` hits or
@@ -667,6 +748,8 @@ export interface Shot extends HitData {
   life: number;
   pierce: number;
   box: HitBox;
+  /** Reels in what it hits (see INK.tow). */
+  tow?: boolean;
 }
 
 export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
@@ -684,6 +767,11 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   quake: {
     speed: toFp(20), life: ticks(0.6), pierce: 1, box: box(-40, 40, 100, 0, 45),
     damage: 45, hitstun: 18, stop: 4, push: toFp(12), launch: toFp(14), lift: toFp(10),
+  },
+  // the fisher's hook: thin like the arrow, a light blow, no push away (it pulls)
+  hook: {
+    speed: toFp(26), life: ticks(1.1), pierce: 1, box: box(-30, 30, 18, -10, 10),
+    damage: 12, hitstun: 12, stop: 3, push: 0, launch: 0, lift: toFp(6), tow: true,
   },
 };
 
@@ -742,6 +830,8 @@ export interface Spawn {
   kind: MonsterKind;
   x: number;
   y: number;
+  /** Lurks (behind a door, a fence) until a hero is this close in x (see INK). */
+  lurk?: number;
 }
 
 /** Which wall a door is in: left and right walls, the back edge of the floor (up) or its front (down). */
@@ -764,6 +854,8 @@ export interface Room {
   endless?: boolean;
   /** Lying on the floor as the room opens (until it is cleared). */
   items?: readonly { kind: ItemKind; x: number; y: number }[];
+  /** The room clears only once a hero has walked this far along it (and its monsters are dead). */
+  goal?: number;
 }
 
 export interface Dungeon {
@@ -788,12 +880,13 @@ export interface Par {
   hits: number;
 }
 
-export type DungeonId = 'luobi' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
+export type DungeonId = 'luobi' | 'jiangcun' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde';
 
-function room(width: number, spawns: [MonsterKind, number, number][], doors: [Side, number, number?][], endless = false): Room {
+/** A room `width` wide; each spawn is a kind, x, y and, for a lurker, its lurk distance. */
+function room(width: number, spawns: [MonsterKind, number, number, number?][], doors: [Side, number, number?][], endless = false): Room {
   return {
     width: toFp(width),
-    spawns: spawns.map(([kind, x, y]) => ({ kind, x: toFp(x), y: toFp(y) })),
+    spawns: spawns.map(([kind, x, y, lurk]) => (lurk === undefined ? { kind, x: toFp(x), y: toFp(y) } : { kind, x: toFp(x), y: toFp(y), lurk: toFp(lurk) })),
     doors: doors.map(([side, to, x]) => (x === undefined ? { side, to } : { side, to, x: toFp(x) })),
     endless,
   };
@@ -805,6 +898,7 @@ const PAR_TRIAL: Par = { ticks: ticks(60), combo: 20, hits: 3 };
 const PAR_FORT: Par = { ticks: ticks(240), combo: 30, hits: 10 };
 const PAR_HALL: Par = { ticks: ticks(90), combo: 20, hits: 4 };
 const PAR_LUOBI: Par = { ticks: ticks(150), combo: 15, hits: 4 };
+const PAR_JIANGCUN: Par = { ticks: ticks(180), combo: 18, hits: 6 };
 
 export const DUNGEONS: Record<DungeonId, Dungeon> = {
   // 1-1 "落笔", the tutorial (design/CHAPTER1.md), one thing taught a room:
@@ -823,6 +917,21 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
     boss: 3,
     slots: [0, 0, 0, 1],
     par: PAR_LUOBI,
+  },
+  // 1-2 "江村", the ink villagers mixed: 0 village road (two lurk behind doors) > 1 stream bridge
+  // (the fisher's hook) > 2 river bank (the washerwoman's ink) > 3 threshing floor (two woodcutters
+  // and a washerwoman) > 4 the hall, no fight: walking up to the folding screen ends the section
+  jiangcun: {
+    rooms: [
+      room(2400, [['inkling', 1000, 110], ['inkling', 1250, 270], ['inkling', 1750, 50, 320], ['inkling', 2050, 300, 320]], [['right', 1]]),
+      room(2400, [['inkling', 950, 200], ['inkling', 1150, 80], ['inkling', 1350, 300], ['fisher', 1900, 120]], [['left', 0], ['right', 2]]),
+      room(2400, [['inkling', 950, 110], ['inkling', 1150, 280], ['inkling', 1400, 180], ['washer', 1950, 200]], [['left', 1], ['right', 3]]),
+      room(2600, [['hewer', 1200, 110], ['hewer', 1600, 270], ['washer', 2200, 180]], [['left', 2], ['right', 4]]),
+      { ...room(1800, [], [['left', 3]]), goal: toFp(1400) },
+    ],
+    boss: 4,
+    slots: [1, 1, 1, 1, 1],
+    par: PAR_JIANGCUN,
   },
   trial: {
     rooms: [
