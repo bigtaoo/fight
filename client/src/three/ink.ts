@@ -69,14 +69,47 @@ function withDissolve(shader: WebGLProgramParametersWithUniforms, material: Mate
     );
 }
 
+/** A villager taken by the ink (1-1's second room): its body drawn from `before` (the colour
+ * villager's texture on the same mesh), the ink running down over it from the head as `turn` goes
+ * from 0 to 1, a wet, darker front leading it. At 1 (every other body) only the body's own map is
+ * read; it is one shader for all the bodies either way, so nothing is built when a villager turns. */
+const TURN_PARS = /* glsl */ `
+uniform float turn;
+uniform sampler2D before;
+`;
+const TURN_MAP = /* glsl */ `
+#include <map_fragment>
+#ifdef USE_MAP
+if ( turn < 1.0 ) {
+  float down = 1.0 - vRest.y + ( inkNoise( vRest * 9.0 ) - 0.5 ) * 0.35;
+  float front = turn * 1.5 - 0.2;
+  vec4 was = texture2D( before, vMapUv );
+  float inked = smoothstep( front + 0.03, front - 0.03, down );
+  float wet = smoothstep( front - 0.16, front, down ) * inked;
+  diffuseColor.rgb = mix( was.rgb, diffuseColor.rgb * ( 1.0 - wet * 0.55 ), inked );
+}
+#endif
+`;
+
+function withTurn(shader: WebGLProgramParametersWithUniforms, material: Material): void {
+  shader.uniforms.turn = material.userData.turn;
+  shader.uniforms.before = material.userData.before;
+  shader.fragmentShader = shader.fragmentShader.replace('void main() {', `${TURN_PARS}
+void main() {`).replace('#include <map_fragment>', TURN_MAP);
+}
+
 /** The body's own colours under the ramp. `tint` multiplies them (another kind on the same model).
- * Each body has its own, so it can flash and dissolve on its own; they all share one shader. */
+ * Each body has its own, so it can flash, dissolve and turn to ink on its own; they all share one
+ * shader. */
 export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMaterial {
   const m = new MeshToonMaterial({ map, gradientMap: RAMP, color: new Color(tint) });
   m.userData.dissolve = { value: 0 };
+  m.userData.turn = { value: 1 };
+  m.userData.before = { value: map };
   m.onBeforeCompile = function (this: Material, shader) {
     bakeTone(shader);
     withDissolve(shader, this, true);
+    withTurn(shader, this);
   };
   return m;
 }

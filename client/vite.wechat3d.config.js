@@ -16,6 +16,7 @@ const copyAssets = {
   closeBundle() {
     rmSync(at('./wechat/art'), { recursive: true, force: true });
     cpSync(at('./public/art/bg'), at('./wechat/art/bg'), { recursive: true });
+    cpSync(at('./public/art/props'), at('./wechat/art/props'), { recursive: true });
     const models = at('./wechat/models');
     rmSync(models, { recursive: true, force: true });
     mkdirSync(models, { recursive: true });

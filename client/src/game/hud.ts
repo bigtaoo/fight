@@ -124,6 +124,9 @@ export class Hud {
   best: { best: Best | null; better: { grade: boolean; time: boolean } } = { best: null, better: { grade: false, time: false } };
   /** Why the game is offline, when it tried to go online. */
   offlineNote: Key | null = null;
+  /** The run is decided but its end is still being played (1-1's camera on the folding screen):
+   * the banner, rating and reward wait. */
+  quiet = false;
   readonly controls: Controls;
 
   constructor(ui: Overlay) {
@@ -169,12 +172,13 @@ export class Hud {
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
     setText(this.combo, combo >= 2 ? t('hud.combo', { n: combo }) : '');
-    setText(this.banner, s.outcome === 'cleared' ? t('hud.cleared') : s.outcome === 'failed' ? t('hud.failed') : '');
+    const outcome = this.quiet ? 'playing' : s.outcome;
+    setText(this.banner, outcome === 'cleared' ? t('hud.cleared') : outcome === 'failed' ? t('hud.failed') : '');
     // online, the server's rating once it has replayed the run (it is the same unless the client
     // was tampered with, which the checkpoints catch first)
     const res = session instanceof OnlineSession ? reached(session, s) : null;
     const r = res?.ok ? res.rating : null;
-    this.rating(s.outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
+    this.rating(outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
     setText(this.net, session.status() || (this.offlineNote ? t(this.offlineNote) : ''));
     if (session instanceof OnlineSession) this.online(session, s);
     else if (session instanceof OfflineSession) this.offline(session, s);
@@ -200,9 +204,9 @@ export class Hud {
       const need = xpToNext(ch.level);
       setBar(this.xp, Math.min(ch.xp, need) / need);
     }
-    setText(this.verdict, s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '');
+    setText(this.verdict, !this.quiet && s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '');
     setText(this.bag, '');
-    this.showReward(session.reward);
+    this.showReward(this.quiet ? null : session.reward);
   }
 
   /** The run's experience and gold (and a level gained) on one line, then the pieces, five to a row. */

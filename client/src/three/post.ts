@@ -64,6 +64,7 @@ const FINAL = /* glsl */ `
   uniform float washR;
   uniform float washFade;
   uniform float reveal;
+  uniform float seep;
   varying vec2 vUv;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
@@ -101,10 +102,22 @@ const FINAL = /* glsl */ `
     col *= mix(vec3(1.0), paper / max(max(paper.r, paper.g), paper.b), 0.12);
     col = mix(col, col * col * (3.0 - 2.0 * col), 0.25);
 
+    // the ink seeping down from the scroll's top edge (\`seep\` from 0 to 1.6, then 9: done): it runs
+    // faster in some columns, as drips do, and drains the room where it has reached
+    float seepIn = 1.0;
+    float seepTop = 0.0;
+    float seepDrip = 0.0;
+    if (seep < 2.0) {
+      seepTop = 1.0 - uv.y + (noise(uv * 23.0) - 0.5) * 0.02;
+      seepDrip = noise(vec2(uv.x * 11.0, 0.5)) * 0.25 + pow(noise(vec2(uv.x * 41.0, 4.0)), 4.0) * 0.6;
+      float f = seep * (0.6 + seepDrip);
+      seepIn = 1.0 - smoothstep(f - 0.015, f + 0.015, seepTop);
+    }
+
     // the room drained to ink while monsters hold it (its reds kept), the colour flowing back out
     // from washAt as a wash with a ragged, wet front
     if (grey > 0.001) {
-      float g = grey;
+      float g = grey * seepIn;
       float lg = dot(col, vec3(0.299, 0.587, 0.114));
       if (washR > 0.0) {
         vec2 d = (uv - washAt) * vec2(res.x / res.y, 1.0);
@@ -122,6 +135,14 @@ const FINAL = /* glsl */ `
       float red = smoothstep(0.15, 0.35, col.r - max(col.g, col.b));
       vec3 ink = mix(inkColor, vec3(0.77, 0.78, 0.79), smoothstep(0.0, 1.0, lg));
       col = mix(col, ink, g * 0.9 * (1.0 - red * 0.6));
+    }
+    if (seep < 2.0) {
+      // its source, a heavy band of ink along the top that thins as it soaks down, and the wet,
+      // darker front of what is still running
+      float f = seep * (0.6 + seepDrip);
+      float front = seepIn * smoothstep(f - 0.07, f, seepTop);
+      float source = (1.0 - smoothstep(0.0, 0.05 + seepDrip * 0.3, seepTop)) * (1.0 - seep / 1.8);
+      col = mix(col, inkColor, clamp(front * 0.55 + source * 0.85, 0.0, 1.0));
     }
 
     // the first strokes: blank paper, then the outlines brushed in band by band (where the action
@@ -234,6 +255,9 @@ export class Post {
   private revealT = 1;
   private revealLen = 1;
   private revealHeld = false;
+  /** Seconds into the ink seeping down from the top (`seep`), or -1; how long it takes. */
+  private seepT = -1;
+  private seepLen = 1;
 
   /** `samples`: MSAA on the scene's target. Resolving a multisampled half-float target costs a
    * Mali phone (A16) more than the rest of the effects together (19 fps against 42), so none by default. */
@@ -268,6 +292,7 @@ export class Post {
         washR: { value: 0 },
         washFade: { value: 0 },
         reveal: { value: 1 },
+        seep: { value: 9 },
       },
       depthTest: false,
       depthWrite: false,
@@ -306,6 +331,18 @@ export class Post {
     this.revealT = 0;
     this.revealLen = sec;
     this.revealHeld = false;
+  }
+
+  /** Ink seeps down from the top edge over `sec` seconds, draining the picture as it goes (where
+   * monsters hold the room; it is the drain, come in from above instead of all at once). */
+  seep(sec = 2.6): void {
+    this.seepT = 0;
+    this.seepLen = sec;
+  }
+
+  /** The ink is still running down. */
+  get seeping(): boolean {
+    return this.seepT >= 0;
   }
 
   /** The paper is still being painted on. */
@@ -386,6 +423,14 @@ export class Post {
       u.washR.value = 0;
       this.grey = this.drained ? Math.min(1, this.grey + dt / DRAIN_SEC) : Math.max(0, this.grey - dt / DRAIN_SEC);
     }
+    if (this.seepT >= 0) {
+      this.seepT += dt;
+      const k = Math.min(1, this.seepT / this.seepLen);
+      // it gathers, then runs: slow off the edge, quicker down the sheet
+      u.seep.value = k * k * (3 - 2 * k) * 1.8;
+      if (this.drained) this.grey = 1;
+      if (k >= 1) this.seepT = -1;
+    } else u.seep.value = 9;
     u.grey.value = this.grey;
     if (!this.revealHeld && this.revealT < this.revealLen) this.revealT = Math.min(this.revealLen, this.revealT + dt);
     u.reveal.value = this.revealHeld ? 0 : this.revealT / this.revealLen;

@@ -17,6 +17,10 @@ const RIGS: Record<string, string> = {
 };
 const pick = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hero');
 
+/** The ink villagers' bodies as they were, by the ink body's name: their pictures, for the
+ * villagers drawn turning to ink at the start of 1-1 (the meshes and UVs are the same). */
+export const COLOUR_OF: Record<string, string> = { inkfisher: RIGS.fisher, inkwasher: RIGS.washer, inkboatman: RIGS.boatman, inkwood: RIGS.wood };
+
 export const WEB_FILES: ModelFiles = {
   hero: (pick && RIGS[pick]) || RIGS.sword,
   clips: {
