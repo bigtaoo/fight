@@ -20,6 +20,9 @@ import { SoundPlayer } from './audio';
 import { cues, trackFor } from './sounds';
 import { Menu, type Choice } from './menu';
 import { Progress } from './progress';
+import { sectionOf, type Section } from './chapter';
+import { ScrollSelect } from './scrollSelect';
+import { SectionEnd } from './sectionEnd';
 import { TIER_REWARD } from '../rpg/rewards';
 import { TIER_COUNT, openTier, progressKey, showsTiers, tierLock, tierName } from '../rpg/tiers';
 import { chooseLang, getLang, t } from '../i18n';
@@ -51,6 +54,10 @@ export class Game {
   private readonly character = new Character(platform.store);
   private readonly charPanel: CharPanel;
   private readonly skillPanel: SkillPanel;
+  /** A chapter section's end card over the result, and the chapter's scroll to pick one from,
+   * over everything. */
+  private readonly sectionEnd: SectionEnd;
+  private readonly scroll: ScrollSelect;
   private session: Session | null = null;
   private link: WsLink | null = null;
   private seed: number;
@@ -78,9 +85,14 @@ export class Game {
     // made in the order they stack: the HUD and the controls, the menus over them, the panels on top
     this.tutorial.on = !params.has('notutorial');
     this.hud = new Hud(this.ui);
+    this.sectionEnd = new SectionEnd(this.ui, import.meta.env.BASE_URL);
     this.menu = new Menu(this.ui);
     this.charPanel = new CharPanel(this.ui);
     this.skillPanel = new SkillPanel(this.ui);
+    this.scroll = new ScrollSelect(this.ui, platform.store, import.meta.env.BASE_URL);
+    this.scroll.unrollAll = params.has('unroll');
+    this.scroll.onClick = () => this.sound.play({ sfx: 'click', vol: 0.5 });
+    this.scroll.onStart = (sec) => void this.enter(sec);
     this.seed = Number(params.get('seed') ?? 1);
     const d = params.get('dungeon');
     this.dungeon = d && Object.prototype.hasOwnProperty.call(DUNGEONS, d) ? (d as DungeonId) : 'luobi';
@@ -98,6 +110,7 @@ export class Game {
     });
     window.addEventListener('blur', () => this.autoPause());
     window.addEventListener('keydown', (ev) => {
+      if (this.scroll.open) return;
       if (ev.code === 'KeyR' && this.session) this.restart();
       if (ev.code === 'KeyM') this.toggleMute();
       if (ev.code === 'KeyP' && !this.panelOpen) this.setPaused(!this.paused);
@@ -200,16 +213,42 @@ export class Game {
     const sounds = this.sound.load();
     this.link = await this.connect();
     await sounds;
+    // the chapter's scroll first, unless ?dungeon= (or a bot) says where to go
+    if (this.params.has('dungeon') || this.params.has('bot')) await this.begin();
+    else this.toScroll();
+    // a phone draws 30 frames a second unless ?fps= says otherwise: the engine ticks at 30, and
+    // the GPU's work and heat halve (the governor holds that rate)
+    this.view.loop((dt) => this.update(dt), navigator.maxTouchPoints > 0 ? 30 : 0);
+  }
+
+  /** The run started, and 1-1 opening the chapter: the hero and the landscape painted in on
+   * blank paper (?reveal does it for any dungeon). */
+  private async begin(): Promise<void> {
     await this.start(this.seed);
-    // 1-1 opens the chapter: the hero and the landscape painted in on blank paper (?reveal does
-    // it for any dungeon)
     if (this.dungeon === 'luobi' && !this.params.has('reveal')) {
       this.view.blank();
       setTimeout(() => this.view.reveal(), 600);
     }
-    // a phone draws 30 frames a second unless ?fps= says otherwise: the engine ticks at 30, and
-    // the GPU's work and heat halve (the governor holds that rate)
-    this.view.loop((dt) => this.update(dt), navigator.maxTouchPoints > 0 ? 30 : 0);
+  }
+
+  /** A section picked on the scroll. */
+  private async enter(sec: Section): Promise<void> {
+    this.scroll.hide();
+    this.dungeon = sec.dungeon;
+    this.tier = 0;
+    this.forceTier = false;
+    await this.begin();
+  }
+
+  /** Back to the chapter's scroll: the run left, the scroll showing what it opened. */
+  private toScroll(): void {
+    this.session?.close();
+    this.session = null;
+    this.setPaused(false);
+    this.menu.showResult(null);
+    this.menu.showTiers(null, '', '');
+    this.sectionEnd.hide();
+    this.scroll.show(this.progress);
   }
 
   /** Where the analytics go: the deployed server from a production build (?events=URL to try a
@@ -268,6 +307,8 @@ export class Game {
     this.menu.showTiers(null, '', '');
     this.hud.best = { best: null, better: { grade: false, time: false } };
     this.menu.showResult(null);
+    this.sectionEnd.hide();
+    this.hud.quiet = !!sectionOf(this.dungeon);
     this.session?.close();
     this.session = null;
     await this.view.preload(this.dungeon);
@@ -342,6 +383,7 @@ export class Game {
     if (dungeon === 'hall') choices.push({ label: t('result.fort'), act: click(() => this.play('heifeng')) });
     if (dungeon === 'luobi') choices.push({ label: t('result.toVillage'), act: click(() => this.play('jiangcun')) });
     if (dungeon === 'jiangcun') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
+    if (sectionOf(dungeon)) choices.push({ label: t('result.scroll'), act: click(() => this.toScroll()) });
     if (this.freezes) choices.push({ label: t('result.bag'), act: click(() => this.toggleChar()) });
     this.menu.showResult(choices);
     this.tierRow(s, click);
@@ -412,6 +454,8 @@ export class Game {
     this.numbers.update(this.view, dt);
     this.tutorial.update(s, this.view, dt);
     this.hud.update(s, this.session!, this.keys.down);
+    const sec = s.outcome === 'cleared' ? sectionOf(s.config.dungeon) : null;
+    if (sec && this.hud.shown && !this.sectionEnd.on) this.sectionEnd.show(sec, this.hud.shown.grade);
   }
 }
 

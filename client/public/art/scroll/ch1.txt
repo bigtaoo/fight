@@ -1,0 +1,11 @@
+Placeholder, not generated: chapter one's long thumbnail stitched by tools/scroll_strip.py from
+art/chapter1/scroll/strip.json (crops of existing concept art, crossfaded with a paper mist band
+at each seam). ch1_ink.jpg is the same strip in ink (greyscale, toned to paper).
+
+Sources, left to right:
+  卷首 scroll head    art/chapter1/concept/k1_blank_e1_fix.png
+  江村 river village  art/chapter1/concept/k2_village_side2_A.png
+  屏风 folding screen art/chapter1/concept/k3_screen_A.png
+
+Missing (see design/CHAPTER1.md): a real painted thumbnail of the whole chapter, hero-free views
+of each place, the hall with its screen as 1-3's way in, and the part of the chapter after 1-3.
