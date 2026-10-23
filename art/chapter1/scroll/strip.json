@@ -1,0 +1,10 @@
+{
+  "height": 640,
+  "join": 180,
+  "out": "client/public/art/scroll/ch1",
+  "segments": [
+    { "name": "head", "label": "卷首（1-1 开场）", "src": "art/chapter1/concept/k1_blank_e1_fix.png", "crop": [0.085, 0.075, 0.62, 0.925] },
+    { "name": "village", "label": "江村（1-1、1-2）", "src": "art/chapter1/concept/k2_village_side2_A.png", "crop": [0.0, 0.17, 1.0, 0.85] },
+    { "name": "screen", "label": "堂屋屏风（1-3 入口）", "src": "art/chapter1/concept/k3_screen_A.png", "crop": [0.0, 0.06, 1.0, 0.97] }
+  ]
+}

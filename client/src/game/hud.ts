@@ -124,6 +124,10 @@ export class Hud {
   best: { best: Best | null; better: { grade: boolean; time: boolean } } = { best: null, better: { grade: false, time: false } };
   /** Why the game is offline, when it tried to go online. */
   offlineNote: Key | null = null;
+  /** A chapter section's end card takes the banner's and the grade's place (sectionEnd.ts). */
+  quiet = false;
+  /** The clear's rating as shown (the server's online, once it has replayed the run). */
+  shown: Rating | null = null;
   readonly controls: Controls;
 
   constructor(ui: Overlay) {
@@ -169,7 +173,7 @@ export class Hud {
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
     setText(this.combo, combo >= 2 ? t('hud.combo', { n: combo }) : '');
-    setText(this.banner, s.outcome === 'cleared' ? t('hud.cleared') : s.outcome === 'failed' ? t('hud.failed') : '');
+    setText(this.banner, s.outcome === 'cleared' ? (this.quiet ? '' : t('hud.cleared')) : s.outcome === 'failed' ? t('hud.failed') : '');
     // online, the server's rating once it has replayed the run (it is the same unless the client
     // was tampered with, which the checkpoints catch first)
     const res = session instanceof OnlineSession ? reached(session, s) : null;
@@ -228,7 +232,8 @@ export class Hud {
   }
 
   private rating(r: Rating | null): void {
-    setText(this.grade, r?.grade ?? '');
+    this.shown = r;
+    setText(this.grade, this.quiet ? '' : (r?.grade ?? ''));
     if (!r) {
       setText(this.stats, '');
       return;
@@ -360,7 +365,7 @@ export class Hud {
   }
 }
 
-function clock(ticks: number): string {
+export function clock(ticks: number): string {
   const sec = Math.floor(ticks / TICK_RATE);
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
