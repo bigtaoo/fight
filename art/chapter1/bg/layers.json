@@ -55,8 +55,8 @@
     120,
     110
    ],
-   "wash": 0.05,
-   "streaks": 10,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 4
   },
   "village_front": {
@@ -116,8 +116,8 @@
     92,
     72
    ],
-   "wash": 0.06,
-   "streaks": 4,
+   "wash": 0.015,
+   "streaks": 0,
    "boards": 5,
    "seed": 11
   },
@@ -173,8 +173,8 @@
     108,
     106
    ],
-   "wash": 0.06,
-   "streaks": 4,
+   "wash": 0.015,
+   "streaks": 0,
    "boards": 4,
    "seed": 12
   },
@@ -238,8 +238,8 @@
     118,
     114
    ],
-   "wash": 0.07,
-   "streaks": 26,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 13
   },
   "ferry_front": {
@@ -294,8 +294,8 @@
     108,
     94
    ],
-   "wash": 0.06,
-   "streaks": 8,
+   "wash": 0.015,
+   "streaks": 0,
    "boards": 3,
    "seed": 14
   },
@@ -359,8 +359,8 @@
     130,
     100
    ],
-   "wash": 0.04,
-   "streaks": 3,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 15
   },
   "tail_front": {
@@ -413,8 +413,8 @@
     140,
     92
    ],
-   "wash": 0.05,
-   "streaks": 2,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 16
   },
   "screen_front": {
@@ -469,8 +469,8 @@
     122,
     120
    ],
-   "wash": 0.05,
-   "streaks": 18,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 21
   },
   "creek_front": {
@@ -533,8 +533,8 @@
     112,
     108
    ],
-   "wash": 0.05,
-   "streaks": 6,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 22
   },
   "shore_front": {
@@ -605,8 +605,8 @@
     96,
     70
    ],
-   "wash": 0.05,
-   "streaks": 2,
+   "wash": 0.015,
+   "streaks": 0,
    "boards": 6,
    "seed": 23
   },
@@ -670,8 +670,8 @@
     140,
     92
    ],
-   "wash": 0.05,
-   "streaks": 2,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 16
   },
   "blossom_front": {
@@ -726,8 +726,8 @@
     140,
     130
    ],
-   "wash": 0.05,
-   "streaks": 20,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 24
   },
   "lotus_front": {
@@ -782,8 +782,8 @@
     140,
     92
    ],
-   "wash": 0.05,
-   "streaks": 2,
+   "wash": 0.015,
+   "streaks": 0,
    "seed": 16
   },
   "bamboo_front": {

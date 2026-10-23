@@ -2,6 +2,7 @@
 # archer's clips (art/archer3d/model/anim_*.glb) play on it unchanged.
 #
 #   blender -b --python art/model3d/rig.py -- <name> [<out_dir>]     # name: a key of joints.json
+#   python art/model3d/pad.py <out_dir>/rig_v1.glb                     # then pad its picture's islands
 #
 # The clips set every bone's local rotation outright, so the new skeleton must share the template's
 # rest rotations bone for bone; only the bone lengths may differ. So: bones are laid along the

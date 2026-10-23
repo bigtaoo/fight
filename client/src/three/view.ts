@@ -193,7 +193,9 @@ export class View3D {
     this.stage = new Stage(scene, host?.scenery);
     if (this.fx) {
       this.stage.effects();
-      this.post = new Post(renderer, Number(params.get('msaa') ?? 0));
+      // MSAA only off a touch screen: phones pay too much for it (Post), a desktop GPU does not
+      const msaa = !host && navigator.maxTouchPoints === 0 ? 4 : 0;
+      this.post = new Post(renderer, Number(params.get('msaa') ?? msaa));
       // ?reveal[=seconds]: the first room painted in on blank paper, a moment after it is shown
       if (params.has('reveal')) {
         const post = this.post;
