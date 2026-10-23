@@ -8,7 +8,7 @@ import { Beats } from './beats';
 import { Post } from './post';
 import { propWarmup, setGlow } from './props';
 import { Splash } from './splash';
-import { Stage } from './stage';
+import { IN_SCREEN, Stage } from './stage';
 import { Vfx } from './vfx';
 import { COLOUR_OF, WEB_FILES } from './webModels';
 
@@ -362,7 +362,7 @@ export class View3D {
    * them in ink, and its colour washes back from there. Called on winning a dungeon in
    * `OUT_OF_SCREEN`; a dungeon can call it itself at another moment. */
   leaveScreen(s: SimState): void {
-    this.stage.instead = 'village';
+    this.stage.instead = 'parlor';
     this.post?.emerge(...this.screenAt(s, false));
   }
 
@@ -387,7 +387,8 @@ export class View3D {
     void this.stage.show(s.config.dungeon, s.room, roomW);
     this.sync(s);
     // in the screen's gongbi painting the hero is drawn gongbi too: fine lines, full colour
-    const g = this.stage.showing === 'screen' ? 1 : 0;
+    const shown = this.stage.showing;
+    const g = shown && IN_SCREEN.has(shown) ? 1 : 0;
     this.gongbi += Math.sign(g - this.gongbi) * Math.min(Math.abs(g - this.gongbi), dt / GONGBI_SEC);
     for (const e of s.entities) {
       const a = this.actors.get(e.id)!;

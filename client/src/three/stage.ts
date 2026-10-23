@@ -55,17 +55,22 @@ const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> =
   lotus: { paper: 0xe6d8b4, farTop: -380 },
   bamboo: { paper: 0xe6d8b4, farTop: -380 },
 };
+/** The scenes inside the screen's painting, where the hero is drawn gongbi. */
+export const IN_SCREEN = new Set<SceneId>(['screen', 'blossom', 'lotus', 'bamboo']);
+
 const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   heifeng: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   horde: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
   hall: ['hall'],
   luobi: ['village', 'village', 'village', 'village'],
-  jiangcun: ['village', 'village', 'village', 'village', 'village'],
+  // road, stream bridge, river bank, threshing floor, the hall with the folding screen
+  jiangcun: ['village', 'creek', 'shore', 'village', 'parlor'],
   screen: ['screen'],
-  pingfeng: ['screen', 'screen', 'screen', 'screen'],
+  // flowering branch, lotus pond, bamboo and rock, the pheasant on the open silk
+  pingfeng: ['blossom', 'lotus', 'bamboo', 'screen'],
 };
 /** Where a dungeon inside a painting comes back out to (View3D.leaveScreen), fetched with its own scenery. */
-const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'village', pingfeng: 'village' };
+const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'parlor', pingfeng: 'parlor' };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
 const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
 const FAR = 0.2;
