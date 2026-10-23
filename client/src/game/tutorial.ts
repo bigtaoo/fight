@@ -133,7 +133,8 @@ export class Tutorial {
     }
     const line = this.line;
     const next = this.queue[0];
-    if (next && (!line || line.age >= MIN || next.urgent)) {
+    // nothing new is written while one of 1-1's beats is being shown
+    if (next && !view.cutscene && (!line || line.age >= MIN || next.urgent)) {
       this.queue.shift();
       this.write(next, s);
     }

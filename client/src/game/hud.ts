@@ -128,6 +128,9 @@ export class Hud {
   quiet = false;
   /** The clear's rating as shown (the server's online, once it has replayed the run). */
   shown: Rating | null = null;
+  /** The run is decided but its end is still being played (1-1's camera on the folding screen):
+   * the banner, rating and reward wait. */
+  holding = false;
   readonly controls: Controls;
 
   constructor(ui: Overlay) {
@@ -173,12 +176,13 @@ export class Hud {
     // the simulation counts the combo (it is rated on it)
     const combo = s.players[0]?.combo ?? 0;
     setText(this.combo, combo >= 2 ? t('hud.combo', { n: combo }) : '');
-    setText(this.banner, s.outcome === 'cleared' ? (this.quiet ? '' : t('hud.cleared')) : s.outcome === 'failed' ? t('hud.failed') : '');
+    const outcome = this.holding ? 'playing' : s.outcome;
+    setText(this.banner, outcome === 'cleared' ? (this.quiet ? '' : t('hud.cleared')) : outcome === 'failed' ? t('hud.failed') : '');
     // online, the server's rating once it has replayed the run (it is the same unless the client
     // was tampered with, which the checkpoints catch first)
     const res = session instanceof OnlineSession ? reached(session, s) : null;
     const r = res?.ok ? res.rating : null;
-    this.rating(s.outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
+    this.rating(outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
     setText(this.net, session.status() || (this.offlineNote ? t(this.offlineNote) : ''));
     if (session instanceof OnlineSession) this.online(session, s);
     else if (session instanceof OfflineSession) this.offline(session, s);
@@ -204,9 +208,9 @@ export class Hud {
       const need = xpToNext(ch.level);
       setBar(this.xp, Math.min(ch.xp, need) / need);
     }
-    setText(this.verdict, s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '');
+    setText(this.verdict, !this.holding && s.outcome === 'cleared' && DUNGEONS[s.config.dungeon].practice ? t('loot.practice') : '');
     setText(this.bag, '');
-    this.showReward(session.reward);
+    this.showReward(this.holding ? null : session.reward);
   }
 
   /** The run's experience and gold (and a level gained) on one line, then the pieces, five to a row. */
@@ -233,7 +237,7 @@ export class Hud {
 
   private rating(r: Rating | null): void {
     this.shown = r;
-    setText(this.grade, this.quiet ? '' : (r?.grade ?? ''));
+    setText(this.grade, this.quiet || this.holding ? '' : (r?.grade ?? ''));
     if (!r) {
       setText(this.stats, '');
       return;

@@ -118,6 +118,23 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
   return { hero: model(hero), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])) };
 }
 
+/** The colour pictures of bodies by name (their glb's first skinned mesh's map), loaded on the
+ * side for a body to be drawn turning from one into another (Actor.inkFrom). */
+export async function loadMaps(urls: Record<string, string>): Promise<Record<string, Texture>> {
+  const out: Record<string, Texture> = {};
+  await Promise.all(
+    Object.entries(urls).map(async ([name, url]) => {
+      const gltf = await loader.loadAsync(url);
+      gltf.scene.traverse((o) => {
+        const m = o as SkinnedMesh;
+        const map = m.isSkinnedMesh ? (m.material as MeshToonMaterial).map : null;
+        if (map && !out[name]) out[name] = map;
+      });
+    }),
+  );
+  return out;
+}
+
 /** Model units: the bodies stand about one tall with their feet at the origin. */
 const BODY_SPHERE = new Sphere(new Vector3(0, 0.5, 0), 1.5);
 
@@ -183,6 +200,9 @@ export class Actor {
   flash = 0;
   /** How far the body has broken up into ink (0 whole, 1 gone); set from outside, the effects. */
   dissolve = 0;
+  /** How far the ink has run down over the body from the colour villager it was (`inkFrom`):
+   * 0 not yet, 1 all ink; set from outside, the story's beats. */
+  inked = 1;
 
   constructor(
     private readonly id: number,
@@ -329,6 +349,7 @@ export class Actor {
     this.flash = Math.max(0, this.flash - dt);
     this.mat.emissive.setRGB(this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.85 : 0);
     this.mat.userData.dissolve.value = this.line.userData.dissolve.value = this.dissolve;
+    this.mat.userData.turn.value = this.inked;
     if (this.blade) this.blade.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     // a lurker is not there to see until it springs
@@ -360,6 +381,21 @@ export class Actor {
     this.turn('R_Forearm', _side, p.elbow);
     this.turn('L_Upperarm', _side, p.off);
     this.turn('L_Forearm', _side, p.off * 0.8);
+  }
+
+  /** Starts the body as the colour villager `was` (a texture laid out on the same mesh), for the
+   * ink to run down over it as `inked` goes to 1. */
+  inkFrom(was: Texture): void {
+    this.mat.userData.before.value = was;
+    this.inked = this.mat.userData.turn.value = 0;
+  }
+
+  /** The blade's base and tip in the world, if the body holds one (as of the last update). */
+  bladeEnds(base: Vector3, tip: Vector3): boolean {
+    if (!this.blade) return false;
+    this.blade.localToWorld(base.set(0, 0.14, 0));
+    this.blade.localToWorld(tip.set(0, 0.53, 0));
+    return true;
   }
 
   dispose(): void {

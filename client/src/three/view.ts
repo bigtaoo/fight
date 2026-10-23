@@ -1,15 +1,16 @@
 import { DOOR_HALF, DUNGEONS, WORLD, fromFp, surfaceUnder, type DungeonId, type Entity, type SimEvent, type SimState } from '@dnf/engine';
-import { Vector3, AmbientLight, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
+import { Vector3, AmbientLight, type Texture, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
 import { Decor } from './decor';
 import { Governor } from './governor';
 import { lodReady, variant } from './lod';
-import { Actor, DEPTH_K, loadModels, type Model, type ModelFiles } from './actor';
+import { Actor, DEPTH_K, loadMaps, loadModels, type Model, type ModelFiles } from './actor';
+import { Beats } from './beats';
 import { Post } from './post';
 import { propWarmup, setGlow } from './props';
 import { Splash } from './splash';
 import { Stage } from './stage';
 import { Vfx } from './vfx';
-import { WEB_FILES } from './webModels';
+import { COLOUR_OF, WEB_FILES } from './webModels';
 
 // The game drawn with three.js: the engine's state, `alpha` of the way from the last tick to the
 // current one, as bodies in a painted room, with the effects (bloom and the finishing pass,
@@ -126,6 +127,11 @@ export class View3D {
   private killed = false;
   /** Colour drains from a room monsters hold (Post.drained); ?drain=0 keeps it. */
   drainOn: boolean;
+  /** 1-1's staged moments (beats.ts); the ink villagers' bodies by actor, and the colour pictures
+   * they had (web only: loaded on the side, a villager drawn ink from the start without). */
+  private beats!: Beats;
+  private readonly bodyOf = new Map<number, InkBody>();
+  private colours: Record<string, Texture> = {};
 
   private constructor(
     private readonly params: URLSearchParams,
@@ -222,10 +228,27 @@ export class View3D {
     const ink: Partial<Record<InkBody, Model>> = {};
     for (const [name, b] of Object.entries(models.bodies)) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
     this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink };
+    if (!this.host)
+      void loadMaps(COLOUR_OF).then((maps) => {
+        for (const t of Object.values(maps)) this.renderer.initTexture(t);
+        this.colours = maps;
+      });
     const vfx = (this.vfx = this.fx ? new Vfx(models.hero, this.post) : null);
     if (vfx) scene.add(vfx.root);
     const decor = (this.decor = this.fx ? new Decor() : null);
     if (decor) scene.add(decor.root);
+    this.beats = new Beats(
+      {
+        scene,
+        post: this.post,
+        decor,
+        ink: this.ink,
+        cinnabar: this.cinnabar,
+        colourOf: (id) => this.colours[this.bodyOf.get(id) ?? ''] ?? null,
+        shake: (sec) => this.shakeFor(sec),
+      },
+      this.host ? 'art/props/' : `${import.meta.env.BASE_URL}art/props/`,
+    );
     await this.preload(dungeon);
     // build every shader the fight will need now, not when the first enemy walks in: one of each
     // kind of body, put in the room for a moment so they compile under the room's own lights
@@ -279,6 +302,7 @@ export class View3D {
     const at = this.at;
     for (const ev of events) {
       this.vfx?.onEvent(ev, s, this.actors);
+      this.beats.onEvent(ev, s);
       if (ev.type === 'hit') {
         const a = this.actors.get(ev.target);
         if (a && !ev.blocked && !ev.armor) a.flash = 0.08;
@@ -333,16 +357,24 @@ export class View3D {
     const hero = s.entities.find((e) => e.team === 0);
     const hx = hero ? fromFp(hero.px + (hero.x - hero.px) * alpha) : roomW / 2;
     // half the width the camera sees at the bodies' depth (VIEW_W on a 16:9 screen)
-    const halfView = Math.tan((FOV * Math.PI) / 360) * this.dist * camera.aspect;
-    const cx = Math.min(Math.max(hx + VIEW_W * 0.1, halfView), Math.max(halfView, roomW - halfView));
+    const follow = (half: number) => Math.min(Math.max(hx + VIEW_W * 0.1, half), Math.max(half, roomW - half));
+    const tan = Math.tan((FOV * Math.PI) / 360);
+    const beats = this.beats;
+    beats.update(dt, s, this.actors, follow(tan * this.dist * camera.aspect));
+    // a beat's camera: as near as it says, looking where it says, eased in from following the hero
+    const look = beats.camera.look;
+    const dist = this.dist * (1 + (beats.camera.close - 1) * look);
+    const halfView = tan * dist * camera.aspect;
+    const cx = follow(halfView) + (beats.camera.x - follow(halfView)) * look;
     this.shake = Math.max(0, this.shake - dt);
     const sx = this.shake > 0 ? (Math.random() - 0.5) * 16 : 0;
     const sy = this.shake > 0 ? (Math.random() - 0.5) * 10 : 0;
     const tz = (fromFp(WORLD.depth) * DEPTH_K) / 2;
     // `dist` ahead of the aim and as high as a 20-degree look down; a heavy blow pushes the camera
     // in a little for an instant
-    const d = this.dist * (1 - (vfx?.punch ?? 0) * 0.035);
-    camera.position.set(cx + sx, AIM_Y + Math.tan(PITCH) * d + sy, tz + d);
+    const d = dist * (1 - (vfx?.punch ?? 0) * 0.035);
+    const aim = AIM_Y + (beats.camera.y - AIM_Y) * look;
+    camera.position.set(cx + sx, aim + Math.tan(PITCH) * d + sy, tz + d);
     level(camera, Math.tan(PITCH) * d, d);
     const feet = hero ? at.set(hx, fromFp(hero.pz + (hero.z - hero.pz) * alpha), fromFp(hero.py + (hero.y - hero.py) * alpha) * DEPTH_K) : undefined;
     if (vfx) {
@@ -440,6 +472,16 @@ export class View3D {
     return this.post?.revealing ?? false;
   }
 
+  /** Something is being shown that the fight waits for: the reveal, or one of 1-1's beats. */
+  get cutscene(): boolean {
+    return this.revealing || this.beats.holding;
+  }
+
+  /** The run's end has been shown (1-1's camera resting on the folding screen), so its result can be. */
+  get outroDone(): boolean {
+    return this.beats.outroDone;
+  }
+
   /** P: the finishing pass on or off, to compare. */
   togglePost(): void {
     if (this.post) this.postOn = this.postWanted = !this.postOn;
@@ -451,10 +493,13 @@ export class View3D {
       if (live.has(id)) continue;
       a.dispose();
       this.actors.delete(id);
+      this.bodyOf.delete(id);
     }
     for (const e of s.entities) {
       if (this.actors.has(e.id)) continue;
       const { model, tint } = this.modelFor(e.kind, e.id);
+      const ink = INK_BODY[e.kind];
+      if (ink) this.bodyOf.set(e.id, ink.bodies[e.id % ink.bodies.length]);
       const a = new Actor(e.id, e.kind, model, tint, !UNARMED.has(e.kind));
       this.actors.set(e.id, a);
       this.scene.add(a.root, a.floorShadow, a.trail.mesh);

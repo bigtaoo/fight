@@ -1,0 +1,4 @@
+Not generated: the four gold silk panels cropped out of art/chapter1/concept/k3_screen_A.png
+(each panel 128x512, side by side, the red frames left out), the faces of the 3D folding
+screen in 1-1 (client/src/three/screen.ts) until it has a painting of its own.
+The source image's prompt is in art/chapter1/concept/k3_screen_A.txt.

@@ -340,10 +340,10 @@ export class Game {
     this.menu.markSkills(freePoints(this.character) > 0);
     // a break is the pause panel the player opened or the result; leaving the window is not one
     platform.gameplay(session.engine.state.outcome === 'playing' && !this.held && (!this.paused || this.autoPaused));
-    if ((this.paused || this.held || this.view.revealing) && this.freezes) {
-      // stopped (or still being painted in): the scene stands still, and its clock runs up no
-      // ticks to catch up on later
-      this.render(session.alpha, this.view.revealing && !this.paused ? dt : 0);
+    if ((this.paused || this.held || this.view.cutscene) && this.freezes) {
+      // stopped (or still being painted in, or one of 1-1's beats playing): the scene stands
+      // still, and its clock runs up no ticks to catch up on later
+      this.render(session.alpha, this.view.cutscene && !this.paused ? dt : 0);
       return;
     }
     const n = session.ticksFor(dt * 1000);
@@ -364,6 +364,8 @@ export class Game {
   /** Once the run is decided: a clear into the progress, and the buttons onward. */
   private finish(s: SimState): void {
     if (s.outcome === 'playing') return;
+    // 1-1 ends on the camera resting on the folding screen: the result waits for it
+    if (!this.view.outroDone) return;
     const dungeon = s.config.dungeon;
     const key = progressKey(dungeon, s.config.tier);
     if (s.outcome === 'cleared' && !this.recorded && !DUNGEONS[dungeon].practice) {
@@ -453,9 +455,10 @@ export class Game {
     this.view.draw(s, dt, alpha);
     this.numbers.update(this.view, dt);
     this.tutorial.update(s, this.view, dt);
+    this.hud.holding = !this.view.outroDone;
     this.hud.update(s, this.session!, this.keys.down);
     const sec = s.outcome === 'cleared' ? sectionOf(s.config.dungeon) : null;
-    if (sec && this.hud.shown && !this.sectionEnd.on) this.sectionEnd.show(sec, this.hud.shown.grade);
+    if (sec && this.hud.shown && !this.hud.holding && !this.sectionEnd.on) this.sectionEnd.show(sec, this.hud.shown.grade);
   }
 }
 
