@@ -18,6 +18,27 @@ function ramp(): DataTexture {
 
 export const RAMP = ramp();
 
+/** RAMP's lookup with its two steps smoothed over a pixel on screen. Read straight from the texture,
+ * a step falls wherever the light crosses it, pixel by pixel; on a scanned body's uneven normals
+ * that is a scatter of dark specks, still while the body stands but crawling as soon as it moves
+ * (MSAA only smooths the silhouette, not what is drawn inside it). */
+const RAMP_AA = /* glsl */ `
+uniform sampler2D gradientMap;
+vec3 getGradientIrradiance( vec3 normal, vec3 lightDirection ) {
+  float x = dot( normal, lightDirection ) * 0.5 + 0.5;
+  float fw = max( fwidth( x ), 1e-4 );
+  float lo = texture2D( gradientMap, vec2( 1.0 / 6.0, 0.0 ) ).r;
+  float mid = texture2D( gradientMap, vec2( 0.5, 0.0 ) ).r;
+  float hi = texture2D( gradientMap, vec2( 5.0 / 6.0, 0.0 ) ).r;
+  float a = smoothstep( 1.0 / 3.0 - fw, 1.0 / 3.0 + fw, x );
+  float b = smoothstep( 2.0 / 3.0 - fw, 2.0 / 3.0 + fw, x );
+  return vec3( mix( mix( lo, mid, a ), hi, b ) );
+}
+`;
+function smoothRamp(shader: WebGLProgramParametersWithUniforms): void {
+  shader.fragmentShader = shader.fragmentShader.replace('#include <gradientmap_pars_fragment>', RAMP_AA);
+}
+
 /** The filmic curve three applies on the way to the screen (ACES, exposure 1.05), done in the lit
  * materials' own shaders instead. three leaves it out when it draws into a texture, which the
  * effects pass (post.ts) does, and the painted layers and the glows must not be curved at all; so
@@ -118,6 +139,7 @@ export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMate
   m.userData.gongbi = { value: 0 };
   m.onBeforeCompile = function (this: Material, shader) {
     bakeTone(shader);
+    smoothRamp(shader);
     withDissolve(shader, this, true);
     withTurn(shader, this);
     shader.uniforms.gongbi = this.userData.gongbi;
@@ -128,6 +150,12 @@ export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMate
   return m;
 }
 
+/** How far (world units) the outline sits behind the body along each line of sight. A scanned
+ * coat is layers of thin cloth a few units apart, and the hull pushed out from a layer behind
+ * pierces the one in front: black slivers all over the coat, crawling as it moves. Set back like
+ * this, the line still shows round the silhouette and between parts further apart than this. */
+const OUTLINE_BACK = 12;
+
 /** The outline: `width` in the mesh's own units (`userData.width.value`, which can change). */
 export function outlineMaterial(width: number): MeshBasicMaterial {
   const m = new MeshBasicMaterial({ color: INK, side: BackSide });
@@ -137,7 +165,11 @@ export function outlineMaterial(width: number): MeshBasicMaterial {
     withDissolve(shader, this, false);
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'uniform float outline;\nvoid main() {')
-      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize( objectNormal ) * outline;');
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize( objectNormal ) * outline;')
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>\nmvPosition.xyz *= 1.0 + ${OUTLINE_BACK.toFixed(1)} / length( mvPosition.xyz );\ngl_Position = projectionMatrix * mvPosition;`,
+      );
   };
   return m;
 }
