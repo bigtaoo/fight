@@ -4,6 +4,7 @@ import {
   AnimationMixer,
   Box3,
   BoxGeometry,
+  Color,
   Group,
   LoopOnce,
   LoopRepeat,
@@ -178,6 +179,10 @@ function sword(): Group {
 const SHADOW_GEO = new CircleGeometry(1, 24);
 const SHADOW_MAT = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.28, depthWrite: false });
 const OUTLINE = outlineMaterial(0.006);
+/** Gongbi's line: finer and even, in a dark brown ink rather than black. */
+const GONGBI_WIDTH = 0.0032;
+const LINE_INK = new Color(INK);
+const LINE_GONGBI = new Color(0x3a2218);
 
 export class Actor {
   readonly root = new Group();
@@ -203,6 +208,8 @@ export class Actor {
   /** How far the ink has run down over the body from the colour villager it was (`inkFrom`):
    * 0 not yet, 1 all ink; set from outside, the story's beats. */
   inked = 1;
+  /** How far the body is drawn as gongbi (0 the ink look, 1 fine lines and full colour); set from outside. */
+  gongbi = 0;
 
   constructor(
     private readonly id: number,
@@ -350,6 +357,9 @@ export class Actor {
     this.mat.emissive.setRGB(this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.85 : 0);
     this.mat.userData.dissolve.value = this.line.userData.dissolve.value = this.dissolve;
     this.mat.userData.turn.value = this.inked;
+    this.mat.userData.gongbi.value = this.gongbi;
+    this.line.userData.width.value = OUTLINE.userData.width.value + (GONGBI_WIDTH - OUTLINE.userData.width.value) * this.gongbi;
+    this.line.color.lerpColors(LINE_INK, LINE_GONGBI, this.gongbi);
     if (this.blade) this.blade.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     // a lurker is not there to see until it springs

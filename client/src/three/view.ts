@@ -84,6 +84,14 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
 /** Bodies that fight bare-handed or with a bow: no dao in the hand. */
 const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch']);
 
+/** 1-2 ends walking up to the folding screen: the picture is pulled into it. */
+const INTO_SCREEN = new Set<DungeonId>(['jiangcun']);
+/** Dungeons inside the screen: winning one steps the hero back out into the hall (`leaveScreen`).
+ * 1-3's own dungeon goes here once it has one. */
+export const OUT_OF_SCREEN = new Set<DungeonId>(['screen']);
+/** Seconds for the hero to turn gongbi in the screen's painting, or back. */
+const GONGBI_SEC = 0.8;
+
 /** Raised floors (Room.platforms): a pale wash on top, a thick ink stroke along the front. */
 const PLATFORM_TOP = new MeshBasicMaterial({ color: 0x8a8276, transparent: true, opacity: 0.55, toneMapped: false });
 const PLATFORM_EDGE = new MeshBasicMaterial({ color: 0x1a1816, toneMapped: false });
@@ -125,6 +133,8 @@ export class View3D {
   /** Where the last monster fell (world units), for the colour to flow back from. */
   private readonly lastKill = new Vector3();
   private killed = false;
+  /** How far the hero is drawn as gongbi (in the screen's painting, see Actor.gongbi). */
+  private gongbi = 0;
   /** Colour drains from a room monsters hold (Post.drained); ?drain=0 keeps it. */
   drainOn: boolean;
   /** 1-1's staged moments (beats.ts); the ink villagers' bodies by actor, and the colour pictures
@@ -290,6 +300,8 @@ export class View3D {
     for (const a of this.actors.values()) a.dispose();
     this.actors.clear();
     this.shake = 0;
+    this.stage.instead = null;
+    this.post?.settle();
   }
 
   /** Shakes the camera for `sec` seconds at least. */
@@ -323,12 +335,37 @@ export class View3D {
           const v = this.killed ? this.lastKill.project(this.camera) : null;
           this.post.restore(v ? (v.x + 1) / 2 : 0.5, v ? (v.y + 1) / 2 : 0.45);
         }
+      } else if (ev.type === 'dungeonClear') {
+        if (INTO_SCREEN.has(s.config.dungeon)) this.post?.suckInto(...this.screenAt(s, true));
+        else if (OUT_OF_SCREEN.has(s.config.dungeon)) this.leaveScreen(s);
       } else if (ev.type === 'roomEnter') {
         this.decor?.stroke();
         this.clear();
         this.killed = false;
       }
     }
+  }
+
+  /** Where on the screen (0..1, y up) the hero goes into a painting or comes out of it: the
+   * painting just ahead of them and above their head going in, their own middle coming out. */
+  private screenAt(s: SimState, into: boolean): [number, number] {
+    const h = s.entities.find((e) => e.team === 0);
+    if (!h) return [0.5, 0.55];
+    const v = this.at.set(fromFp(h.x) + (into ? 140 : 0), fromFp(h.z) + (into ? 260 : 120), fromFp(h.y) * DEPTH_K * (into ? 0.5 : 1)).project(this.camera);
+    return [(v.x + 1) / 2, (v.y + 1) / 2];
+  }
+
+  /** The way out of a painting (1-3's end): the hall comes back round the hero, unwinding out of
+   * them in ink, and its colour washes back from there. Called on winning a dungeon in
+   * `OUT_OF_SCREEN`; a dungeon can call it itself at another moment. */
+  leaveScreen(s: SimState): void {
+    this.stage.instead = 'village';
+    this.post?.emerge(...this.screenAt(s, false));
+  }
+
+  /** Going into a painting or coming out of one is still playing (the result waits for it). */
+  get passing(): boolean {
+    return !!this.post && this.postOn && this.post.passing;
   }
 
   /** Where a point of the world (engine units: along, height, depth) is on the page, in CSS pixels. */
@@ -346,7 +383,14 @@ export class View3D {
     const roomW = fromFp(s.roomWidth);
     void this.stage.show(s.config.dungeon, s.room, roomW);
     this.sync(s);
-    for (const e of s.entities) this.actors.get(e.id)!.update(e, alpha, dt, fromFp(surfaceUnder(s, e.x, e.y, e.z)));
+    // in the screen's gongbi painting the hero is drawn gongbi too: fine lines, full colour
+    const g = this.stage.showing === 'screen' ? 1 : 0;
+    this.gongbi += Math.sign(g - this.gongbi) * Math.min(Math.abs(g - this.gongbi), dt / GONGBI_SEC);
+    for (const e of s.entities) {
+      const a = this.actors.get(e.id)!;
+      if (e.team === 0) a.gongbi = this.gongbi;
+      a.update(e, alpha, dt, fromFp(surfaceUnder(s, e.x, e.y, e.z)));
+    }
     const pxPerUnit = renderer.domElement.height / (2 * Math.tan((FOV * Math.PI) / 360));
     this.ink.update(dt, pxPerUnit);
     this.cinnabar.update(dt, pxPerUnit);
@@ -395,6 +439,7 @@ export class View3D {
     const room = () => renderer.render(scene, camera);
     if (post && this.postOn) {
       post.paper = this.stage.paperColor;
+      post.vivid = this.gongbi;
       post.drained = this.drainOn && s.room >= 0 && !s.roomCleared && s.entities.some((e) => e.team === 1 && e.hp > 0);
       if (feet) {
         const v = at.clone().setY(at.y + 120).project(camera);

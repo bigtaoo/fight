@@ -1,6 +1,7 @@
 import { WORLD, fromFp, type DungeonId } from '@dnf/engine';
 import {
   Color,
+  DataTexture,
   Fog,
   Group,
   Mesh,
@@ -51,7 +52,10 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   hall: ['hall'],
   luobi: ['village', 'village', 'village', 'village'],
   jiangcun: ['village', 'village', 'village', 'village', 'village'],
+  screen: ['screen'],
 };
+/** Where a dungeon inside a painting comes back out to (View3D.leaveScreen), fetched with its own scenery. */
+const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'village' };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
 const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
 const FAR = 0.2;
@@ -74,6 +78,15 @@ function load(url: string): Promise<Texture> {
     t.wrapS = RepeatWrapping;
     return t;
   });
+}
+
+/** A painting not made yet: one pixel of the scene's paper, see-through where it is a layer over others. */
+function blankPaper(hex: number): Texture {
+  const t = new DataTexture(new Uint8Array([(hex >> 16) & 255, (hex >> 8) & 255, hex & 255, 0]), 1, 1);
+  t.colorSpace = SRGBColorSpace;
+  t.wrapS = RepeatWrapping;
+  t.needsUpdate = true;
+  return t;
 }
 
 function size(t: Texture): { width: number; height: number } {
@@ -110,6 +123,8 @@ export class Stage {
    * real shadows caught on the floor (on top of the bodies' blobs). */
   private fog: Fog | null = null;
   private catcher: Mesh | null = null;
+  /** Shown in every room in place of the dungeon's own scenery (stepping back out of a painting). */
+  instead: SceneId | null = null;
   /** The feet of the burners of the room shown now, for the incense. */
   readonly burners: Vector3[] = [];
 
@@ -144,7 +159,7 @@ export class Stage {
   /** Fetches the scenery of every room of `dungeon` and hands it to the GPU up front, so walking
    * into a room never stalls a frame on decoding and uploading a painting. */
   async preload(dungeon: DungeonId, renderer: WebGLRenderer): Promise<void> {
-    const ids = PICK && SCENES[PICK] ? [PICK] : [...new Set<SceneId>(ROOMS[dungeon] ?? ['road'])];
+    const ids = PICK && SCENES[PICK] ? [PICK] : [...new Set<SceneId>([...(ROOMS[dungeon] ?? ['road']), ...(LEAVES_TO[dungeon] ? [LEAVES_TO[dungeon]] : [])])];
     const [silk, ...sets] = await Promise.all([this.mount(), ...ids.map((id) => this.scenery(id))]);
     renderer.initTexture(silk);
     for (const set of sets) for (const t of Object.values(set)) renderer.initTexture(t);
@@ -167,12 +182,12 @@ export class Stage {
     return this.silkTex;
   }
 
-  /** The four paintings of a scene, fetched once. */
+  /** The four paintings of a scene, fetched once; one not painted yet is plain paper. */
   private scenery(id: SceneId): Promise<Scenery> {
     let set = this.sets.get(id);
     if (!set) {
       const base = `${this.base}${id}_`;
-      set = Promise.all(['far.jpg', 'mid.png', 'ground.jpg', 'front.png'].map((f) => load(base + f))).then(([far, mid, ground, front]) => {
+      set = Promise.all(['far.jpg', 'mid.png', 'ground.jpg', 'front.png'].map((f) => load(base + f).catch(() => blankPaper(SCENES[id].paper)))).then(([far, mid, ground, front]) => {
         ground.wrapT = RepeatWrapping;
         return { far, mid, ground, front };
       });
@@ -182,7 +197,7 @@ export class Stage {
   }
 
   async show(dungeon: DungeonId, roomIndex: number, roomWidth: number): Promise<void> {
-    const id = PICK && SCENES[PICK] ? PICK : (ROOMS[dungeon]?.[roomIndex] ?? 'road');
+    const id = this.instead ?? (PICK && SCENES[PICK] ? PICK : (ROOMS[dungeon]?.[roomIndex] ?? 'road'));
     const key = `${id}:${roomWidth}`;
     if (key === this.current) return;
     this.current = key;

@@ -98,28 +98,42 @@ function withTurn(shader: WebGLProgramParametersWithUniforms, material: Material
 void main() {`).replace('#include <map_fragment>', TURN_MAP);
 }
 
+/** A body drawn as gongbi, the fine-lined painting in heavy colour (`gongbi` 0..1): the shadow
+ * bands lifted towards flat colour and the colour pushed fuller, after the filmic curve. */
+const GONGBI = /* glsl */ `
+if ( gongbi > 0.0 ) {
+  float gl = dot( gl_FragColor.rgb, vec3( 0.299, 0.587, 0.114 ) );
+  vec3 full = mix( vec3( gl ), gl_FragColor.rgb, 1.7 ) + ( 1.0 - gl ) * 0.12;
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, clamp( full, 0.0, 1.0 ), gongbi );
+}`;
+
 /** The body's own colours under the ramp. `tint` multiplies them (another kind on the same model).
- * Each body has its own, so it can flash, dissolve and turn to ink on its own; they all share one
- * shader. */
+ * Each body has its own, so it can flash, dissolve, turn to ink and turn gongbi on its own; they all
+ * share one shader. */
 export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMaterial {
   const m = new MeshToonMaterial({ map, gradientMap: RAMP, color: new Color(tint) });
   m.userData.dissolve = { value: 0 };
   m.userData.turn = { value: 1 };
   m.userData.before = { value: map };
+  m.userData.gongbi = { value: 0 };
   m.onBeforeCompile = function (this: Material, shader) {
     bakeTone(shader);
     withDissolve(shader, this, true);
     withTurn(shader, this);
+    shader.uniforms.gongbi = this.userData.gongbi;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', 'uniform float gongbi;\nvoid main() {')
+      .replace('gl_FragColor.rgb = inkAces( gl_FragColor.rgb );', `gl_FragColor.rgb = inkAces( gl_FragColor.rgb );\n${GONGBI}`);
   };
   return m;
 }
 
-/** The outline: `width` in the mesh's own units. */
+/** The outline: `width` in the mesh's own units (`userData.width.value`, which can change). */
 export function outlineMaterial(width: number): MeshBasicMaterial {
   const m = new MeshBasicMaterial({ color: INK, side: BackSide });
-  m.userData = { width, dissolve: { value: 0 } };
+  m.userData = { width: { value: width }, dissolve: { value: 0 } };
   m.onBeforeCompile = function (this: Material, shader) {
-    shader.uniforms.outline = { value: this.userData.width };
+    shader.uniforms.outline = this.userData.width;
     withDissolve(shader, this, false);
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'uniform float outline;\nvoid main() {')
@@ -131,7 +145,7 @@ export function outlineMaterial(width: number): MeshBasicMaterial {
 /** A body's own copy of an outline (the same shader), so it can dissolve with the body. */
 export function ownOutline(m: MeshBasicMaterial): MeshBasicMaterial {
   const c = m.clone();
-  c.userData = { width: m.userData.width, dissolve: { value: 0 } };
+  c.userData = { width: { value: m.userData.width.value }, dissolve: { value: 0 } };
   c.onBeforeCompile = m.onBeforeCompile;
   return c;
 }
