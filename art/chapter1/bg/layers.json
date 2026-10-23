@@ -91,12 +91,12 @@
   },
   "plank_mid": {
    "kind": "cut",
-   "src": "plank_mid_t2i.png",
+   "src": "plank_mid2_t2i.png",
    "crop": [
     0,
     0.3,
     1,
-    0.9
+    0.86
    ],
    "wrap": 0.08,
    "height": 360,
@@ -214,7 +214,15 @@
    ],
    "wrap": 0.08,
    "height": 360,
-   "alpha": 0.9
+   "alpha": 0.9,
+   "erase": [
+    [
+     0.9,
+     0.82,
+     1,
+     1
+    ]
+   ]
   },
   "ferry_ground": {
    "kind": "ground",
@@ -331,7 +339,7 @@
     0,
     0.2,
     1,
-    0.95
+    0.86
    ],
    "wrap": 0.04,
    "height": 420,
@@ -381,7 +389,15 @@
    ],
    "wrap": 0.08,
    "height": 420,
-   "alpha": 0.9
+   "alpha": 0.9,
+   "erase": [
+    [
+     0,
+     0.88,
+     0.07,
+     1
+    ]
+   ]
   },
   "screen_ground": {
    "kind": "ground",
@@ -402,6 +418,375 @@
    "seed": 16
   },
   "screen_front": {
+   "kind": "cut",
+   "src": "screen_front_t2i.png",
+   "crop": [
+    0,
+    0.35,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "creek_far": {
+   "kind": "far",
+   "src": "village_far_t2i.png",
+   "crop": [
+    0,
+    0.12,
+    0.95,
+    0.94
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "creek_mid": {
+   "kind": "cut",
+   "src": "creek_mid_t2i.png",
+   "crop": [
+    0,
+    0.05,
+    1,
+    0.95
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9
+  },
+  "creek_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    226,
+    220,
+    204
+   ],
+   "ink": [
+    92,
+    122,
+    120
+   ],
+   "wash": 0.05,
+   "streaks": 18,
+   "seed": 21
+  },
+  "creek_front": {
+   "kind": "cut",
+   "src": "creek_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "shore_far": {
+   "kind": "far",
+   "src": "village_far_t2i.png",
+   "crop": [
+    0,
+    0.12,
+    0.95,
+    0.94
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "shore_mid": {
+   "kind": "cut",
+   "src": "shore_mid2_t2i.png",
+   "crop": [
+    0,
+    0.2,
+    1,
+    0.97
+   ],
+   "wrap": 0.08,
+   "height": 360,
+   "alpha": 0.9,
+   "erase": [
+    [
+     0,
+     0.82,
+     0.05,
+     1
+    ]
+   ]
+  },
+  "shore_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    222,
+    218,
+    206
+   ],
+   "ink": [
+    110,
+    112,
+    108
+   ],
+   "wash": 0.05,
+   "streaks": 6,
+   "seed": 22
+  },
+  "shore_front": {
+   "kind": "cut",
+   "src": "shore_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2,
+   "erase": [
+    [
+     0.94,
+     0.92,
+     1,
+     1
+    ]
+   ]
+  },
+  "parlor_far": {
+   "kind": "far",
+   "src": "parlor_far_t2i.png",
+   "crop": [
+    0,
+    0,
+    1,
+    0.96
+   ],
+   "height": 1050,
+   "wrap": 0.3,
+   "erase": [
+    [
+     0.95,
+     0.84,
+     1,
+     0.97
+    ]
+   ]
+  },
+  "parlor_mid": {
+   "kind": "cut",
+   "src": "parlor_mid_t2i.png",
+   "crop": [
+    0,
+    0.25,
+    1,
+    0.8
+   ],
+   "wrap": 0.08,
+   "height": 420,
+   "alpha": 0.9
+  },
+  "parlor_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    214,
+    200,
+    176
+   ],
+   "ink": [
+    120,
+    96,
+    70
+   ],
+   "wash": 0.05,
+   "streaks": 2,
+   "boards": 6,
+   "seed": 23
+  },
+  "parlor_front": {
+   "kind": "cut",
+   "src": "parlor_front_t2i.png",
+   "crop": [
+    0,
+    0.4,
+    1,
+    0.95
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2,
+   "erase": [
+    [
+     0,
+     0.92,
+     0.06,
+     1
+    ]
+   ]
+  },
+  "blossom_far": {
+   "kind": "far",
+   "src": "screen_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "blossom_mid": {
+   "kind": "cut",
+   "src": "blossom_mid_t2i.png",
+   "crop": [
+    0,
+    0.05,
+    1,
+    1
+   ],
+   "wrap": 0.08,
+   "height": 480,
+   "alpha": 0.9
+  },
+  "blossom_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    230,
+    216,
+    180
+   ],
+   "ink": [
+    168,
+    140,
+    92
+   ],
+   "wash": 0.05,
+   "streaks": 2,
+   "seed": 16
+  },
+  "blossom_front": {
+   "kind": "cut",
+   "src": "screen_front_t2i.png",
+   "crop": [
+    0,
+    0.35,
+    1,
+    0.97
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "lotus_far": {
+   "kind": "far",
+   "src": "screen_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "lotus_mid": {
+   "kind": "cut",
+   "src": "lotus_mid_t2i.png",
+   "crop": [
+    0,
+    0.1,
+    1,
+    1
+   ],
+   "wrap": 0.08,
+   "height": 420,
+   "alpha": 0.9
+  },
+  "lotus_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    230,
+    216,
+    180
+   ],
+   "ink": [
+    110,
+    140,
+    130
+   ],
+   "wash": 0.05,
+   "streaks": 20,
+   "seed": 24
+  },
+  "lotus_front": {
+   "kind": "cut",
+   "src": "lotus_front_t2i.png",
+   "crop": [
+    0,
+    0.2,
+    1,
+    1
+   ],
+   "height": 190,
+   "alpha": 0.85,
+   "gap": 1.2
+  },
+  "bamboo_far": {
+   "kind": "far",
+   "src": "screen_far_t2i.png",
+   "crop": [
+    0,
+    0.06,
+    1,
+    0.92
+   ],
+   "height": 1050,
+   "wrap": 0.3
+  },
+  "bamboo_mid": {
+   "kind": "cut",
+   "src": "bamboo_mid_t2i.png",
+   "crop": [
+    0,
+    0.05,
+    1,
+    0.97
+   ],
+   "wrap": 0.08,
+   "height": 420,
+   "alpha": 0.9
+  },
+  "bamboo_ground": {
+   "kind": "ground",
+   "width": 1024,
+   "height": 450,
+   "paper": [
+    230,
+    216,
+    180
+   ],
+   "ink": [
+    168,
+    140,
+    92
+   ],
+   "wash": 0.05,
+   "streaks": 2,
+   "seed": 16
+  },
+  "bamboo_front": {
    "kind": "cut",
    "src": "screen_front_t2i.png",
    "crop": [
