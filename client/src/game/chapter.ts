@@ -27,7 +27,7 @@ export const STRIP = { w: 2375, h: 640 };
 export const CHAPTER1: readonly Section[] = [
   { id: '1-1', dungeon: 'luobi', name: 'section.luobi', rooms: 4, from: 0, to: 0.3, at: 0.1 },
   { id: '1-2', dungeon: 'jiangcun', name: 'section.jiangcun', rooms: 5, from: 0.3, to: 0.65, at: 0.42 },
-  { id: '1-3', dungeon: 'screen', name: 'section.screen', rooms: 4, from: 0.65, to: 1, at: 0.8 },
+  { id: '1-3', dungeon: 'pingfeng', name: 'section.screen', rooms: 4, from: 0.65, to: 1, at: 0.8 },
 ];
 
 /** How much of the next, still shut section shows before the roller (a fraction of the strip). */

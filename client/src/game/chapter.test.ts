@@ -17,7 +17,7 @@ describe('chapter one on the scroll', () => {
     // 1-2 cleared without 1-1 (a ?dungeon= run) opens nothing past 1-1
     expect(openCount(done('jiangcun'))).toBe(1);
     expect(clearedCount(done('jiangcun'))).toBe(0);
-    expect(clearedCount(done('luobi', 'jiangcun', 'screen'))).toBe(3);
+    expect(clearedCount(done('luobi', 'jiangcun', 'pingfeng'))).toBe(3);
   });
 
   it('unrolls to the open section and a peek of the next, all of it at the end', () => {
@@ -32,7 +32,7 @@ describe('chapter one on the scroll', () => {
     expect(sectionAt(0)?.id).toBe('1-1');
     expect(sectionAt(0.5)?.id).toBe('1-2');
     expect(sectionAt(1)?.id).toBe('1-3');
-    expect(sectionOf('screen')?.id).toBe('1-3');
+    expect(sectionOf('pingfeng')?.id).toBe('1-3');
     expect(sectionOf('heifeng')).toBeNull();
   });
 });

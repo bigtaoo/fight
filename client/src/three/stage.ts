@@ -53,9 +53,10 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   luobi: ['village', 'village', 'village', 'village'],
   jiangcun: ['village', 'village', 'village', 'village', 'village'],
   screen: ['screen'],
+  pingfeng: ['screen', 'screen', 'screen', 'screen'],
 };
 /** Where a dungeon inside a painting comes back out to (View3D.leaveScreen), fetched with its own scenery. */
-const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'village' };
+const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'village', pingfeng: 'village' };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
 const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
 const FAR = 0.2;
@@ -191,6 +192,7 @@ export class Stage {
         ground.wrapT = RepeatWrapping;
         return { far, mid, ground, front };
       });
+      if (id !== 'road') set = set.catch(() => this.scenery('road'));
       this.sets.set(id, set);
     }
     return set;

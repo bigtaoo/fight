@@ -385,7 +385,8 @@ export class Game {
     if (dungeon === 'heifeng' && this.progress.cleared('heifeng')) choices.push({ label: t('result.chief'), act: click(() => this.play('hall')) });
     if (dungeon === 'hall') choices.push({ label: t('result.fort'), act: click(() => this.play('heifeng')) });
     if (dungeon === 'luobi') choices.push({ label: t('result.toVillage'), act: click(() => this.play('jiangcun')) });
-    if (dungeon === 'jiangcun') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
+    if (dungeon === 'jiangcun') choices.push({ label: t('result.toScreen'), act: click(() => this.play('pingfeng')) });
+    if (dungeon === 'pingfeng') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
     if (sectionOf(dungeon)) choices.push({ label: t('result.scroll'), act: click(() => this.toScroll()) });
     if (this.freezes) choices.push({ label: t('result.bag'), act: click(() => this.toggleChar()) });
     this.menu.showResult(choices);

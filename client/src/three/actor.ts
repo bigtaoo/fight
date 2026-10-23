@@ -363,7 +363,7 @@ export class Actor {
     if (this.blade) this.blade.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     // a lurker is not there to see until it springs
-    this.root.visible = this.shadow.visible = e.lurk === 0 && (!dead || e.st < 40);
+    this.root.visible = this.shadow.visible = e.lurk <= 0 && (!dead || e.st < 40);
   }
 
   /** Rotates `bone` by `deg` about `axis` given in the body's own space (x: side to side). */

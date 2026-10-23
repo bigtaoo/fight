@@ -79,16 +79,19 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
   hewer: { bodies: ['inkwood'], tint: 0xc8c0b8 },
   // placeholder until the finch has a model of its own: a small, dark ink villager
   finch: { bodies: ['inkwasher'], tint: 0x585058 },
+  // and the big sparrow and the golden pheasant, until theirs: a brown one and a red-gold one
+  bigfinch: { bodies: ['inkboatman'], tint: 0x8a6a48 },
+  pheasant: { bodies: ['inkwood'], tint: 0xe0a040 },
 };
 
 /** Bodies that fight bare-handed or with a bow: no dao in the hand. */
-const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch']);
+const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch', 'bigfinch', 'pheasant']);
 
 /** 1-2 ends walking up to the folding screen: the picture is pulled into it. */
 const INTO_SCREEN = new Set<DungeonId>(['jiangcun']);
 /** Dungeons inside the screen: winning one steps the hero back out into the hall (`leaveScreen`).
  * 1-3's own dungeon goes here once it has one. */
-export const OUT_OF_SCREEN = new Set<DungeonId>(['screen']);
+export const OUT_OF_SCREEN = new Set<DungeonId>(['screen', 'pingfeng']);
 /** Seconds for the hero to turn gongbi in the screen's painting, or back. */
 const GONGBI_SEC = 0.8;
 

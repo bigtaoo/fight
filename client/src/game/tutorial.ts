@@ -48,6 +48,14 @@ const TIPS: Partial<Record<DungeonId, readonly Tip[]>> = {
     { id: 'tip.jc.lob', when: (s) => s.lobs.length > 0 || s.patches.length > 0, urgent: true },
     { id: 'tip.jc.screen', when: (s) => s.room === 4 },
   ],
+  // 1-3, inside the screen
+  pingfeng: [
+    { id: 'tip.pf.branch', when: (s) => s.room === 0 && s.tick > TICK_RATE },
+    { id: 'tip.pf.perch', when: (s) => s.room === 1 && foes(s).some((e) => e.lurk < 0) && foes(s).filter((e) => e.lurk === 0).length === 0 },
+    { id: 'tip.pf.rock', when: (s) => s.room === 2 && s.items.length > 0 },
+    { id: 'tip.pf.tail', when: (s) => foes(s).some((e) => e.kind === 'pheasant' && e.move.startsWith('tail')), urgent: true },
+    { id: 'tip.pf.fan', when: (s) => s.shots.some((sh) => sh.kind === 'feather'), urgent: true },
+  ],
   heifeng: [
     { id: 'tip.move', when: (s) => s.room === 0 },
     { id: 'tip.jump', when: (s) => s.room === 0 && s.tick > 7 * TICK_RATE },
