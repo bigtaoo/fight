@@ -87,7 +87,7 @@ describe('engine', () => {
   it('matches the golden hash (bump ENGINE_VERSION when this changes on purpose)', () => {
     const e = newRun({ seed: 42 });
     play(e, 600, bot);
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 18, tick: 600, hash: 2089230476 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 19, tick: 600, hash: 2089230476 });
   });
 
   it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour, cancels, the chief', () => {
@@ -117,6 +117,6 @@ describe('engine', () => {
     expect(ev.filter((x) => x.type === 'fire' && x.shot === 'quake').length).toBeGreaterThan(3);
     expect(ev.filter((x) => x.type === 'phase')).toHaveLength(1);
     expect(e.state.outcome).toBe('cleared');
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 18, tick: 11424, hash: 1461157817 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 19, tick: 11424, hash: 1461157817 });
   });
 });

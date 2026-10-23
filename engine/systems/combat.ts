@@ -5,6 +5,7 @@ import { randInt, randRange } from '../math/prng';
 import { hittable, monsterDmgPct, setState, skillDamagePct, type Entity, type SimState } from '../state';
 import { dropAffix, hasAffix } from './affix';
 import { aloft, groundOf } from './ground';
+import { startle } from './mob';
 import { armored } from './moves';
 
 // Hit detection on the 2.5D floor and what a hit does. A hit lands when the attack box and the
@@ -61,6 +62,8 @@ export function guarding(e: Entity, ground = 0): boolean {
 /** Hit `t` with `m`, struck by `a` (a body, or the one that fired a projectile) heading `facing`;
  * `of`: the skill it is part of, whose level adds to a hero's damage. */
 export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData, of?: SkillId): void {
+  // a perched bird hit starts the whole flock up
+  if (t.lurk < 0) startle(s);
   let dmg = m.damage;
   let crit = false;
   if (a.team === 0) {

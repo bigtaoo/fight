@@ -78,10 +78,13 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
   hewer: { bodies: ['inkwood'], tint: 0xc8c0b8 },
   // placeholder until the finch has a model of its own: a small, dark ink villager
   finch: { bodies: ['inkwasher'], tint: 0x585058 },
+  // and the big sparrow and the golden pheasant, until theirs: a brown one and a red-gold one
+  bigfinch: { bodies: ['inkboatman'], tint: 0x8a6a48 },
+  pheasant: { bodies: ['inkwood'], tint: 0xe0a040 },
 };
 
 /** Bodies that fight bare-handed or with a bow: no dao in the hand. */
-const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch']);
+const UNARMED = new Set(['archer', 'inkling', 'brute', 'woodcutter', 'fisher', 'washer', 'hewer', 'finch', 'bigfinch', 'pheasant']);
 
 /** Raised floors (Room.platforms): a pale wash on top, a thick ink stroke along the front. */
 const PLATFORM_TOP = new MeshBasicMaterial({ color: 0x8a8276, transparent: true, opacity: 0.55, toneMapped: false });

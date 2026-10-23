@@ -157,7 +157,8 @@ export interface Entity {
   /** Ticks left being reeled in by a hook, and the id of the body reeling (see INK.tow). */
   tow: number;
   towBy: number;
-  /** A lurking monster's distance in x at which it springs out, 0 once out (see INK). */
+  /** A lurking monster's distance in x at which it springs out, 0 once out (see INK); negative
+   * for a perched one, there to see and hit (see Spawn.lurk). */
   lurk: number;
 }
 
@@ -338,7 +339,7 @@ export function setState(e: Entity, state: BodyState): void {
   if (state !== 'act') e.move = '';
 }
 
-/** Alive, not lying down, not untouchable and not lurking: something a hit can land on. */
+/** Alive, not lying down, not untouchable and not lurking unseen: something a hit can land on. */
 export function hittable(e: Entity): boolean {
-  return e.hp > 0 && e.inv === 0 && e.lurk === 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
+  return e.hp > 0 && e.inv === 0 && e.lurk <= 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
 }

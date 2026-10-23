@@ -178,7 +178,7 @@ export const AFFIX = {
 /** A hero this close to an item in x and depth picks it up. */
 export const PICKUP = { x: toFp(60), y: toFp(40) };
 
-export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter' | 'fisher' | 'washer' | 'hewer' | 'finch';
+export type MonsterKind = 'bandit' | 'elite' | 'archer' | 'shield' | 'chief' | 'dummy' | 'inkling' | 'brute' | 'woodcutter' | 'fisher' | 'washer' | 'hewer' | 'finch' | 'bigfinch' | 'pheasant';
 export type Kind = 'hero' | MonsterKind;
 
 export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
@@ -383,6 +383,50 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     firstCooldown: [ticks(1), ticks(3)],
     fly: { hover: toFp(250), climb: toFp(6), windup: 'flash', dive: 'dive', diveTicks: 12, peck: 'peck' },
   },
+  // 1-3's big sparrow: on the ground, pecking at the dirt until the hero comes, then a burst of
+  // pecks in front; a ground target among the flock, slow to turn from its pecking
+  bigfinch: {
+    body: { halfWidth: toFp(55), height: toFp(140), hp: 420 },
+    brain: 'melee',
+    walkX: toFp(3),
+    walkY: toFp(2.2),
+    range: toFp(140),
+    alignY: toFp(30),
+    attack: 'pecks',
+    cooldown: [ticks(1.8), ticks(2.8)],
+    firstCooldown: [ticks(1), ticks(2)],
+    juggle: { decay: 15, floor: 25 },
+    drop: { item: 'potion', pct: 20 },
+  },
+  // 1-3's elite, the golden pheasant in the screen's last panel: a tail sweep round itself, a
+  // flight up out of the screen that comes down on the hero, and a fan of tail feathers along its
+  // lane; quicker once it is down to 40 percent (no help comes: it is alone in the picture)
+  pheasant: {
+    body: { halfWidth: toFp(70), height: toFp(200), hp: 2400 },
+    brain: 'boss',
+    walkX: toFp(3.2),
+    walkY: toFp(2.2),
+    range: toFp(220),
+    alignY: toFp(40),
+    attack: '',
+    cooldown: [ticks(1.2), ticks(2.2)],
+    firstCooldown: [ticks(1), ticks(1.6)],
+    juggle: { decay: 25, floor: 15 },
+    elite: true,
+    boss: {
+      moves: [
+        { move: 'tail', fast: 'tailF', reach: toFp(220), alignY: toFp(70), weight: [6, 0, 0] },
+        { move: 'soar', fast: 'soarF', reach: toFp(1000), alignY: toFp(400), weight: [2, 4, 3] },
+        { move: 'fan', fast: 'fanF', reach: toFp(1400), alignY: toFp(30), weight: [1, 3, 5] },
+      ],
+      bands: [toFp(260), toFp(650)],
+      phase2Pct: 40,
+      roar: 'cry',
+      summon: [],
+      fastPct: 70,
+    },
+    drop: { item: 'bigPotion', pct: 100 },
+  },
   dummy: {
     body: { halfWidth: toFp(40), height: toFp(220), hp: 1_000_000 },
     brain: 'still',
@@ -411,6 +455,8 @@ export const BODIES: Readonly<Record<Kind, Body>> = {
   washer: MONSTERS.washer.body,
   hewer: MONSTERS.hewer.body,
   finch: MONSTERS.finch.body,
+  bigfinch: MONSTERS.bigfinch.body,
+  pheasant: MONSTERS.pheasant.body,
 };
 
 /** 1-2's ink (systems/ink.ts). A hook that lands reels its target in for up to `ticks` ticks at
@@ -698,6 +744,20 @@ const MOVE_LIST: Move[] = [
     damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
     cancel: 0,
   },
+  // the big sparrow's burst of pecks, each a light blow
+  {
+    id: 'pecks', total: 44, active: [16, 25], box: box(0, 140, 35, 0, 120),
+    damage: 12, hitstun: 10, stop: 2, push: toFp(3), launch: 0, lift: toFp(6),
+    cancel: 0, rehit: 4,
+  },
+  ...pheasantMoves('', 100),
+  ...pheasantMoves('F', 70),
+  // the pheasant's cry as it turns quick, under super armour
+  {
+    id: 'cry', total: 36, active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, armor: [1, 36],
+  },
   ...woodMoves('', 100),
   ...woodMoves('F', 70),
   // the chief, each move in two speeds (the second phase's is quicker to start and to recover)
@@ -749,6 +809,46 @@ function chiefMoves(sfx: string, pct: number): Move[] {
   ];
 }
 
+/** The pheasant's moves, windups and recoveries at `pct` percent, ids suffixed with `sfx`: a tail
+ * sweep round itself that reaches behind it as far as in front (step away, not aside); a crouch,
+ * a flight high out of reach that comes down on the hero and knocks down (dodge it as it lands);
+ * and three tail feathers thrown one after another along its lane (step out of the lane). Under
+ * super armour as it winds up, open as it recovers. */
+function pheasantMoves(sfx: string, pct: number): Move[] {
+  const t = (n: number) => Math.trunc((n * pct) / 100);
+  const tailW = t(20);
+  const fan = (id: string, then?: string): Move => ({
+    id, total: t(14), active: [0, -1],
+    damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+    cancel: 0, fire: { at: t(8), shot: 'feather', x: toFp(70), z: toFp(90) }, armor: [1, t(10)], ...(then ? { then } : {}),
+  });
+  return [
+    {
+      id: `tail${sfx}`, total: tailW + 6 + t(24), active: [tailW + 1, tailW + 6], box: box(-170, 170, 70, 0, 160),
+      damage: 35, hitstun: 18, stop: 5, push: toFp(14), launch: toFp(12), lift: toFp(12),
+      cancel: 0, armor: [1, tailW + 6],
+    },
+    {
+      id: `soar${sfx}`, total: t(18), active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, then: `soarAir${sfx}`, armor: [1, t(18)],
+    },
+    {
+      id: `soarAir${sfx}`, total: 90, active: [0, -1],
+      damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
+      cancel: 0, air: true, hop: { back: 0, up: toFp(50) }, leap: toFp(36), land: `soarLand${sfx}`, armor: [1, 90],
+    },
+    {
+      id: `soarLand${sfx}`, total: t(34), active: [1, 3], box: box(-120, 120, 60, 0, 160),
+      damage: 40, hitstun: 20, stop: 5, push: toFp(14), launch: toFp(18), lift: toFp(12),
+      cancel: 0, armor: [1, 3],
+    },
+    { ...fan(`fan${sfx}`, `fan2${sfx}`), total: t(26), fire: { at: t(20), shot: 'feather', x: toFp(70), z: toFp(90) }, armor: [1, t(20)] },
+    fan(`fan2${sfx}`, `fan3${sfx}`),
+    { ...fan(`fan3${sfx}`), total: t(40) },
+  ];
+}
+
 /** The woodcutter's moves, windups and recoveries at `pct` percent: an axe hack in front that
  * knocks down; a sweep, the axe swung flat back and forth three times as it wades in, wide in
  * depth and behind it too (backing off or dodging out of it is the answer, not a step aside); a rush along its lane, low enough to jump; and a crouch and a leap that comes down
@@ -796,7 +896,7 @@ function woodMoves(sfx: string, pct: number): Move[] {
 
 export const MOVES: Readonly<Record<string, Move>> = Object.fromEntries(MOVE_LIST.map((m) => [m.id, m]));
 
-export type ShotKind = 'arrow' | 'wave' | 'quake' | 'hook';
+export type ShotKind = 'arrow' | 'wave' | 'quake' | 'hook' | 'feather';
 
 /** A projectile: flies straight along x at `speed`, hits what its box touches (`box` is around
  * its own position, x forward of its flight), and is gone after `life` ticks, `pierce` hits or
@@ -830,6 +930,11 @@ export const SHOTS: Readonly<Record<ShotKind, Shot>> = {
   hook: {
     speed: toFp(26), life: ticks(1.1), pierce: 1, box: box(-30, 30, 18, -10, 10),
     damage: 12, hitstun: 12, stop: 3, push: 0, launch: 0, lift: toFp(6), tow: true,
+  },
+  // the pheasant's tail feather: an arrow's lane, a bit wider and taller, so a jump does not clear it
+  feather: {
+    speed: toFp(22), life: ticks(1.6), pierce: 1, box: box(-40, 40, 24, -90, 40),
+    damage: 18, hitstun: 12, stop: 3, push: toFp(6), launch: 0, lift: toFp(8),
   },
 };
 
@@ -888,7 +993,10 @@ export interface Spawn {
   kind: MonsterKind;
   x: number;
   y: number;
-  /** Lurks (behind a door, a fence) until a hero is this close in x (see INK). */
+  /** Lurks (behind a door, a fence) until a hero is this close in x (see INK); a flyer hides
+   * (in the flowers) until then, or until its flock is startled. Negative: it is there to see and
+   * to hit, perched or pecking at the ground, until a hero is -lurk close in x or it, or another of
+   * the room's perched ones, is hit: that startles them all (see startle in mob.ts). */
   lurk?: number;
   /** Height it appears at (none: on the floor, or a flyer at its hover). */
   z?: number;
@@ -952,7 +1060,7 @@ export interface Par {
   hits: number;
 }
 
-export type DungeonId = 'luobi' | 'jiangcun' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde' | 'screen';
+export type DungeonId = 'luobi' | 'jiangcun' | 'trial' | 'training' | 'heifeng' | 'hall' | 'horde' | 'screen' | 'pingfeng';
 
 /** A room `width` wide; each spawn is a kind, x, y and, for a lurker, its lurk distance. */
 function room(width: number, spawns: [MonsterKind, number, number, number?][], doors: [Side, number, number?][], endless = false): Room {
@@ -971,6 +1079,7 @@ const PAR_FORT: Par = { ticks: ticks(240), combo: 30, hits: 10 };
 const PAR_HALL: Par = { ticks: ticks(90), combo: 20, hits: 4 };
 const PAR_LUOBI: Par = { ticks: ticks(150), combo: 15, hits: 4 };
 const PAR_JIANGCUN: Par = { ticks: ticks(180), combo: 18, hits: 6 };
+const PAR_PINGFENG: Par = { ticks: ticks(210), combo: 18, hits: 8 };
 
 export const DUNGEONS: Record<DungeonId, Dungeon> = {
   // 1-1 "落笔", the tutorial (design/CHAPTER1.md), one thing taught a room:
@@ -1004,6 +1113,50 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
     boss: 4,
     slots: [1, 1, 1, 1, 1],
     par: PAR_JIANGCUN,
+  },
+  // 1-3 "屏风里", inside the painted screen, birds and flowers: 0 flowering branch (the branch to
+  // stand on, six finches start out of the blossom) > 1 lotus pond (pads to stand on; a flock, and
+  // a lone finch perched on a pad: hit it, or come near, and the rest of the pond flies up)
+  // > 2 bamboo and rock (eight finches, two big sparrows pecking at the ground; potions behind the
+  // rocks) > 3 the golden pheasant, the elite. Clearing it is where the way out of the screen starts
+  pingfeng: {
+    rooms: [
+      {
+        ...room(2400, [], [['right', 1]]),
+        spawns: [
+          bird('finch', 900, 120, 160, 260), bird('finch', 1000, 230, 200, 260),
+          bird('finch', 1400, 160, 260, 280), bird('finch', 1500, 260, 240, 280),
+          bird('finch', 1900, 80, 200, 300), bird('finch', 2050, 200, 180, 300),
+        ],
+        platforms: [platform(600, 1250, 60, 200, 110), platform(1100, 1700, 140, 280, 210), platform(1650, 2150, 40, 180, 130)],
+      },
+      {
+        ...room(2600, [], [['left', 0], ['right', 2]]),
+        spawns: [
+          bird('finch', 900, 120), bird('finch', 1050, 260), bird('finch', 1200, 80), bird('finch', 1350, 220),
+          bird('finch', 1950, 230, 45, -260),
+          // the rest of the pond, down among the lotus until the perched one is startled
+          ...[1500, 1700, 2100, 2300, 2450].map((x, i) => bird('finch', x, [60, 300, 90, 280, 160][i], 30, 0.001)),
+        ],
+        platforms: [platform(450, 800, 40, 160, 45), platform(900, 1250, 190, 310, 35), platform(1350, 1700, 50, 190, 55), platform(1800, 2150, 170, 300, 45)],
+      },
+      {
+        ...room(2600, [], [['left', 1], ['right', 3]]),
+        spawns: [
+          bird('finch', 900, 100), bird('finch', 1050, 240), bird('finch', 1200, 160), bird('finch', 1350, 300),
+          bird('bigfinch', 1500, 120, 0, -420), bird('bigfinch', 1750, 260, 0, -420),
+          bird('finch', 1900, 80, 120, 380), bird('finch', 2050, 220, 180, 380), bird('finch', 2250, 140, 140, 420), bird('finch', 2400, 280, 160, 420),
+        ],
+        platforms: [platform(650, 1000, 40, 140, 130), platform(1550, 1900, 30, 150, 150), platform(2150, 2450, 200, 320, 100)],
+        items: [{ kind: 'potion', x: toFp(820), y: toFp(15) }, { kind: 'potion', x: toFp(1720), y: toFp(10) }],
+      },
+      {
+        ...room(2200, [['pheasant', 1500, 180]], [['left', 2]]),
+        platforms: [platform(500, 800, 30, 140, 110), platform(1700, 2000, 220, 320, 90)],
+      },
+    ],
+    boss: 3,
+    par: PAR_PINGFENG,
   },
   trial: {
     rooms: [
@@ -1069,6 +1222,12 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
     par: PAR_TRIAL,
   },
 };
+
+/** A spawn at x, y, z (none: on the floor, or a flyer at its hover) with lurk distance `lurk`, in
+ * world units. */
+function bird(kind: MonsterKind, x: number, y: number, z?: number, lurk?: number): Spawn {
+  return { kind, x: toFp(x), y: toFp(y), ...(z === undefined || z === 0 ? {} : { z: toFp(z) }), ...(lurk === undefined ? {} : { lurk: toFp(lurk) }) };
+}
 
 /** A platform over x0..x1 and depth y0..y1 at height z, in world units. */
 function platform(x0: number, x1: number, y0: number, y1: number, z: number): Platform {

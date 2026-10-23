@@ -454,6 +454,10 @@ export class Vfx {
           this.burn.add(_v.set(x + dir * 6, y + 20, z + 4), 130, 1.45 * dir, RED_HOT, 0.16, 0.5, dir);
         }
         this.smoke.add({ x: x - dir * 30, y: y + (this.smoke.rand() - 0.2) * 120, z: z - 10, vx: -dir * 50, vy: 40, size: 50, grow: 120, life: 0.6, alpha: 0.25, drag: 2 });
+      } else if (sh.kind === 'feather') {
+        // the pheasant's tail feather: a streak of gold and ink, until it has a mesh of its own
+        this.sparks.add({ x: x - dir * 10, y, z, vx: -dir * 40, size: 26, life: 0.12, alpha: 0.9, color: 0xe0a040 });
+        if (this.sparks.rand() < 0.6) this.sparks.add({ x: x - dir * 40, y: y + (this.sparks.rand() - 0.5) * 20, z, vx: -dir * 80, size: 10, life: 0.25, alpha: 0.6, color: 0x302820 });
       } else {
         // a quake runs along the floor: dust thrown up and cracks of ink left behind
         this.dust.add({ x: x + (this.dust.rand() - 0.5) * 60, y: 4, z: z + (this.dust.rand() - 0.5) * 60, vx: (this.dust.rand() - 0.5) * 120, vy: 200 + this.dust.rand() * 200, size: 46, grow: 100, life: 0.8, alpha: 0.4, lift: -300, drag: 1.5 });

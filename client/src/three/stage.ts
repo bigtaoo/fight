@@ -51,6 +51,7 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   hall: ['hall'],
   luobi: ['village', 'village', 'village', 'village'],
   jiangcun: ['village', 'village', 'village', 'village', 'village'],
+  pingfeng: ['screen', 'screen', 'screen', 'screen'],
 };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
 const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
@@ -167,7 +168,7 @@ export class Stage {
     return this.silkTex;
   }
 
-  /** The four paintings of a scene, fetched once. */
+  /** The four paintings of a scene, fetched once; the road's for a scene not painted yet. */
   private scenery(id: SceneId): Promise<Scenery> {
     let set = this.sets.get(id);
     if (!set) {
@@ -176,6 +177,7 @@ export class Stage {
         ground.wrapT = RepeatWrapping;
         return { far, mid, ground, front };
       });
+      if (id !== 'road') set = set.catch(() => this.scenery('road'));
       this.sets.set(id, set);
     }
     return set;

@@ -33,6 +33,7 @@ function nearestHero(s: SimState, m: Entity): Entity | undefined {
 export function mobControl(s: SimState, m: Entity, events: SimEvent[]): void {
   const def = MONSTERS[m.kind as MonsterKind];
   if (def.immortal) m.hp = m.maxHp;
+  if (m.lurk < 0) return perched(s, m);
   if (def.fly) return flyerControl(s, m, def, events);
   if (def.brain === 'still') {
     m.vx = 0;
@@ -99,6 +100,24 @@ function lurking(s: SimState, m: Entity, def: Monster, events: SimEvent[]): void
   if (t.x !== m.x) m.facing = Math.sign(t.x - m.x);
   startMove(m, INK.pounce, events);
   m.cd[0] = Math.max(m.cd[0], def.cooldown[0]);
+}
+
+/** A perched (or pecking) monster stays where it is, to be seen and hit, until a hero comes within
+ * -lurk in x: then it and the rest of the room's perched and hidden birds start up (see startle). */
+function perched(s: SimState, m: Entity): void {
+  m.vx = 0;
+  m.vy = 0;
+  m.vz = 0;
+  const t = nearestHero(s, m);
+  if (t && Math.abs(t.x - m.x) <= -m.lurk) startle(s);
+}
+
+/** The room's perched monsters and hidden flyers all start up at once: a hero came near one
+ * perched, or hit it. */
+export function startle(s: SimState): void {
+  for (const e of s.entities) {
+    if (e.team === 1 && (e.lurk < 0 || (e.lurk > 0 && MONSTERS[e.kind as MonsterKind].fly))) e.lurk = 0;
+  }
 }
 
 /** The depth melee monster `m` lines up at against hero `t` (see CROWD): the hero's own, or, taken

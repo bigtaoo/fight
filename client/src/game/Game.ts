@@ -73,6 +73,8 @@ export class Game {
   private autoPaused = false;
   /** This run's clear went into the progress already. */
   private recorded = false;
+  /** The way out of the screen has started (1-3 cleared); see leaveScreen. */
+  private leftScreen = false;
 
   constructor(private readonly view: View3D, private readonly params: URLSearchParams) {
     // made in the order they stack: the HUD and the controls, the menus over them, the panels on top
@@ -264,6 +266,7 @@ export class Game {
     this.charPanel.close();
     this.skillPanel.close();
     this.recorded = false;
+    this.leftScreen = false;
     this.tierNote = '';
     this.menu.showTiers(null, '', '');
     this.hud.best = { best: null, better: { grade: false, time: false } };
@@ -333,6 +336,10 @@ export class Game {
       // the platform's celebration, kept rare: the chief beaten the first time, or a new best
       if (dungeon === 'heifeng' && (first || better.grade || better.time)) platform.happytime();
     }
+    if (s.outcome === 'cleared' && dungeon === 'pingfeng' && !this.leftScreen) {
+      this.leftScreen = true;
+      this.leaveScreen();
+    }
     const click = (act: () => void) => () => {
       this.sound.play({ sfx: 'click', vol: 0.5 });
       act();
@@ -341,11 +348,16 @@ export class Game {
     if (dungeon === 'heifeng' && this.progress.cleared('heifeng')) choices.push({ label: t('result.chief'), act: click(() => this.play('hall')) });
     if (dungeon === 'hall') choices.push({ label: t('result.fort'), act: click(() => this.play('heifeng')) });
     if (dungeon === 'luobi') choices.push({ label: t('result.toVillage'), act: click(() => this.play('jiangcun')) });
-    if (dungeon === 'jiangcun') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
+    if (dungeon === 'jiangcun') choices.push({ label: t('result.toScreen'), act: click(() => this.play('pingfeng')) });
+    if (dungeon === 'pingfeng') choices.push({ label: t('result.toFort'), act: click(() => this.play('heifeng')) });
     if (this.freezes) choices.push({ label: t('result.bag'), act: click(() => this.toggleChar()) });
     this.menu.showResult(choices);
     this.tierRow(s, click);
   }
+
+  /** 1-3 is cleared, the pheasant down: where the way back out of the painted screen starts (the
+   * transition is not built yet; the result panel shows meanwhile, as for any clear). */
+  private leaveScreen(): void {}
 
   /** Single player, under the result: the dungeon's tiers, the one played lit, the shut ones
    * pale and saying why when tapped. */

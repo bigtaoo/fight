@@ -52,6 +52,12 @@ export function flyerControl(s: SimState, m: Entity, def: Monster, events: SimEv
   const f = def.fly!;
   if (m.state === 'act') return act(s, m, f, events);
   const t = nearestHero(s, m);
+  if (m.lurk > 0) {
+    // hidden in the flowers until a hero comes near (or the flock is startled)
+    m.vx = m.vy = m.vz = 0;
+    if (t && Math.abs(t.x - m.x) <= m.lurk) m.lurk = 0;
+    return;
+  }
   if (!t) {
     m.vx = m.vy = 0;
     m.vz = toward(f.hover - m.z, f.climb);
