@@ -8,6 +8,7 @@ import {
   Group,
   LoopOnce,
   LoopRepeat,
+  Matrix4,
   Mesh,
   MeshToonMaterial,
   MeshBasicMaterial,
@@ -275,7 +276,12 @@ export class Actor {
       .multiplyScalar(0.4)
       .add(new Vector3(0, 0, -1).applyQuaternion(hq))
       .normalize();
-    s.quaternion.setFromUnitVectors(UP, dir);
+    // the blade's flat turned to the camera, spine up: the clips turn the hips a quarter, which
+    // brings the rest pose's side axis round to face the screen (held the other way, the blade
+    // showed its narrow spine and the ink back covered half of it)
+    const flat = new Vector3(1, 0, 0).applyQuaternion(hq);
+    flat.addScaledVector(dir, -flat.dot(dir)).normalize();
+    s.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(flat, dir, new Vector3().crossVectors(flat, dir)));
     // the grip sits in the fist, a little past the wrist (the bones carry the model's own scale)
     s.position.copy(along).multiplyScalar(0.05 / hand.getWorldScale(new Vector3()).x);
     s.scale.setScalar(1 / hand.getWorldScale(new Vector3()).x);
