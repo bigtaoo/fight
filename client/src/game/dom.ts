@@ -93,9 +93,20 @@ export class Overlay {
     style.textContent =
       `#ui{position:fixed;inset:0;pointer-events:none;overflow:hidden;font-family:${FONT};font-weight:bold;` +
       'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;line-height:1.2}' +
-      `#ui .frame{position:absolute;left:0;top:0;width:${VIEW_W}px;height:${VIEW_H}px;transform-origin:0 0}`;
+      `#ui .frame{position:absolute;left:0;top:0;width:${VIEW_W}px;height:${VIEW_H}px;transform-origin:0 0}` +
+      // the game is landscape only: a phone held upright gets a sheet asking to turn it
+      `#rotate{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;` +
+      `background:${PAPER};color:${INK};font-family:${FONT};font-weight:bold;font-size:22px;letter-spacing:4px;pointer-events:auto;touch-action:none}` +
+      '#rotate svg{width:96px;height:96px}' +
+      '@media (orientation:portrait) and (pointer:coarse){#rotate{display:flex}}';
     this.root = el('div', '', document.body);
     this.root.id = 'ui';
+    const rotate = el('div', '', document.body);
+    rotate.id = 'rotate';
+    rotate.innerHTML =
+      `<svg viewBox="0 0 96 96" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">` +
+      '<rect x="30" y="14" width="36" height="62" rx="6"/><path d="M80 52a32 32 0 0 1-32 32"/><path d="M56 78l-8 6 8 6"/></svg>' +
+      '<div>请横屏游玩</div>';
     window.addEventListener('resize', () => this.fit());
     this.fit();
   }
