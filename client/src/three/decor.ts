@@ -301,6 +301,12 @@ const DRESS: Record<Air, { mist: number; mistAlpha: number; clouds: boolean; bir
   temple: { mist: 0xf6f6f0, mistAlpha: 0.8, clouds: true, birds: true, wind: true, banners: false },
   tail: { mist: 0xf2ecdc, mistAlpha: 0.3, clouds: false, birds: false, wind: false, banners: false },
   screen: { mist: 0xf4ead0, mistAlpha: 0.35, clouds: false, birds: false, wind: true, banners: false },
+  creek: { mist: 0xf4f6ee, mistAlpha: 0.6, clouds: true, birds: true, wind: true, banners: false },
+  shore: { mist: 0xf4f6ee, mistAlpha: 0.6, clouds: true, birds: true, wind: true, banners: false },
+  parlor: { mist: 0xe8dcc4, mistAlpha: 0.3, clouds: false, birds: false, wind: false, banners: false },
+  blossom: { mist: 0xf4ead0, mistAlpha: 0.35, clouds: false, birds: false, wind: true, banners: false },
+  lotus: { mist: 0xf4ead0, mistAlpha: 0.35, clouds: false, birds: false, wind: true, banners: false },
+  bamboo: { mist: 0xf4ead0, mistAlpha: 0.35, clouds: false, birds: false, wind: true, banners: false },
 };
 
 export class Decor {

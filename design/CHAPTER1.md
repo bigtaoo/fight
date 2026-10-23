@@ -113,15 +113,15 @@
     落羽（连撒三根 `feather` 飞行道具）；二阶段 40% 血后加快。帧数据和判定框全在 `engine/content.ts`。
   - 占位：大雀借墨船夫、锦鸡借墨樵夫的身体，加颜色区分；屏风背景没画时 `stage.ts` 退回官道的背景。
   - 通关后走出屏风：`pingfeng` 在 `OUT_OF_SCREEN` 里，画面从主角处旋出、换回江村、颜色化开（`View3D.leaveScreen`）；卷轴上 1-3 指向 `pingfeng`。
-- 场景：`?scene=` 切六个地点，画卷丝绸边框；山寺三层画完、栈道有远景和地面（其余见[未完成的美术](#未完成的美术2026-10-22-归档的两个任务卡都停在出图额度用完)）。
+- 场景：`?scene=` 切六个地点和六种房间变体，画卷丝绸边框；六个地点的层全部画完（见[场景背景和关键帧](#场景背景和关键帧2026-10-23-补齐)）。
 
 还缺（按节）：
 
 | 节 | 美术 | 引擎、客户端 |
 |---|---|---|
 | 1-1 | 屏风正面的原画（现在是从 k3 关键帧裁的，`client/public/art/props/screen_panels.jpg`）；"补一笔"要不要一张专门的笔锋贴图 | 在真机（A16）上看三段演出的帧率 |
-| 1-2 | 江村的溪桥、河滩、堂屋（有屏风）三种房间背景 | 在真机上量一次转场帧率 |
-| 1-3 | 工笔花鸟一整套背景（花枝、荷塘、竹石）；小雀、大雀、锦鸡模型，锦鸡绑鸟骨架、小雀做扇翅；锦鸡尾羽朱红 | 鸟的数值手感 |
+| 1-2 | （溪桥、河滩、堂屋背景已画，`?scene=creek` / `shore` / `parlor`；关卡还没用上） | 在真机上量一次转场帧率 |
+| 1-3 | （花枝、荷塘、竹石背景已画，`?scene=blossom` / `lotus` / `bamboo`；关卡还没用上）；小雀、大雀、锦鸡模型，锦鸡绑鸟骨架、小雀做扇翅；锦鸡尾羽朱红 | 鸟的数值手感 |
 | 三节共用 | 整章缩略长图的正式版（现在是拼的占位，见[选节界面](#选节界面)） | 微信小游戏里画选节和节结束（要走 canvas）；调数值 |
 
 ### 1-1 落笔（新手教程，约 3 分钟）
@@ -364,36 +364,32 @@
 - **印**：压住路的印可以打碎，下面是隐藏路线。
 - **颜色恢复**：只是奖励反馈，不是数值。
 
-## 未完成的美术（2026-10-22 归档的两个任务卡，都停在出图额度用完）
+## 场景背景和关键帧（2026-10-23 补齐）
 
-### 场景背景（分支 `claude/ch1-scenes-57bea1` 的 4b836a0，已合进 main）
+### 场景背景（`art/chapter1/bg/`，`python -I tools/bg_layers.py art/chapter1/bg/layers.json [前缀...]` 打包）
 
-已做：六个地点的 prompt 和分层配置（`art/chapter1/bg/*_t2i.txt`、`layers.json`），`?scene=plank|manor|ferry|temple|tail|screen`
-切场景和摆件，画卷丝绸边框（`bg_layers.py` 的 `silk`，钉在画面上下），`bg_layers.py` 可按名字前缀只打包部分图层。
-山寺三层全部画完；栈道只有远景和地面。
+六个地点 `?scene=village|plank|manor|ferry|temple|tail|screen` 的层全部画完，都在游戏里截图看过。
+栈道 mid 和河滩 mid 第一版是透视的全景，切出来几乎看不见，换成了正侧面的第二版（`plank_mid2`、`shore_mid2`），第一版留着没用。
+渡口 mid、屏风 mid 和几张前景右下/左下带了假印章，用 `erase` 擦掉；题跋 mid 底下的说明字裁掉。
 
-还差的图（prompt 都已写好，出图后用 `bg_layers.py` 打包）：
+房间变体（客户端每个场景一套四层，所以按房间开了新的场景 id，远景和前景复用所在地点的）：
 
-| 地点 | 缺的层 |
-|---|---|
-| 栈道 plank | mid、front |
-| 宅门 manor | far、mid、front |
-| 渡口 ferry | far、mid、front |
-| 屏风 screen | far、mid、front |
-| 题跋 tail | far、mid |
+| 场景 id | 房间 | 新画的层 | 复用 |
+|---|---|---|---|
+| creek | 1-2 溪桥 | mid（石拱桥、柳、芦苇）、front | village 的 far |
+| shore | 1-2 河滩 | mid（石阶、捣衣石、晾布竹竿、渔船）、front | village 的 far |
+| parlor | 1-2 堂屋 | far（屋里的后墙、窗）、mid（四扇工笔屏风 + 桌椅）、front | — |
+| blossom | 1-3 花枝 | mid（一棵横长的海棠） | screen 的 far、front |
+| lotus | 1-3 荷塘 | mid、front（荷叶、荷花） | screen 的 far |
+| bamboo | 1-3 竹石 | mid（竹丛、太湖石） | screen 的 far、front |
 
-接着做：补图。
+原来的 screen（牡丹、玉兰、湖石）留作屏风里的通用房间。还没做：把 `jiangcun` 和 1-3 关卡的房间表换成这些 id（代码，跟关卡一起做）；
+屏风里的平台是真的高台，花枝 mid 只是背景，平台的位置以后要跟画上的枝对上。
 
-### 关键帧概念图（已有的文件在 `art/chapter1/concept/`）
+### 关键帧概念图（`art/chapter1/concept/`）
 
-| 关键帧 | 现状 |
-|---|---|
-| k3 走进屏风 | A 出了图（`k3_screen_A.png`），B 只有 prompt |
-| k4 宅门墨狮 | A 出了图（`k4_lion_A.png`），B 只有 prompt |
-| k5 伪印 | A、B 只有 prompt |
-| k6 画外人影 | A、B 只有 prompt |
-
-接着做：出 B 版和 k5、k6，两版里挑一张定稿（跟 k1、k2 一样，定稿后可能还要 e 系列局部重画）。
+k3、k4 的 B 版和 k5、k6 的 A、B 版都出了图（`k3_screen_B`、`k4_lion_B`、`k5_seal_A/B`、`k6_outside_A/B`），等用户两版里挑一张定稿
+（跟 k1、k2 一样，定稿后可能还要 e 系列局部重画）。
 
 ## 待定
 

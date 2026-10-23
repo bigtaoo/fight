@@ -28,7 +28,8 @@ import { fade, flicker, prop, type PropKind } from './props';
 // before and after the 3D room by an orthographic camera); only the floor wash lies in the room,
 // under the bodies. The middle row's feet sit where the 3D floor's back edge lands on screen.
 
-export type SceneId = 'road' | 'fort' | 'hall' | 'village' | 'plank' | 'manor' | 'ferry' | 'temple' | 'tail' | 'screen';
+export type SceneId = 'road' | 'fort' | 'hall' | 'village' | 'plank' | 'manor' | 'ferry' | 'temple' | 'tail' | 'screen'
+  | 'creek' | 'shore' | 'parlor' | 'blossom' | 'lotus' | 'bamboo';
 const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> = {
   road: { paper: 0xf1ece0, farTop: -274 },
   fort: { paper: 0xe9e4d7, farTop: -17 },
@@ -45,6 +46,14 @@ const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> =
   tail: { paper: 0xe8e0cc, farTop: -380 },
   // inside the screen: a gongbi flower-and-bird painting on golden silk
   screen: { paper: 0xe6d8b4, farTop: -380 },
+  // room variants: 1-2's creek bridge, shore and main hall (with the folding screen) in the river
+  // village; 1-3's crabapple branch, lotus pond and bamboo with rocks inside the screen
+  creek: { paper: 0xd4e0cc, farTop: -380 },
+  shore: { paper: 0xd4e0cc, farTop: -380 },
+  parlor: { paper: 0xd6c8ae, farTop: -380 },
+  blossom: { paper: 0xe6d8b4, farTop: -380 },
+  lotus: { paper: 0xe6d8b4, farTop: -380 },
+  bamboo: { paper: 0xe6d8b4, farTop: -380 },
 };
 const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   heifeng: ['road', 'road', 'fort', 'fort', 'fort', 'hall'],
