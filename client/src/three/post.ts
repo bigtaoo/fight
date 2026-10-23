@@ -8,11 +8,17 @@ import { Color, HalfFloatType, LinearFilter, Mesh, OrthographicCamera, PlaneGeom
 // Two slower beats of the story run through it too: a room held by ink monsters is drained to ink
 // and gets its colour back in a spreading wash when it is cleared (`drained`, `restore`), and a
 // scene can begin as blank paper and be painted in, outlines first and then colour (`blank`, `reveal`).
+// And the way into a painting and out of it: the picture twisted into a point on the page and gone,
+// leaving only the painting's silk (`suckInto`), and the reverse, a room unwinding out of that point
+// in ink, its colour then washing back (`emerge`).
 
 const QUAD = new PlaneGeometry(2, 2);
 /** Seconds for the colour to wash back over a cleared room, and to drain out of a held one. */
 const WASH_SEC = 1.5;
 const DRAIN_SEC = 0.8;
+/** Seconds for the picture to be pulled into a point, or to unwind back out of it. */
+const SUCK_SEC = 1.6;
+const EMERGE_SEC = 1.1;
 const VERT = /* glsl */ `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -64,6 +70,10 @@ const FINAL = /* glsl */ `
   uniform float washR;
   uniform float washFade;
   uniform float reveal;
+  uniform float suck;
+  uniform vec2 suckAt;
+  uniform vec3 silk;
+  uniform float vivid;
   varying vec2 vUv;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
@@ -79,6 +89,21 @@ const FINAL = /* glsl */ `
   }
   void main() {
     vec2 uv = vUv;
+    // pulled into a painting: the page twists round suckAt and shrinks into it, the inner part
+    // turning faster, and what is left round it is the painting's silk
+    float gone = 0.0;
+    if (suck > 0.001) {
+      vec2 asp = vec2(res.x / res.y, 1.0);
+      vec2 d = (uv - suckAt) * asp;
+      float r = length(d);
+      float p = suck * suck;
+      float ang = p * 7.0 / (1.0 + r * 4.0);
+      d = mat2(cos(ang), sin(ang), -sin(ang), cos(ang)) * d * (1.0 + p * 9.0 / (0.2 + r * 3.0));
+      uv = suckAt + d / asp;
+      vec2 out2 = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+      gone = 1.0 - out2.x * out2.y;
+      uv = clamp(uv, 0.0, 1.0);
+    }
     vec2 off = uv - center;
     vec3 col;
     if (smear > 0.001) {
@@ -97,7 +122,7 @@ const FINAL = /* glsl */ `
 
     // the grade: a little less colour, and the whites pulled to the paper's warmth
     float l = dot(col, vec3(0.299, 0.587, 0.114));
-    col = mix(vec3(l), col, 0.9);
+    col = mix(vec3(l), col, 0.9 + vivid * 0.3);
     col *= mix(vec3(1.0), paper / max(max(paper.r, paper.g), paper.b), 0.12);
     col = mix(col, col * col * (3.0 - 2.0 * col), 0.25);
 
@@ -146,6 +171,14 @@ const FINAL = /* glsl */ `
       vec3 sketch = mix(paper, inkColor, max(edge * 0.9, (1.0 - smoothstep(0.05, 0.5, l)) * 0.3));
       sketch = mix(sketch, inkColor, tip * 0.35);
       col = mix(mix(paper, sketch, line), col, wash);
+    }
+
+    // the silk closing in round the point, an ink ring at its edge, and at the end only silk
+    if (suck > 0.001) {
+      float ring = 1.0 - smoothstep(0.0, 0.02, abs(length((vUv - suckAt) * vec2(res.x / res.y, 1.0)) - (1.0 - suck) * 1.4));
+      col = mix(col, silk, gone);
+      col = mix(col, inkColor, ring * smoothstep(0.0, 0.25, suck) * 0.5);
+      col = mix(col, silk, smoothstep(0.7, 1.0, suck));
     }
 
     // speed lines: ink streaks running out from the middle of the action
@@ -234,6 +267,11 @@ export class Post {
   private revealT = 1;
   private revealLen = 1;
   private revealHeld = false;
+  /** Seconds into being pulled into a painting (`suckInto`), or into coming back out (`emerge`); -1 for neither. */
+  private suckT = -1;
+  private emergeT = -1;
+  /** The picture's colours pushed past the ink grade, for a gongbi painting (0..1). */
+  vivid = 0;
 
   /** `samples`: MSAA on the scene's target. Resolving a multisampled half-float target costs a
    * Mali phone (A16) more than the rest of the effects together (19 fps against 42), so none by default. */
@@ -268,6 +306,10 @@ export class Post {
         washR: { value: 0 },
         washFade: { value: 0 },
         reveal: { value: 1 },
+        suck: { value: 0 },
+        suckAt: { value: new Vector2(0.5, 0.5) },
+        silk: { value: new Color(0xe6d8b4).convertLinearToSRGB() },
+        vivid: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,
@@ -306,6 +348,33 @@ export class Post {
     this.revealT = 0;
     this.revealLen = sec;
     this.revealHeld = false;
+  }
+
+  /** The picture twists into (`x`, `y`) in 0..1 screen coordinates (y up) and is gone, only the
+   * silk of the painting it went into left on the screen (it stays so until `emerge`). */
+  suckInto(x: number, y: number): void {
+    (this.final.uniforms.suckAt.value as Vector2).set(x, y);
+    this.suckT = 0;
+    this.emergeT = -1;
+  }
+
+  /** The picture unwinds out of (`x`, `y`) in ink, then its colour washes back from there. */
+  emerge(x: number, y: number): void {
+    (this.final.uniforms.suckAt.value as Vector2).set(x, y);
+    this.suckT = -1;
+    this.emergeT = 0;
+    this.grey = 1;
+    this.washT = -1;
+  }
+
+  /** Neither in a painting nor coming out of one (a new run). */
+  settle(): void {
+    this.suckT = this.emergeT = -1;
+  }
+
+  /** Being pulled in or coming back out is still playing. */
+  get passing(): boolean {
+    return (this.suckT >= 0 && this.suckT < SUCK_SEC) || this.emergeT >= 0;
   }
 
   /** The paper is still being painted on. */
@@ -386,6 +455,22 @@ export class Post {
       u.washR.value = 0;
       this.grey = this.drained ? Math.min(1, this.grey + dt / DRAIN_SEC) : Math.max(0, this.grey - dt / DRAIN_SEC);
     }
+    if (this.emergeT >= 0) {
+      // held in ink while the room unwinds, then the colour washes back out of the point
+      this.emergeT += dt;
+      const k = Math.min(1, this.emergeT / EMERGE_SEC);
+      u.suck.value = (1 - k) ** 2;
+      if (k < 1) this.grey = 1;
+      else {
+        this.emergeT = -1;
+        const at = u.suckAt.value as Vector2;
+        this.restore(at.x, at.y);
+      }
+    } else if (this.suckT >= 0) {
+      this.suckT += dt;
+      u.suck.value = Math.min(1, this.suckT / SUCK_SEC);
+    } else u.suck.value = 0;
+    u.vivid.value = this.vivid;
     u.grey.value = this.grey;
     if (!this.revealHeld && this.revealT < this.revealLen) this.revealT = Math.min(this.revealLen, this.revealT + dt);
     u.reveal.value = this.revealHeld ? 0 : this.revealT / this.revealLen;

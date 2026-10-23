@@ -322,7 +322,8 @@ export class Game {
 
   /** Once the run is decided: a clear into the progress, and the buttons onward. */
   private finish(s: SimState): void {
-    if (s.outcome === 'playing') return;
+    // going into the folding screen (or back out of it) plays out before the result
+    if (s.outcome === 'playing' || this.view.passing) return;
     const dungeon = s.config.dungeon;
     const key = progressKey(dungeon, s.config.tier);
     if (s.outcome === 'cleared' && !this.recorded && !DUNGEONS[dungeon].practice) {
