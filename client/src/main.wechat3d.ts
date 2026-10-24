@@ -27,7 +27,7 @@ function save(): void {
 }
 
 /** Chapter one's ink villagers, by the names view.ts knows them by. */
-const INK = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood'];
+const INK = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood', 'inkoldman', 'inkpeddler'];
 
 async function main(): Promise<void> {
   const screen = screenCanvas();
@@ -89,10 +89,11 @@ async function main(): Promise<void> {
     models: {
       hero: 'models/hero.glb',
       clips: { idle: 'models/archer.glb', walk: 'models/walk.glb', hit: 'models/hit.glb', fall: 'models/fall.glb' },
-      // chapter one's ink villagers and birds, slimmed by vite.wechat3d.config.js
-      bodies: Object.fromEntries(INK.map((n) => [n, `models/${n}.glb`])),
-      birds: Object.fromEntries(['finch', 'bigfinch', 'pheasant'].map((n) => [n, `models/${n}.glb`])),
-      colours: Object.fromEntries(INK.map((n) => [n, `models/${n}_colour.jpg`])),
+      // chapter one's ink villagers and birds, and the scenery's child, buffalo and crane (figures.ts),
+      // slimmed by vite.wechat3d.config.js
+      bodies: Object.fromEntries([...INK, 'child'].map((n) => [n, `models/${n}.glb`])),
+      birds: Object.fromEntries(['finch', 'bigfinch', 'pheasant', 'inkbuffalo', 'crane'].map((n) => [n, `models/${n}.glb`])),
+      colours: Object.fromEntries([...INK, 'inkbuffalo'].map((n) => [n, `models/${n}_colour.jpg`])),
       moves: { hero: 'models/swordsman.glb', inkwood: 'models/woodcutter.glb' },
       kinds: Object.fromEntries(['inkling', 'brute', 'fisher', 'washer'].map((k) => [k, `models/kind_${k}.glb`])),
       read,

@@ -1,6 +1,7 @@
 import { DOOR_HALF, DUNGEONS, WORLD, fromFp, surfaceUnder, type DungeonId, type Entity, type SimEvent, type SimState } from '@dnf/engine';
 import { Vector3, AmbientLight, type Texture, type BufferGeometry, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
 import { Decor } from './decor';
+import { Figures } from './figures';
 import { Governor } from './governor';
 import { lodReady, variant } from './lod';
 import { Actor, DEPTH_K, loadMaps, loadModels, loadPictures, type Model, type ModelFiles } from './actor';
@@ -67,11 +68,11 @@ const LEVELS = [
 /** The open doors of a cleared room: a cinnabar wash on the floor, pulsing. */
 const DOOR_INK = new MeshBasicMaterial({ color: 0xc8281e, transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false });
 
-type InkBody = 'inkfisher' | 'inkwasher' | 'inkboatman' | 'inkwood';
+type InkBody = 'inkfisher' | 'inkwasher' | 'inkboatman' | 'inkwood' | 'inkoldman' | 'inkpeddler';
 
 /** Chapter one's monsters: which ink villagers they are drawn as (varied by id), and their tint. */
 const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: number }>> = {
-  inkling: { bodies: ['inkfisher', 'inkwasher'], tint: 0xe0dcd4 },
+  inkling: { bodies: ['inkfisher', 'inkwasher', 'inkoldman', 'inkpeddler'], tint: 0xe0dcd4 },
   brute: { bodies: ['inkboatman'], tint: 0xd8c8c0 },
   woodcutter: { bodies: ['inkwood'], tint: 0xffffff },
   fisher: { bodies: ['inkfisher'], tint: 0xc8d0d4 },
@@ -152,6 +153,9 @@ export class View3D {
   private beats!: Beats;
   private readonly bodyOf = new Map<number, InkBody>();
   private colours: Record<string, Texture> = {};
+  private figures!: Figures;
+  /** ?beast=<name>: every monster drawn as that bird or beast (art/model3d/bird.py), to look at one. */
+  private readonly beast: string | null;
 
   private constructor(
     private readonly params: URLSearchParams,
@@ -168,6 +172,7 @@ export class View3D {
     renderer.toneMapping = NoToneMapping;
     renderer.info.autoReset = false;
     this.fx = params.get('fx') !== '0';
+    this.beast = params.get('beast');
     this.postOn = this.postWanted = this.fx;
     this.drainOn = params.get('drain') !== '0';
     setGlow(this.fx);
@@ -248,12 +253,14 @@ export class View3D {
     await lodReady;
     // chapter one's ink villagers on the same budgets (left out of a build that does not pack them)
     const ink: Partial<Record<InkBody, Model>> = {};
-    for (const [name, b] of Object.entries(models.bodies)) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
+    for (const [name, b] of Object.entries(models.bodies)) if (name.startsWith('ink')) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
     this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink, birds: models.birds };
     void (this.host ? loadPictures(this.host.models.colours ?? {}) : loadMaps(COLOUR_OF)).then((maps) => {
       for (const t of Object.values(maps)) this.renderer.initTexture(t);
       this.colours = maps;
     });
+    // the scenery's figures: the child as it is, the beasts on their own skeletons
+    this.figures = new Figures(scene, { ...models.birds, ...(models.bodies.child ? { child: models.bodies.child } : {}) }, (name) => this.colours[name] ?? null);
     const vfx = (this.vfx = this.fx ? new Vfx(models.hero, this.post) : null);
     if (vfx) scene.add(vfx.root);
     const decor = (this.decor = this.fx ? new Decor() : null);
@@ -310,6 +317,7 @@ export class View3D {
   clear(): void {
     for (const a of this.actors.values()) a.dispose();
     this.actors.clear();
+    this.figures?.clear();
     this.shake = 0;
     this.stage.instead = null;
     this.post?.settle();
@@ -417,6 +425,7 @@ export class View3D {
     const tan = Math.tan((FOV * Math.PI) / 360);
     const beats = this.beats;
     beats.update(dt, s, this.actors, follow(tan * this.dist * camera.aspect));
+    this.figures.update(s, dt, beats.seeping, this.gongbi);
     // a beat's camera: as near as it says, looking where it says, eased in from following the hero
     const look = beats.camera.look;
     const dist = this.dist * (1 + (beats.camera.close - 1) * look);
@@ -556,7 +565,8 @@ export class View3D {
       if (this.actors.has(e.id)) continue;
       const { model, tint } = this.modelFor(e.kind, e.id);
       const ink = INK_BODY[e.kind];
-      if (ink && !this.models.birds[e.kind]) this.bodyOf.set(e.id, ink.bodies[e.id % ink.bodies.length]);
+      const body = ink?.bodies[e.id % ink.bodies.length];
+      if (body && model === this.models.ink[body]) this.bodyOf.set(e.id, body);
       const a = new Actor(e.id, e.kind, model, tint, !UNARMED.has(e.kind));
       this.actors.set(e.id, a);
       this.scene.add(a.root, a.floorShadow, a.trail.mesh);
@@ -568,6 +578,7 @@ export class View3D {
     if (kind === 'hero') return { model: m.hero, tint: 0xffffff };
     // a bird on its own skeleton, already within budget
     if (m.birds[kind]) return { model: m.birds[kind], tint: 0xffffff };
+    if (this.beast && m.birds[this.beast]) return { model: m.birds[this.beast], tint: 0xffffff };
     const ink = INK_BODY[kind];
     if (ink) {
       const model = m.ink[ink.bodies[id % ink.bodies.length]];

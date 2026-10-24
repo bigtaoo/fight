@@ -76,6 +76,19 @@ mesh = next(o for o in bpy.data.objects if o.type == 'MESH')
 mesh.data.transform(mesh.matrix_world); mesh.matrix_world = Matrix()
 mesh.data.transform(Matrix.Rotation(math.pi / 2, 4, 'Z'))   # Tripo models face -Y; the rig faces +X
 mesh.name = NAME
+# the game reads only the base colour; newer Tripo exports also carry 4096 normal and
+# roughness maps, so those go and the colour is brought down to the older models' 2048
+for mat in mesh.data.materials:
+    nt = mat.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    for key in ('Normal', 'Metallic', 'Roughness'):
+        for l in list(bsdf.inputs[key].links): nt.links.remove(l)
+    bsdf.inputs['Metallic'].default_value = 0.0
+    bsdf.inputs['Roughness'].default_value = 0.9
+    for n in [n for n in nt.nodes if n.type in ('NORMAL_MAP', 'SEPARATE_COLOR')]: nt.nodes.remove(n)
+    for n in [n for n in nt.nodes if n.type == 'TEX_IMAGE' and not n.outputs['Color'].links]: nt.nodes.remove(n)
+    for n in nt.nodes:
+        if n.type == 'TEX_IMAGE' and n.image.size[0] > 2048: n.image.scale(2048, 2048)
 mode(mesh, 'EDIT')
 bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=0.0005)
 mode(mesh, 'OBJECT')
@@ -141,7 +154,8 @@ mesh.modifiers.new('Armature', 'ARMATURE').object = arm
 os.makedirs(OUT, exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 mesh.select_set(True); arm.select_set(True)
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'rig_v1.glb'), export_format='GLB', use_selection=True, export_animations=False)
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'rig_v1.glb'), export_format='GLB', use_selection=True, export_animations=False,
+                          export_image_format='JPEG')
 
 # front render at the new rest, for a look
 sc = bpy.context.scene
