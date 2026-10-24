@@ -136,6 +136,22 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   flash: ['flash', [0, 12]],
   dive: ['dive', [0, 40]],
   peck: ['peck', [0, 20]],
+  pecks: ['pecks', [0, 16, 26, 44]],
+  tail: ['tail', [0, 21, 27, 50]],
+  tailF: ['tail', [0, 21, 27, 50]],
+  soar: ['soar', [0, 18]],
+  soarF: ['soar', [0, 18]],
+  soarAir: ['soarAir', [0, 90]],
+  soarAirF: ['soarAir', [0, 90]],
+  soarLand: ['soarLand', [0, 1, 4, 34]],
+  soarLandF: ['soarLand', [0, 1, 4, 34]],
+  fan: ['fan', [0, 26]],
+  fanF: ['fan', [0, 26]],
+  fan2: ['fan2', [0, 14]],
+  fan2F: ['fan2', [0, 14]],
+  fan3: ['fan3', [0, 40]],
+  fan3F: ['fan3', [0, 40]],
+  cry: ['cry', [0, 36]],
 };
 
 /** The clip of a body's own for `move` and the tick in it `st` ticks (fractional) in, or null. */
