@@ -107,5 +107,6 @@ export function variant(base: Model, v: Variant): Model {
   const clips = {} as Record<ClipId, AnimationClip>;
   for (const [id, c] of Object.entries(base.clips) as [ClipId, AnimationClip][]) clips[id] = kept(c);
   const moves = base.moves && Object.fromEntries(Object.entries(base.moves).map(([id, c]) => [id, kept(c)]));
-  return { scene, height: base.height, map: base.map, clips, ...(moves && { moves }) };
+  const kinds = base.kinds && Object.fromEntries(Object.entries(base.kinds).map(([k, set]) => [k, Object.fromEntries(Object.entries(set).map(([id, c]) => [id, kept(c)]))]));
+  return { scene, height: base.height, map: base.map, clips, ...(moves && { moves }), ...(kinds && { kinds }) };
 }

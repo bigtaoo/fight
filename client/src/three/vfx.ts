@@ -387,7 +387,7 @@ export class Vfx {
     if (this.ghostAt <= 0) this.ghostAt = 0.055;
 
     this.shots(s, dt, alpha);
-    this.ink(s, alpha);
+    this.ink(s, alpha, actors);
     this.floor(s, t);
     this.weather(dt, camX, t);
     for (const sh of this.shafts) (sh.material as ShaderMaterial).uniforms.time.value = t;
@@ -474,9 +474,10 @@ export class Vfx {
 
   /** The village's ink: lines from the fisher to his hook or to whoever it has caught, balls of
    * ink in flight with rings closing in where they will land, and blots left on the ground. */
-  private ink(s: SimState, alpha: number): void {
+  private ink(s: SimState, alpha: number, actors: Map<number, Actor>): void {
     const lerp = (p: number, c: number) => fromFp(p + (c - p) * alpha);
-    const hand = (e: Entity) => _w.set(lerp(e.px, e.x) + e.facing * 40, lerp(e.pz, e.z) + 140, lerp(e.py, e.y) * DEPTH_K + 4);
+    // from the tip of the rod in his hand, or about where his hand would be
+    const hand = (e: Entity) => actors.get(e.id)?.rodTip(_w) ?? _w.set(lerp(e.px, e.x) + e.facing * 40, lerp(e.pz, e.z) + 140, lerp(e.py, e.y) * DEPTH_K + 4);
     let n = 0;
     const rope = (from: Vector3, x: number, y: number, z: number) => {
       let m = this.ropes[n];

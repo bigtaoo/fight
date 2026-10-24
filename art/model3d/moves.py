@@ -524,9 +524,278 @@ def sw_getup():
     ]
 
 
+# ---- chapter one's ink villagers (engine/content.ts MONSTERS; client view.ts INK_BODY) ----------
+# A set of clips is a monster kind's, not a body's: the inkling is drawn on the fisher's and the
+# washerwoman's bodies alike, and the fisher and washerwoman on their own. Each kind stands its own
+# way; being hit, thrown, lying and getting up are worked out from that stance.
+
+def hit_of(S, b=None):
+    """Hit (client actor.ts scrubs it on the 'hurt' state's ticks, from 0 on every blow; 20 ticks,
+    held at the end however long the stun): the head and chest snapped back, the arms flung, a
+    stagger back on one foot, then slowly back into the stance."""
+    snap = {**S, 'lean': S['lean'] - 30, 'nod': S['nod'] - 18, 'drop': S['drop'] + 0.02, 'shift': -0.05, 'twist': S['twist'] - 10,
+            'lh': (-0.04, 0.32, -0.14), 'rh': (-0.04, -0.32, -0.14), 'le': (-0.4, 0.6, -0.6), 're': (-0.4, -0.6, -0.6),
+            'lf': (S['lf'][0] + 0.02, S['lf'][1], 0.0), 'rf': (S['rf'][0] - 0.08, S['rf'][1], 0.0)}
+    if b: snap['blade'] = b
+    held = {**snap, 'lean': S['lean'] - 22, 'nod': S['nod'] - 10, 'drop': S['drop'] + 0.04}
+    return 20, [(0, S, 'lin'), (2, snap, 'out'), (8, held, 'io'), (20, S, 'io')]
+
+
+def knocked(S, prop=False):
+    """Thrown, landed and getting up (the swordsman's, without his sword; `prop`: the right hand
+    keeps hold of a rod, laid along the near side like his blade). S: the stance it rises into."""
+    b = (lambda v: v) if prop else (lambda v: None)
+    lie = {**LIE, 'blade': b(LIE['blade'])}
+    tumble = {**TUMBLE, 'blade': b(TUMBLE['blade'])}
+
+    def air():
+        snap = {**S, 'lean': -14, 'nod': -14, 'fall': 8, 'drop': 0.0, 'rh': (0.10, -0.22, -0.12), 'lh': (-0.02, 0.30, -0.10),
+                'blade': b((0.7, -0.1, 0.6))}
+        return 16, [(0, snap, 'lin'), (5, P(**tumble), 'out'), (16, P(**{**tumble, 'fall': 58.0, 'lean': 8.0}), 'io')]
+
+    def down():
+        slam = {**lie, 'fall': 96.0, 'nod': -4.0, 'lf': (0.10, 0.05, 0.22), 'rf': (0.06, -0.04, 0.14),
+                'lh': (0.0, 0.38, 0.02), 'blade': b((0.2, -0.12, -0.97))}
+        return 24, [(0, P(**{**tumble, 'fall': 62.0, 'floor': 1.0}), 'lin'), (3, P(**slam), 'out'), (8, P(**lie), 'io'),
+                    (24, P(**{**lie, 'nod': 14.0, 'lf': (0.03, 0.05, 0.12)}), 'io')]
+
+    def getup():
+        sit = P(**{**lie, 'lean': 62.0, 'nod': 0.0, 'lf': (0.04, 0.05, 0.24), 'rf': (0.0, -0.04, 0.18),
+                   'lh': (-0.30, 0.20, 0.04), 'le': (0.6, 0.6, 0.0), 'rh': (-0.14, -0.22, -0.24), 'blade': b((0.35, -0.12, -0.92))})
+        crouch = {**S, 'fall': 12.0, 'floor': 1.0, 'drop': 0.16, 'lean': 34.0, 'nod': 6.0, 'lf': (0.10, 0.04, 0.0), 'rf': (-0.12, -0.05, 0.0),
+                  'lh': (0.20, 0.20, -0.36), 'le': (-0.6, 0.7, 0.0), 'rh': (0.18, -0.14, -0.28), 'blade': b((0.85, 0.0, 0.35))}
+        return 10, [(0, P(**lie), 'lin'), (4, sit, 'io'), (7, crouch, 'io'), (10, S, 'io')]
+
+    return {'hit': lambda: hit_of(S, b((0.2, -0.3, 0.93))), 'air': air, 'down': down, 'getup': getup}
+
+
+def gait(S, n, s, lift=(0.06, 0.06), dip=(0.04, 0.02), sway=5.0, swing=0.07, hands=True, extra=None):
+    """A walk cycle of n ticks on stance S, a stride of s each side of the hips; lift: how high
+    each foot (left, right) swings through; dip: the hips' drop on a landing / passing. extra(i):
+    more to set on the i-th quarter."""
+    keys = []
+    for i in range(5):
+        q = i % 4
+        lx = [-s, 0.0, s, 0.0][q]
+        lu = [0.0, lift[0], 0.0, 0.0][q]
+        rx = [s, 0.0, -s, 0.0][q]
+        ru = [0.0, 0.0, 0.0, lift[1]][q]
+        d = [dip[0], dip[1], dip[0], dip[1]][q]
+        w = [sway, 0, -sway, 0][q]
+        arm = [1, 0, -1, 0][q]
+        p = {**S, 'drop': S['drop'] + d, 'turn': S['turn'] + w * 0.5, 'twist': S['twist'] - w, 'tilt': S['tilt'] + [-4, 0, 4, 0][q],
+             'lf': (S['lf'][0] + lx, S['lf'][1], lu), 'rf': (S['rf'][0] + rx, S['rf'][1], ru)}
+        if hands:
+            p['lh'] = (S['lh'][0] - swing * arm, S['lh'][1], S['lh'][2])
+            p['rh'] = (S['rh'][0] + swing * arm, S['rh'][1], S['rh'][2])
+        if extra: p.update(extra(q))
+        keys.append((i * n // 4, p, 'lin' if i == 0 else 'io'))
+    return n, keys
+
+
+def hop_of(S, keep):
+    """The ranged villagers' hop back (engine 'hop': 30 ticks, airborne from the start): a dip,
+    up with the feet drawn in and the free arm out for balance, a landing that sinks and comes up.
+    keep: what the hands hold, kept as it is."""
+    air = {**S, 'drop': -0.01, 'lean': S['lean'] - 14, 'nod': S['nod'] - 6, 'lf': (0.10, 0.05, 0.10), 'rf': (0.0, -0.05, 0.14), **keep}
+    return 30, [
+        (0, S, 'lin'),
+        (3, {**S, 'drop': S['drop'] + 0.06, 'lean': S['lean'] + 10}, 'io'),
+        (8, air, 'out'),
+        (19, {**air, 'drop': 0.0, 'lf': (0.08, 0.05, 0.05), 'rf': (-0.04, -0.05, 0.03)}, 'io'),
+        (23, {**S, 'drop': S['drop'] + 0.07, 'lean': S['lean'] + 14, 'nod': S['nod'] + 4}, 'io'),
+        (30, S, 'io'),
+    ]
+
+
+# -- the inkling: a villager half eaten by the ink, hunched, arms hanging, head down
+INKLING = P(drop=0.06, lean=30, nod=12, tilt=5, twist=-6, turn=0.0,
+            lh=(0.18, 0.22, -0.40), rh=(0.15, -0.21, -0.42), le=(-0.6, 0.8, -0.2), re=(-0.6, -0.8, -0.2),
+            lf=(0.05, 0.05, 0.0), rf=(-0.05, -0.04, 0.0))
+
+
+def ink_idle():
+    """Swaying where it stands (60 ticks, loops): a slow breath, then the head lolls and jerks back."""
+    breath = {**INKLING, 'drop': 0.075, 'lean': 34, 'tilt': -2, 'lh': (0.20, 0.22, -0.43), 'rh': (0.18, -0.21, -0.44)}
+    loll = {**INKLING, 'tilt': 9, 'nod': 22, 'twist': -10}
+    return 60, [(0, INKLING, 'lin'), (24, breath, 'io'), (42, loll, 'io'), (46, {**INKLING, 'nod': 6, 'tilt': 6}, 'out'), (60, INKLING, 'io')]
+
+
+def ink_walk():
+    """A shamble (40 ticks, loops): the left foot lifted and put down, the right dragged after it
+    barely off the ground; the body lurches over the left, the arms swing late and loose. The
+    stride is the engine's walk (2.6 a tick on a 225-tall body) over a half cycle."""
+    s = 2.6 / 225 * 20 / 2
+    return gait(INKLING, 40, s, lift=(0.07, 0.015), dip=(0.05, 0.015), sway=7, swing=0.06,
+                extra=lambda q: {'tilt': [8, 3, -1, 3][q], 'nod': [16, 10, 8, 12][q]})
+
+
+def ink_claw():
+    """The claw (engine: 38 ticks, active 17..19, a lurch in 14..18): a long rear back, both hands
+    up behind the head and the chest thrown open, held quivering; then raked down across the front
+    with the whole body falling in after them."""
+    rear = {**INKLING, 'drop': 0.03, 'lean': -8, 'nod': -10, 'twist': -28, 'turn': -12, 'tilt': 0, 'shift': -0.03,
+            'rh': (-0.12, -0.16, 0.24), 're': (0.2, -0.8, 0.5), 'lh': (0.0, 0.26, 0.20), 'le': (0.2, 0.8, 0.5),
+            'lf': (0.10, 0.05, 0.0), 'rf': (-0.08, -0.04, 0.0)}
+    rake = {**INKLING, 'drop': 0.10, 'lean': 50, 'nod': 14, 'twist': 26, 'turn': 10, 'tilt': 0, 'shift': 0.07,
+            'rh': (0.36, 0.04, -0.34), 're': (-0.2, -1.0, 0.3), 'lh': (0.26, 0.26, -0.44), 'le': (-0.3, 1.0, 0.0),
+            'lf': (0.16, 0.05, 0.0), 'rf': (-0.10, -0.04, 0.0)}
+    return 38, [
+        (0, INKLING, 'lin'),
+        (11, rear, 'io'),
+        (16, {**rear, 'lean': -12, 'shake': 1.0}, 'io'),
+        (19, rake, 'out'),
+        (25, {**rake, 'drop': 0.11, 'lean': 52, 'rh': (0.34, 0.06, -0.38)}, 'io'),
+        (38, INKLING, 'io'),
+    ]
+
+
+def ink_pounce():
+    """A lurker's spring (engine 'pounce': 40 ticks, airborne, hitting all the way): from a crouch,
+    flung forward with both hands out, the claws raised in the air and raked down as it lands."""
+    crouch = {**INKLING, 'drop': 0.16, 'lean': 44, 'nod': 4, 'lf': (0.08, 0.05, 0.0), 'rf': (-0.10, -0.04, 0.0),
+              'lh': (0.20, 0.24, -0.44), 'rh': (0.18, -0.22, -0.46)}
+    fly = {**INKLING, 'drop': -0.02, 'lean': 24, 'nod': -10, 'tilt': 0, 'shift': 0.04,
+           'lh': (0.36, 0.14, 0.04), 'rh': (0.36, -0.12, 0.08), 'le': (-0.2, 0.8, 0.4), 're': (-0.2, -0.8, 0.4),
+           'lf': (-0.10, 0.05, 0.08), 'rf': (-0.20, -0.04, 0.14)}
+    up = {**fly, 'lean': 4, 'nod': -12, 'lh': (0.02, 0.26, 0.22), 'rh': (-0.06, -0.16, 0.26), 'le': (0.2, 0.8, 0.5), 're': (0.2, -0.8, 0.5),
+          'lf': (0.12, 0.05, 0.12), 'rf': (0.02, -0.04, 0.10)}
+    rake = {**INKLING, 'drop': 0.12, 'lean': 50, 'nod': 14, 'twist': 20, 'tilt': 0, 'shift': 0.06,
+            'rh': (0.36, 0.04, -0.36), 're': (-0.2, -1.0, 0.3), 'lh': (0.26, 0.26, -0.44), 'le': (-0.3, 1.0, 0.0),
+            'lf': (0.16, 0.05, 0.0), 'rf': (-0.10, -0.04, 0.0)}
+    return 40, [(0, crouch, 'lin'), (3, fly, 'out'), (12, up, 'io'), (18, rake, 'out'), (26, {**rake, 'drop': 0.13}, 'io'), (40, INKLING, 'io')]
+
+
+# -- the brute (the boatman): big and slow, chest out, a coil of rope in the left fist
+BRUTE = P(drop=0.035, lean=14, nod=-2, twist=0.0,
+          lh=(0.10, 0.30, -0.28), rh=(0.08, -0.31, -0.28), le=(-0.5, 0.8, -0.3), re=(-0.5, -0.8, -0.3),
+          lf=(0.05, 0.07, 0.0), rf=(-0.05, -0.07, 0.0))
+
+
+def brute_idle():
+    """A heavy breath (60 ticks, loops): the shoulders rise and the arms hang out from the body."""
+    out = {**BRUTE, 'drop': 0.02, 'lean': 8, 'nod': -8, 'lh': (0.10, 0.32, -0.26), 'rh': (0.08, -0.33, -0.26)}
+    return 60, [(0, BRUTE, 'lin'), (30, out, 'io'), (60, BRUTE, 'io')]
+
+
+def brute_walk():
+    """A stomp (40 ticks, loops): the woodcutter's heavy walk, slower, the body rolling over each foot
+    (the engine's 2.2 a tick on a 250-tall body)."""
+    return gait(BRUTE, 40, 2.2 / 250 * 20 / 2, lift=(0.06, 0.06), dip=(0.055, 0.02), sway=8, swing=0.08)
+
+
+def brute_smash():
+    """The smash (engine: 56 ticks, active 31..34, super armour 6..34, a lurch in 28..32): the right
+    fist raised high over the head and the chest thrown back, the rope held out in front, held
+    there straining for a second, then the whole body brought down behind the fist."""
+    up = {**BRUTE, 'drop': 0.0, 'lean': -22, 'nod': -18, 'twist': -16, 'turn': -10, 'shift': -0.02,
+          'rh': (-0.08, -0.08, 0.40), 're': (0.4, -0.8, 0.4), 'lh': (0.24, 0.24, -0.06), 'le': (-0.5, 0.8, -0.4),
+          'lf': (0.12, 0.07, 0.0), 'rf': (-0.10, -0.07, 0.0)}
+    slam = {**BRUTE, 'drop': 0.15, 'lean': 52, 'nod': 16, 'twist': 18, 'turn': 6, 'shift': 0.08,
+            'rh': (0.40, -0.06, -0.38), 're': (-0.2, -1.0, 0.2), 'lh': (0.10, 0.34, -0.30), 'le': (-0.5, 0.8, -0.2),
+            'lf': (0.18, 0.07, 0.0), 'rf': (-0.12, -0.07, 0.0)}
+    return 56, [
+        (0, BRUTE, 'lin'),
+        (4, {**BRUTE, 'drop': 0.07, 'lean': 30, 'nod': 8}, 'io'),
+        (12, up, 'io'),
+        (28, {**up, 'lean': -26, 'drop': -0.01, 'shake': 1.4}, 'lin'),
+        (32, slam, 'out'),
+        (38, {**slam, 'drop': 0.16, 'lean': 54, 'rh': (0.40, -0.06, -0.42)}, 'out'),
+        (46, {**slam, 'drop': 0.12, 'lean': 40}, 'io'),
+        (56, BRUTE, 'io'),
+    ]
+
+
+# -- the fisher: a rod in the right hand (the client puts it where it puts a sword; `blade` aims it)
+FISHER = P(drop=0.02, lean=10, nod=-2, twist=6,
+           rh=(0.14, -0.15, -0.18), re=(-0.4, -0.9, -0.3), blade=(0.50, -0.06, 0.86),
+           lh=(0.06, 0.24, -0.29), le=(-0.6, 0.6, -0.4), lf=(0.06, 0.04, 0.0), rf=(-0.06, -0.04, 0.0))
+
+
+def fisher_idle():
+    """Waiting for a bite (60 ticks, loops): a breath, the rod's tip nodding."""
+    return 60, [(0, FISHER, 'lin'), (20, {**FISHER, 'blade': (0.58, -0.06, 0.81), 'drop': 0.03, 'lean': 13}, 'io'),
+                (40, {**FISHER, 'blade': (0.46, -0.06, 0.88), 'drop': 0.025}, 'io'), (60, FISHER, 'io')]
+
+
+def fisher_walk():
+    """An easy walk with the rod held up (32 ticks, loops; 2.4 a tick on a 230-tall body)."""
+    return gait(FISHER, 32, 2.4 / 230 * 16 / 2, lift=(0.06, 0.06), dip=(0.03, 0.012), sway=5, swing=0.08,
+                extra=lambda q: {'rh': (0.14, -0.15, -0.18 + [0.0, 0.01, 0.0, 0.01][q]), 'lh': (0.06 - 0.08 * [1, 0, -1, 0][q], 0.24, -0.29)})
+
+
+def fisher_cast():
+    """The cast (engine: 40 ticks, the hook thrown at 24 and reeling in whoever it catches): the rod
+    drawn back over the right shoulder, held, whipped forward and down at 24 with the body behind
+    it; then hauled back up in two pulls, the free hand on the butt and the feet braced."""
+    back = {**FISHER, 'drop': 0.03, 'lean': -10, 'nod': -8, 'twist': -26, 'turn': -16,
+            'rh': (-0.04, -0.17, 0.06), 're': (-0.4, -0.9, 0.2), 'blade': (-0.55, -0.05, 0.83),
+            'lh': (0.20, 0.20, -0.12), 'le': (-0.4, 0.8, -0.4), 'lf': (0.12, 0.04, 0.0), 'rf': (-0.08, -0.04, 0.0)}
+    whip = {**FISHER, 'drop': 0.05, 'lean': 24, 'nod': 4, 'twist': 22, 'turn': 6, 'shift': 0.05,
+            'rh': (0.32, -0.10, -0.04), 're': (-0.2, -1.0, 0.1), 'blade': (0.96, -0.02, 0.10),
+            'lh': (-0.04, 0.24, -0.26), 'le': (-0.6, 0.6, 0.0), 'lf': (0.16, 0.04, 0.0), 'rf': (-0.10, -0.04, 0.0)}
+    haul = {**FISHER, 'drop': 0.06, 'lean': -10, 'nod': -6, 'twist': 10, 'shift': -0.03,
+            'rh': (0.14, -0.12, 0.00), 're': (-0.4, -0.9, -0.2), 'blade': (0.40, -0.04, 0.92),
+            'lh': (0.10, 0.08, -0.14), 'le': (-0.6, 0.8, -0.2), 'lf': (0.16, 0.04, 0.0), 'rf': (-0.12, -0.04, 0.0)}
+    return 40, [
+        (0, FISHER, 'lin'),
+        (14, back, 'io'),
+        (21, {**back, 'lean': -14, 'blade': (-0.68, -0.05, 0.73), 'shake': 0.5}, 'io'),
+        (24, whip, 'out'),
+        (28, {**whip, 'blade': (0.95, -0.02, 0.0)}, 'io'),
+        (32, {**haul, 'blade': (0.60, -0.04, 0.80), 'lean': -4}, 'out'),
+        (35, {**haul, 'lean': 2, 'blade': (0.70, -0.04, 0.71)}, 'io'),
+        (38, haul, 'out'),
+        (40, FISHER, 'io'),
+    ]
+
+
+# -- the washerwoman: a basket in the left hand (part of her body), she heaves the ink out of it
+WASHER = P(drop=0.02, lean=8, nod=-4,
+           lh=(0.08, 0.29, -0.30), le=(-0.5, 0.8, -0.3), rh=(0.08, -0.24, -0.28), re=(-0.6, -0.6, -0.4),
+           lf=(0.05, 0.04, 0.0), rf=(-0.05, -0.04, 0.0))
+
+
+def washer_idle():
+    """A breath, the basket swinging a little (60 ticks, loops)."""
+    return 60, [(0, WASHER, 'lin'), (30, {**WASHER, 'drop': 0.03, 'lean': 11, 'lh': (0.11, 0.29, -0.29)}, 'io'), (60, WASHER, 'io')]
+
+
+def washer_walk():
+    """A brisk walk, the basket carried out from the hip (32 ticks, loops; 2.2 a tick on a 220-tall body)."""
+    return gait(WASHER, 32, 2.2 / 220 * 16 / 2, lift=(0.05, 0.05), dip=(0.03, 0.012), sway=6, swing=0.08,
+                extra=lambda q: {'lh': (0.08 + 0.03 * [1, 0, -1, 0][q], 0.29, -0.30)})
+
+
+def washer_lob():
+    """The lob (engine: 40 ticks, the ink thrown at 22, from high in front): the basket gripped in
+    both hands and swung low back past the left hip in a crouch, held, then heaved up and over in
+    front of the head, the body rising onto the toes behind it."""
+    low = {**WASHER, 'drop': 0.09, 'lean': 32, 'nod': 8, 'twist': 30, 'turn': 14,
+           'lh': (-0.20, 0.24, -0.36), 'le': (0.2, 0.8, -0.6), 'rh': (-0.08, 0.10, -0.34), 're': (-0.4, -0.8, -0.4),
+           'lf': (0.10, 0.05, 0.0), 'rf': (-0.10, -0.04, 0.0)}
+    heave = {**WASHER, 'drop': -0.01, 'lean': -16, 'nod': -18, 'twist': -16, 'turn': -6, 'shift': 0.04,
+             'lh': (0.20, 0.12, 0.26), 'le': (-0.2, 0.8, -0.4), 'rh': (0.18, -0.06, 0.24), 're': (-0.2, -0.8, -0.4),
+             'lf': (0.12, 0.05, 0.02), 'rf': (-0.12, -0.04, 0.04)}
+    return 40, [
+        (0, WASHER, 'lin'),
+        (13, low, 'io'),
+        (18, {**low, 'drop': 0.10, 'shake': 0.6}, 'io'),
+        (22, heave, 'out'),
+        (27, {**heave, 'lh': (0.24, 0.12, 0.20), 'rh': (0.22, -0.06, 0.18), 'lean': -8}, 'io'),
+        (40, WASHER, 'io'),
+    ]
+
+
 SETS = {
-    'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}},
-    'swordsman': {'body': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
+    'woodcutter': {'body': 'wood', 'prop': None, 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}},
+    'inkling': {'body': 'fisher', 'prop': None, 'clips': {'idle': ink_idle, 'walk': ink_walk, 'claw': ink_claw, 'pounce': ink_pounce, **knocked(INKLING)}},
+    'brute': {'body': 'boatman', 'prop': None, 'clips': {'idle': brute_idle, 'walk': brute_walk, 'smash': brute_smash, **knocked(BRUTE)}},
+    'fisher': {'body': 'fisher', 'prop': 'rod', 'clips': {'idle': fisher_idle, 'walk': fisher_walk, 'cast': fisher_cast,
+                                                         'hop': lambda: hop_of(FISHER, {}), **knocked(FISHER, prop=True)}},
+    'washer': {'body': 'washer', 'prop': None, 'clips': {'idle': washer_idle, 'walk': washer_walk, 'lob': washer_lob,
+                                                        'hop': lambda: hop_of(WASHER, {'rh': (-0.10, -0.30, -0.12), 're': (-0.4, -0.6, -0.6)}), **knocked(WASHER)}},
+    'swordsman': {'body': 'sword', 'prop': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
                                                  'jumpAtk': sw_jumpAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
                                                  'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
                                                  'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
@@ -535,6 +804,9 @@ SETS = {
 }
 BODY = args[1] if len(args) > 1 else SETS[SET]['body']
 CLIPS = SETS[SET]['clips']
+# what the right hand holds (client actor.ts arm()): a sword, a rod, or nothing; and its length
+PROP = SETS[SET].get('prop')
+PROP_LEN = {'sword': 0.6, 'rod': 0.85}.get(PROP, 0.6)
 
 # ---- the rig ---------------------------------------------------------------------------------
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -769,7 +1041,12 @@ cam.rotation_euler = (-side).to_track_quat('-Z', 'Y').to_euler()
 # a stand-in sword in the hand, as the game holds it
 bpy.ops.mesh.primitive_cube_add(size=1)
 blade = bpy.context.active_object
-blade.data.transform(Matrix.Translation((0, 0.3, 0)) @ Matrix.Diagonal((0.012, 0.6, 0.05, 1)))
+if PROP == 'rod':
+    # a pole from a little behind the fist to its tip
+    blade.data.transform(Matrix.Translation((0, PROP_LEN / 2 - 0.08, 0)) @ Matrix.Diagonal((0.012, PROP_LEN + 0.08, 0.012, 1)))
+else:
+    blade.data.transform(Matrix.Translation((0, 0.3, 0)) @ Matrix.Diagonal((0.012, 0.6, 0.05, 1)))
+blade.hide_render = PROP is None
 # bone-parented, an object hangs from the bone's tail in the bone's own axes
 _hr = _bn['R_Hand'].matrix_local.to_3x3().normalized()
 blade.parent = arm; blade.parent_type = 'BONE'; blade.parent_bone = 'R_Hand'
@@ -790,7 +1067,7 @@ def tips(total, sub=0.0):
         M = blade.evaluated_get(bpy.context.evaluated_depsgraph_get()).matrix_world
         R = M.to_3x3().normalized()
         d, n = R.col[1], R.col[0]
-        out.append(((M @ Vector((0, 0.6, 0))).z, math.sqrt(max(0.0, 1 - d.dot(side) ** 2)), abs(n.dot(side))))
+        out.append(((M @ Vector((0, PROP_LEN, 0))).z, math.sqrt(max(0.0, 1 - d.dot(side) ** 2)), abs(n.dot(side))))
     return out
 
 
@@ -860,7 +1137,7 @@ def strip(name, ticks, wide=False):
     h, w = row.shape[:2]
     im = bpy.data.images.new(f'{name}_strip', w, h)
     im.pixels = np.concatenate([row, np.ones((h, w, 1))], axis=2).ravel()
-    im.filepath_raw = os.path.join(OUT, f'{SET}_{name}.png'); im.file_format = 'PNG'; im.save()
+    im.filepath_raw = os.path.join(OUT, f'{SET}_{name}.png' if BODY == SETS[SET]['body'] else f'{SET}-{BODY}_{name}.png'); im.file_format = 'PNG'; im.save()
 
 
 # MOVES_ONLY=a,b: draw and check only these clips (all are still keyed and exported)
@@ -872,7 +1149,7 @@ for name, fn in CLIPS.items():
     total, keys = fn()
     # where the blade turns over, it rolls through its edge over the span or flips in one go,
     # whichever shows less of the edge there (a flip shows it for the one frame between ticks)
-    turns = [i for i, (a, b) in enumerate(zip(keys, keys[1:])) if a[1]['roll'] != b[1]['roll']]
+    turns = [i for i, (a, b) in enumerate(zip(keys, keys[1:])) if a[1]['roll'] != b[1]['roll']] if PROP == 'sword' else []
     snap = {}
     if turns:
         flips = {i: flip_tick(keys, i) for i in turns}
@@ -886,13 +1163,13 @@ for name, fn in CLIPS.items():
             cost = {m: sum(max(0.0, 0.5 - f) for t, f in e if t0 < t < t1) for m, e in trial.items()}
             if cost['flip'] < cost['roll']: snap[i] = flips[i]
     acts[name] = key_clip(name, total, keys, snap)
-    # every clip's tip is checked, drawn or not
-    sw = tips(total)
+    # every clip's tip is checked, drawn or not (a rod's too; a round rod has no edge to show)
+    sw = tips(total) if PROP else [(1.0, 0.0, 1.0)] * (total + 1)
     tip = [z for z, _, _ in sw]
     under += [f'{name}@{t} {z:.3f}' for t, z in enumerate(tip) if z < 0]
     # the game draws between ticks too
-    under += [f'{name}@{t}.5 {z:.3f}' for t, (z, _, _) in enumerate(tips(total, 0.5)) if z < 0]
-    edge += [f'{name}@{t:g} {f:.2f}' for t, f in edges(total)]
+    if PROP: under += [f'{name}@{t}.5 {z:.3f}' for t, (z, _, _) in enumerate(tips(total, 0.5)) if z < 0]
+    if PROP == 'sword': edge += [f'{name}@{t:g} {f:.2f}' for t, f in edges(total)]
     if snap: print(f'MOVES {name} turned over in one go: ' + ' '.join(f'{j}..{j + 1}' for j in snap.values()))
     print(f'MOVES {name} sword seen: ' + ' '.join(f'{v:.2f}' for _, v, _ in sw))
     print(f'MOVES {name} sword flat: ' + ' '.join(f'{v:.2f}' for _, _, v in sw))

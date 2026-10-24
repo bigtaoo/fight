@@ -12,6 +12,7 @@ import {
   Mesh,
   MeshToonMaterial,
   MeshBasicMaterial,
+  type Material,
   CircleGeometry,
   Quaternion,
   Vector3,
@@ -56,6 +57,8 @@ export interface Model {
   clips: Record<ClipId, AnimationClip>;
   /** The body's own clips by name (moves.py): its moves, and an idle or walk that replace the archer's. */
   moves?: Record<string, AnimationClip>;
+  /** Clip sets of a kind's own (moves.py), keyed on whichever body: by kind, then clip name. */
+  kinds?: Record<string, Record<string, AnimationClip>>;
 }
 
 const loader = new GLTFLoader();
@@ -69,6 +72,9 @@ export interface ModelFiles {
   bodies?: Record<string, string>;
   /** Clips of a body's own (a file of several), by the body's name in `bodies` ('hero': the hero's). */
   moves?: Record<string, string>;
+  /** Clips of a kind's own (a file of several), played by whichever body the kind is drawn with:
+   * retargeted to each body in `bodies`. */
+  kinds?: Record<string, string>;
   /** Birds by name (art/model3d/bird.py): a skeleton of their own that carries all their clips. */
   birds?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
@@ -97,11 +103,13 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
   const names = Object.keys(files.bodies ?? {});
   const own = Object.keys(files.moves ?? {}).filter((n) => n === 'hero' || names.includes(n));
   const flyers = Object.keys(files.birds ?? {});
-  const [[hero, ...clips], bodies, moves, birds] = await Promise.all([
+  const sets = Object.keys(files.kinds ?? {});
+  const [[hero, ...clips], bodies, moves, birds, kinds] = await Promise.all([
     Promise.all([files.hero, ...Object.values(files.clips)].map(load)),
     Promise.all(names.map((n) => load(files.bodies![n]))),
     Promise.all(own.map((n) => load(files.moves![n]))),
     Promise.all(flyers.map((n) => load(files.birds![n]))),
+    Promise.all(sets.map((n) => load(files.kinds![n]))),
   ]);
   const ids = Object.keys(files.clips) as ClipId[];
   const model = (gltf: typeof hero, name = ''): Model => {
@@ -122,6 +130,14 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
       // keyed on a body of their own: its hips' height is theirs
       const from = mine.scene.getObjectByName('Hip')?.position.length() ?? CLIP_HIP;
       m.moves = Object.fromEntries(mine.animations.map((a) => [a.name, retarget(a, hip, from)]));
+    }
+    if (names.includes(name) && sets.length) {
+      m.kinds = Object.fromEntries(
+        sets.map((k, i) => {
+          const from = kinds[i].scene.getObjectByName('Hip')?.position.length() ?? CLIP_HIP;
+          return [k, Object.fromEntries(kinds[i].animations.map((a) => [a.name, retarget(a, hip, from)]))];
+        }),
+      );
     }
     return m;
   };
@@ -193,9 +209,24 @@ const SWORD = (() => {
   } as const;
 })();
 
-function sword(): Group {
+/** The fisher's rod: a bamboo pole along +y from the hand, thick at the butt and fine at the tip
+ * (ROD_LEN long, as moves.py keys it), black-jointed. */
+const ROD_LEN = 0.85;
+const ROD = (() => {
+  const ink = new MeshBasicMaterial({ color: INK });
+  const cane = new MeshToonMaterial({ color: 0x9a8a62, gradientMap: null });
+  cane.onBeforeCompile = bakeTone;
+  return {
+    butt: [new BoxGeometry(0.022, 0.36, 0.022), cane, [0, 0.1, 0]],
+    tip: [new BoxGeometry(0.011, 0.5, 0.011), cane, [0, 0.52, 0]],
+    joint: [new BoxGeometry(0.026, 0.014, 0.026), ink, [0, 0.27, 0]],
+    end: [new BoxGeometry(0.026, 0.03, 0.026), ink, [0, -0.08, 0]],
+  } as const;
+})();
+
+function prop(parts: Record<string, readonly [BoxGeometry, Material, readonly [number, number, number]]>): Group {
   const g = new Group();
-  for (const [geo, mat, [x, y, z]] of Object.values(SWORD)) {
+  for (const [geo, mat, [x, y, z]] of Object.values(parts)) {
     const m = new Mesh(geo, mat);
     m.position.set(x, y, z);
     g.add(m);
@@ -227,6 +258,10 @@ export class Actor {
   private readonly scale: number;
   private yaw = 0;
   private blade: Group | null = null;
+  /** The fisher's rod, where the line to his hook starts. */
+  private rod: Group | null = null;
+  /** Whether 'hit' is the body's own (moves.py), scrubbed to the state's ticks, or the archer's. */
+  private readonly ownHit: boolean;
   /** The swish behind the blade, kept in the room like the shadow. */
   readonly trail = new Trail();
   /** Seconds of white flash left after a hit. */
@@ -264,7 +299,8 @@ export class Actor {
       }
       if ((o as Bone).isBone) this.bones[o.name] = o as Bone;
     });
-    if (armed) this.arm();
+    if (armed) this.blade = this.arm(prop(SWORD));
+    else if (kind === 'fisher') this.rod = this.arm(prop(ROD));
     this.scale = fromFp(BODIES[kind].height) / model.height;
     this.body.scale.setScalar(this.scale);
     this.root.add(this.body);
@@ -274,7 +310,8 @@ export class Actor {
     this.mixer = new AnimationMixer(this.body);
     // the body's own clips: an idle or walk of its own loops in place of the archer's; its moves
     // hold still and are scrubbed to the engine's ticks
-    const clips: Record<string, AnimationClip> = { ...model.clips, ...model.moves };
+    // (a kind with a set of its own plays that, on whichever body it is drawn with)
+    const clips: Record<string, AnimationClip> = { ...model.clips, ...(model.kinds?.[kind] ?? model.moves) };
     for (const [id, clip] of Object.entries(clips)) {
       const a = this.mixer.clipAction(clip);
       if (id === 'idle' || id === 'walk') a.setLoop(LoopRepeat, Infinity);
@@ -284,18 +321,18 @@ export class Actor {
       }
       this.actions[id] = a;
     }
+    this.ownHit = clips.hit !== model.clips.hit;
   }
 
-  /** Puts a sword in the right hand, pointing forward out of the fist at rest (worked out from the
-   * rest pose, where the model faces -z and the arms are out to the sides). */
-  private arm(): void {
+  /** Puts `s` (a sword, a rod) in the right hand, pointing forward out of the fist at rest (worked
+   * out from the rest pose, where the model faces -z and the arms are out to the sides). */
+  private arm(s: Group): Group | null {
     const hand = this.bones['R_Hand'];
     const fore = this.bones['R_Forearm'];
-    if (!hand || !fore) return;
+    if (!hand || !fore) return null;
     this.body.updateMatrixWorld(true);
     const hq = hand.getWorldQuaternion(new Quaternion()).invert();
     const along = hand.getWorldPosition(new Vector3()).sub(fore.getWorldPosition(new Vector3())).normalize().applyQuaternion(hq);
-    const s = sword();
     // mostly forward, a little down the arm's line: a cut ends with the blade at the enemy, and a
     // hanging arm (the swordsman's reaches low) keeps the tip above the floor
     const dir = along
@@ -313,7 +350,13 @@ export class Actor {
     s.position.copy(along).multiplyScalar(0.05 / hand.getWorldScale(new Vector3()).x);
     s.scale.setScalar(1 / hand.getWorldScale(new Vector3()).x);
     hand.add(s);
-    this.blade = s;
+    return s;
+  }
+
+  /** Where the rod's tip is in the room, into `out`; null without a rod (or before it is shown). */
+  rodTip(out: Vector3): Vector3 | null {
+    if (!this.rod || !this.root.visible) return null;
+    return this.rod.localToWorld(out.set(0, ROD_LEN - 0.02, 0));
   }
 
   /** The blob of shadow on the floor, kept apart so it never tilts with the body. */
@@ -368,9 +411,15 @@ export class Actor {
       case 'run':
         this.play('walk').timeScale = speed * 1.7;
         break;
-      case 'hurt':
-        this.play('hit', 0.05).timeScale = speed;
+      case 'hurt': {
+        const a = this.play('hit', 0.05);
+        if (this.ownHit) {
+          // a hit of its own snaps back on every blow (the engine starts the state over)
+          a.timeScale = 0;
+          a.time = Math.min((e.st + (held ? 0 : alpha)) / 30, a.getClip().duration);
+        } else a.timeScale = speed;
         break;
+      }
       case 'air':
       case 'down':
       case 'dead':
@@ -386,7 +435,7 @@ export class Actor {
     }
     this.mixer.update(dt);
     this.body.updateMatrixWorld(true);
-    if (e.state === 'act' && !own) this.pose(e, alpha);
+    if (e.state === 'act' && !(own && this.actions[own.clip])) this.pose(e, alpha);
     if (this.blade) {
       this.blade.localToWorld(_base.set(0, 0.14, 0));
       this.blade.localToWorld(_tip.set(0, 0.53, 0));
@@ -400,6 +449,7 @@ export class Actor {
     this.line.userData.width.value = OUTLINE.userData.width.value + (GONGBI_WIDTH - OUTLINE.userData.width.value) * this.gongbi;
     this.line.color.lerpColors(LINE_INK, LINE_GONGBI, this.gongbi);
     if (this.blade) this.blade.visible = this.dissolve < 0.5;
+    if (this.rod) this.rod.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     // a lurker is not there to see until it springs
     this.root.visible = this.shadow.visible = e.lurk <= 0 && (!dead || e.st < 40);
