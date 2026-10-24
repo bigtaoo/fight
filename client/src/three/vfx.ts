@@ -5,6 +5,7 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   Group,
   LatheGeometry,
   Mesh,
@@ -12,6 +13,8 @@ import {
   MeshToonMaterial,
   PlaneGeometry,
   RingGeometry,
+  Shape,
+  ShapeGeometry,
   ShaderMaterial,
   SphereGeometry,
   Sprite,
@@ -56,6 +59,31 @@ function arrowMesh(): Group {
   const head = new Mesh(new ConeGeometry(4, 14, 6).rotateZ(-Math.PI / 2).translate(52, 0, 0), ink);
   const fl = new Mesh(new PlaneGeometry(18, 7).translate(-38, 0, 0), new MeshBasicMaterial({ color: 0xd8d2c4, side: 2 }));
   g.add(shaft, head, fl);
+  return g;
+}
+
+/** The pheasant's thrown tail feather, along +x from its quill: a long cinnabar vane barred with ink
+ * towards the tip, its rachis drawn down the middle, like the tail it came from. */
+const FEATHER = (() => {
+  const vane = new Shape();
+  vane.moveTo(0, 0);
+  vane.bezierCurveTo(30, 13, 110, 12, 150, 0);
+  vane.bezierCurveTo(110, -12, 30, -13, 0, 0);
+  const bars = [84, 102, 120].map((x) => {
+    const w = 10 - (x - 84) / 9;
+    return new Shape([new Vector2(x, -w), new Vector2(x + 7, -w), new Vector2(x + 9, w), new Vector2(x + 2, w)]);
+  });
+  return {
+    vane: new ShapeGeometry(vane, 10),
+    bars: new ShapeGeometry(bars).translate(0, 0, 0.5),
+    rachis: new PlaneGeometry(150, 2).translate(75, 0, 1),
+    red: new MeshBasicMaterial({ color: 0xd8301c, side: DoubleSide }),
+    ink: new MeshBasicMaterial({ color: 0x2a1a14, side: DoubleSide }),
+  };
+})();
+function featherMesh(): Group {
+  const g = new Group();
+  g.add(new Mesh(FEATHER.vane, FEATHER.red), new Mesh(FEATHER.bars, FEATHER.ink), new Mesh(FEATHER.rachis, FEATHER.ink));
   return g;
 }
 
@@ -136,6 +164,8 @@ export class Vfx {
   private readonly shafts: Mesh[] = [];
   private readonly arrows = new Map<number, Group>();
   private readonly arrowPool: Group[] = [];
+  private readonly feathers = new Map<number, Group>();
+  private readonly featherPool: Group[] = [];
   private readonly items = new Map<number, Group>();
   private readonly ropes: Mesh[] = [];
   private readonly blobs = new Map<number, Mesh>();
@@ -197,6 +227,11 @@ export class Vfx {
       this.arrowPool.push(a);
     }
     this.arrows.clear();
+    for (const f of this.feathers.values()) {
+      f.removeFromParent();
+      this.featherPool.push(f);
+    }
+    this.feathers.clear();
     for (const g of this.items.values()) g.removeFromParent();
     this.items.clear();
     for (const m of [this.blobs, this.aims, this.blots]) {
@@ -455,8 +490,17 @@ export class Vfx {
         }
         this.smoke.add({ x: x - dir * 30, y: y + (this.smoke.rand() - 0.2) * 120, z: z - 10, vx: -dir * 50, vy: 40, size: 50, grow: 120, life: 0.6, alpha: 0.25, drag: 2 });
       } else if (sh.kind === 'feather') {
-        // the pheasant's tail feather: a streak of gold and ink, until it has a mesh of its own
-        this.sparks.add({ x: x - dir * 10, y, z, vx: -dir * 40, size: 26, life: 0.12, alpha: 0.9, color: 0xe0a040 });
+        // the pheasant's tail feather, quill first, its vane rocking as it flies; a gold wake behind
+        let g = this.feathers.get(sh.id);
+        if (!g) {
+          g = this.featherPool.pop() ?? featherMesh();
+          this.feathers.set(sh.id, g);
+          this.root.add(g);
+        }
+        g.position.set(x + dir * 70, y, z);
+        g.scale.x = -dir;
+        g.rotation.x = Math.sin((g.userData.t = (g.userData.t ?? 0) + dt) * 12) * 0.7;
+        this.sparks.add({ x: x - dir * 70, y, z, vx: -dir * 40, size: 18, life: 0.12, alpha: 0.7, color: 0xe0a040 });
         if (this.sparks.rand() < 0.6) this.sparks.add({ x: x - dir * 40, y: y + (this.sparks.rand() - 0.5) * 20, z, vx: -dir * 80, size: 10, life: 0.25, alpha: 0.6, color: 0x302820 });
       } else {
         // a quake runs along the floor: dust thrown up and cracks of ink left behind
@@ -469,6 +513,12 @@ export class Vfx {
       g.removeFromParent();
       this.arrowPool.push(g);
       this.arrows.delete(id);
+    }
+    for (const [id, g] of this.feathers) {
+      if (live.has(id)) continue;
+      g.removeFromParent();
+      this.featherPool.push(g);
+      this.feathers.delete(id);
     }
   }
 
