@@ -26,6 +26,9 @@ function save(): void {
   }
 }
 
+/** Chapter one's ink villagers, by the names view.ts knows them by. */
+const INK = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood'];
+
 async function main(): Promise<void> {
   const screen = screenCanvas();
   // a sharper picture costs fill rate; 2 is what the web build caps at too
@@ -86,7 +89,11 @@ async function main(): Promise<void> {
     models: {
       hero: 'models/hero.glb',
       clips: { idle: 'models/archer.glb', walk: 'models/walk.glb', hit: 'models/hit.glb', fall: 'models/fall.glb' },
-      moves: { hero: 'models/swordsman.glb' },
+      // chapter one's ink villagers and birds, slimmed by vite.wechat3d.config.js
+      bodies: Object.fromEntries(INK.map((n) => [n, `models/${n}.glb`])),
+      birds: Object.fromEntries(['finch', 'bigfinch', 'pheasant'].map((n) => [n, `models/${n}.glb`])),
+      colours: Object.fromEntries(INK.map((n) => [n, `models/${n}_colour.jpg`])),
+      moves: { hero: 'models/swordsman.glb', inkwood: 'models/woodcutter.glb' },
       read,
     },
     onStats: (s) => {

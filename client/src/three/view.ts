@@ -3,7 +3,7 @@ import { Vector3, AmbientLight, type Texture, type BufferGeometry, BoxGeometry, 
 import { Decor } from './decor';
 import { Governor } from './governor';
 import { lodReady, variant } from './lod';
-import { Actor, DEPTH_K, loadMaps, loadModels, type Model, type ModelFiles } from './actor';
+import { Actor, DEPTH_K, loadMaps, loadModels, loadPictures, type Model, type ModelFiles } from './actor';
 import { Beats } from './beats';
 import { Post } from './post';
 import { propWarmup, setGlow } from './props';
@@ -250,11 +250,10 @@ export class View3D {
     const ink: Partial<Record<InkBody, Model>> = {};
     for (const [name, b] of Object.entries(models.bodies)) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
     this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink, birds: models.birds };
-    if (!this.host)
-      void loadMaps(COLOUR_OF).then((maps) => {
-        for (const t of Object.values(maps)) this.renderer.initTexture(t);
-        this.colours = maps;
-      });
+    void (this.host ? loadPictures(this.host.models.colours ?? {}) : loadMaps(COLOUR_OF)).then((maps) => {
+      for (const t of Object.values(maps)) this.renderer.initTexture(t);
+      this.colours = maps;
+    });
     const vfx = (this.vfx = this.fx ? new Vfx(models.hero, this.post) : null);
     if (vfx) scene.add(vfx.root);
     const decor = (this.decor = this.fx ? new Decor() : null);

@@ -1,10 +1,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import jpeg from 'jpeg-js';
 
 // Slims a Tripo .glb for the WeChat package, where the main package is 4 MB and each pack is
 // counted too. The ink look only reads the colour map (three/ink.ts), so the normal and ORM maps
 // go; the colour map is written next to the .glb and referenced by uri, which also spares the
 // runtime the Blob URLs a mini-game does not have. A clip file can keep only its animation.
+// The colour map can be scaled down too: a body is a few hundred pixels tall on a phone, so
+// Tripo's 2048 maps are four times the pixels it shows.
 
 const JSON_CHUNK = 0x4e4f534a;
 const BIN_CHUNK = 0x004e4942;
@@ -17,6 +19,47 @@ function readGlb(path) {
   const binAt = 20 + jsonLen;
   const bin = b.readUInt32LE(binAt + 4) === BIN_CHUNK ? b.subarray(binAt + 8, binAt + 8 + b.readUInt32LE(binAt)) : Buffer.alloc(0);
   return { json, bin };
+}
+
+/** A JPEG halved (a box filter) until it is at most `size` wide, re-encoded; `bytes` as it is when
+ * it is already that small. */
+function shrinkJpeg(bytes, size) {
+  let { width, height, data } = jpeg.decode(bytes, { useTArray: true, maxMemoryUsageInMB: 1024 });
+  if (width <= size) return bytes;
+  while (width > size) {
+    const w = width >> 1;
+    const h = height >> 1;
+    const out = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const a = ((2 * y) * width + 2 * x) * 4;
+        const b = a + width * 4;
+        for (let c = 0; c < 4; c++) out[(y * w + x) * 4 + c] = (data[a + c] + data[a + 4 + c] + data[b + c] + data[b + 4 + c] + 2) >> 2;
+      }
+    width = w;
+    height = h;
+    data = out;
+  }
+  return Buffer.from(jpeg.encode({ width, height, data }, 85).data);
+}
+
+/** The bytes of the image the first base colour texture of a parsed glb points at. */
+function colorBytes(json, bin, from) {
+  for (const m of json.materials ?? []) {
+    const t = m.pbrMetallicRoughness?.baseColorTexture;
+    if (!t) continue;
+    const img = json.images[json.textures[t.index].source];
+    if (img.mimeType !== 'image/jpeg') throw new Error(`${from}: the colour map is ${img.mimeType}, not a JPEG`);
+    const v = json.bufferViews[img.bufferView];
+    return bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength);
+  }
+  throw new Error(`${from}: no colour map`);
+}
+
+/** Writes the colour map of the body in `from` to `to` (a .jpg), at most `size` wide. */
+export function colorOf(from, to, size) {
+  const { json, bin } = readGlb(from);
+  writeFileSync(to, shrinkJpeg(colorBytes(json, bin, from), size));
 }
 
 function pad4(n) {
@@ -46,9 +89,10 @@ function writeGlb(path, json, bin) {
 
 /**
  * Writes a slim copy of `from` to `to`. With `colorFile`, the mesh stays and its base colour image
- * is written to that file (a name next to `to`); without it, only the animations stay.
+ * is written to that file (a name next to `to`), at most `mapSize` wide when given; without it, only
+ * the animations stay.
  */
-export function slimGlb(from, to, colorFile) {
+export function slimGlb(from, to, colorFile, mapSize = 0) {
   const { json, bin } = readGlb(from);
   const keepMesh = !!colorFile;
   const views = [];
@@ -72,7 +116,9 @@ export function slimGlb(from, to, colorFile) {
         const t = json.textures[old];
         const img = json.images[t.source];
         const v = json.bufferViews[img.bufferView];
-        writeFileSync(new URL(colorFile, `file:///${to.replace(/\\/g, '/')}`), bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength));
+        const bytes = bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength);
+        if (mapSize && img.mimeType !== 'image/jpeg') throw new Error(`${from}: the colour map is ${img.mimeType}, not a JPEG`);
+        writeFileSync(new URL(colorFile, `file:///${to.replace(/\\/g, '/')}`), mapSize ? shrinkJpeg(bytes, mapSize) : bytes);
         images.push({ uri: colorFile, mimeType: img.mimeType });
         textures.push({ ...t, source: 0 });
         texOf.set(old, textures.length - 1);

@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import { slimGlb } from './build/slimGlb.mjs';
+import { colorOf, slimGlb } from './build/slimGlb.mjs';
 
 // The 3D trial as a WeChat mini-game: one IIFE at wechat/js/game.js (required by wechat/game.js),
 // the scenery beside it in the main package and the models in a pack of their own, 'models'.
@@ -9,6 +9,15 @@ import { slimGlb } from './build/slimGlb.mjs';
 
 const ENGINE = fileURLToPath(new URL('../engine', import.meta.url));
 const at = (p) => fileURLToPath(new URL(p, import.meta.url));
+
+/** The width of every colour map in the pack: a body is a few hundred pixels tall on a phone. */
+const MAP = 1024;
+/** Chapter one's ink villagers (already cut to the 5k triangles view.ts would cut them to, which
+ * matters here: the mini-game has no WebAssembly for lod.ts to cut them with) and the birds, by the
+ * names main.wechat3d.ts loads them by; the villagers' colour pictures (1-1 draws them turning to ink). */
+const BODIES = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood'];
+const BIRDS = ['finch', 'bigfinch', 'pheasant'];
+const COLOURS = { inkfisher: 'fisher', inkwasher: 'washer', inkboatman: 'boatman', inkwood: 'wood' };
 
 // A mini-game reads files from its package by path, so they are copied next to the bundle.
 const copyAssets = {
@@ -21,9 +30,12 @@ const copyAssets = {
     const models = at('./wechat/models');
     rmSync(models, { recursive: true, force: true });
     mkdirSync(models, { recursive: true });
-    slimGlb(at('../art/model3d/sword/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg');
-    slimGlb(at('../art/archer3d/model/anim_idle.glb'), `${models}/archer.glb`, 'archer.jpg');
+    slimGlb(at('../art/model3d/sword/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg', MAP);
+    slimGlb(at('../art/archer3d/model/anim_idle.glb'), `${models}/archer.glb`, 'archer.jpg', MAP);
     slimGlb(at('../art/model3d/moves/swordsman.glb'), `${models}/swordsman.glb`);
+    slimGlb(at('../art/model3d/moves/woodcutter.glb'), `${models}/woodcutter.glb`);
+    for (const name of [...BODIES, ...BIRDS]) slimGlb(at(`../art/model3d/${name}/rig_v1.glb`), `${models}/${name}.glb`, `${name}.jpg`, MAP);
+    for (const [ink, name] of Object.entries(COLOURS)) colorOf(at(`../art/model3d/${name}/rig_v1.glb`), `${models}/${ink}_colour.jpg`, MAP);
     for (const clip of ['walk', 'hit', 'fall']) slimGlb(at(`../art/archer3d/model/anim_${clip}.glb`), `${models}/${clip}.glb`);
     writeFileSync(`${models}/game.js`, '// models: a pack, loaded by wx.loadSubpackage\n');
     console.log('  copied the scenery and the scroll, slimmed the models into wechat/');
