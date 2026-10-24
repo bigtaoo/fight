@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { BTN } from './input';
 import { toFp } from './math/fixed';
+import { WORLD } from './content';
+import { setState } from './state';
 import { hero, newRun, play } from './testUtil';
 import type { Engine } from './Engine';
 
-// The hero's moves against the training dummies (x 900 and 1300): chains, hitstop, launch, juggle.
+// The hero's moves against the training dummies (x 900 and 1300): chains, hitstop, launch, juggle,
+// hits on a body lying down, the relaunch off the floor and the jump attack's slam.
 
 /** Walks the hero up to the first dummy, in range of the basic attack. */
 function approach(): Engine {
@@ -75,5 +78,84 @@ describe('combat', () => {
     });
     expect(ev.some((x) => x.type === 'down')).toBe(true);
     expect([...states]).toEqual(expect.arrayContaining(['air', 'down', 'getup', 'idle']));
+  });
+
+  it('a dummy lying down takes a few hits, for less, then is untouchable until it is up', () => {
+    const e = approach();
+    const d = dummyOf(e);
+    const t0 = e.state.tick;
+    play(e, 200, (_s, t) => (t === t0 + 1 ? BTN.SKILL2 : 0));
+    // knock it down again where it now stands, then tap attack at it while it lies there
+    const ev: { hit: boolean; state: string; dmg: number }[] = [];
+    setState(d, 'down');
+    d.timer = 20;
+    const h = hero(e.state);
+    h.x = d.x - toFp(100);
+    h.y = d.y;
+    h.facing = 1;
+    for (let i = 0; i < 90 && d.state !== 'idle'; i++) {
+      const was = d.state;
+      const out = play(e, 1, (_s, t) => (was === 'down' && t % 2 === 0 ? BTN.ATTACK : 0));
+      const hit = out.find((x) => x.type === 'hit' && x.target === d.id);
+      ev.push({ hit: !!hit, state: was, dmg: hit && hit.type === 'hit' ? hit.dmg : 0 });
+    }
+    const down = ev.filter((x) => x.hit && x.state === 'down');
+    expect(down).toHaveLength(WORLD.downHits);
+    expect(ev.some((x) => x.hit && x.state !== 'down')).toBe(false);
+    expect(ev.some((x) => x.state === 'getup')).toBe(true);
+    // the lying body's timer stretched by every hit: it lay longer than the 20 ticks it was given
+    expect(ev.filter((x) => x.state === 'down').length).toBeGreaterThan(20);
+  });
+
+  it('a launcher lifts a dummy lying down off the floor again, lower than from its feet', () => {
+    const e = approach();
+    const d = dummyOf(e);
+    setState(d, 'down');
+    d.timer = 40;
+    const t0 = e.state.tick;
+    let top = 0;
+    const ev = play(e, 40, (_s, t) => {
+      top = Math.max(top, d.z);
+      return t === t0 + 1 ? BTN.SKILL2 : 0;
+    });
+    expect(ev.find((x) => x.type === 'hit')).toMatchObject({ target: d.id, launch: true });
+    // and from its feet
+    const f = approach();
+    const g = dummyOf(f);
+    const t1 = f.state.tick;
+    let peak = 0;
+    play(f, 40, (_s, t) => {
+      peak = Math.max(peak, g.z);
+      return t === t1 + 1 ? BTN.SKILL2 : 0;
+    });
+    expect(top).toBeGreaterThan(0);
+    expect(top).toBeLessThan(peak);
+  });
+
+  it('a second attack in the air dives and slams the juggled dummy into the floor; it bounces', () => {
+    const e = approach();
+    const d = dummyOf(e);
+    const t0 = e.state.tick;
+    let spiked = false;
+    let bounced = false;
+    let cut = -1;
+    const ev = play(e, 90, (_s, t) => {
+      const h = hero(e.state);
+      if (spiked && d.vz > 0 && d.state === 'air') bounced = true;
+      if (h.move === 'jumpSlam' && d.vz < -toFp(20)) spiked = true;
+      if (t === t0 + 1) return BTN.SKILL2;
+      if (t < t0 + 3) return 0;
+      // up after it as soon as the rising cut is done, cut once on the way up, then again
+      if (h.state === 'idle' && cut < 0) return BTN.JUMP;
+      if (h.state === 'jump' && cut < 0 && h.vz < toFp(10)) {
+        cut = t;
+        return BTN.ATTACK;
+      }
+      return cut > 0 && t === cut + 5 ? BTN.ATTACK : 0;
+    });
+    const swings = ev.flatMap((x) => (x.type === 'swing' && x.id === hero(e.state).id ? [x.move] : []));
+    expect(swings).toEqual(expect.arrayContaining(['jumpAtk', 'jumpSlam']));
+    expect(spiked).toBe(true);
+    expect(bounced).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, MAX_SKILL_LV, SKILL_DMG_PCT, SLOTS, TIERS, type DungeonId, type ItemKind, type Kind, type Loadout, type MonsterKind, type ShotKind, type SkillId } from './content';
+import { BODIES, DEFAULT_LOADOUT, DODGE, DUNGEONS, MAX_SKILL_LV, SKILL_DMG_PCT, SLOTS, TIERS, WORLD, type DungeonId, type ItemKind, type Kind, type Loadout, type MonsterKind, type ShotKind, type SkillId } from './content';
 import { seedRng, type Rng } from './math/prng';
 
 // The simulation state: plain data in ordered arrays, integers only (hash.ts throws on
@@ -130,9 +130,12 @@ export interface Entity {
   held: boolean;
   /** Stun ticks left in 'hurt', lying ticks left in 'down' / 'getup'. */
   timer: number;
-  /** Hits taken in the air since the last launch; each lifts less. */
+  /** Hits taken in the air (and launches off the floor) since the body was last on its feet; each
+   * lifts less. */
   juggle: number;
   bounced: boolean;
+  /** Hits taken lying down since the last knockdown (see WORLD.downHits). */
+  downHits: number;
   /** The air attack is spent until the hero lands. */
   airAtk: boolean;
   /** Cooldown ticks left per skill slot and the dodge (heroes), or until the next attack
@@ -320,7 +323,7 @@ export function newEntity(s: SimState, kind: Kind, team: number, owner: number, 
     facing: team === 0 ? 1 : -1,
     hp: body.hp, maxHp: body.hp,
     state: 'idle', st: 0, move: '', hitList: [],
-    stop: 0, held: false, timer: 0, juggle: 0, bounced: false, airAtk: false,
+    stop: 0, held: false, timer: 0, juggle: 0, bounced: false, downHits: 0, airAtk: false,
     cd: team === 0 ? new Array<number>(DODGE.slot + 1).fill(0) : [0, 0],
     inv: 0, armor: 0, aimX: 1, aimY: 0, phase: 0, affixes: 0, ward: 0, summons: 0, summonCd: 0,
     tow: 0, towBy: 0, lurk: 0,
@@ -337,9 +340,16 @@ export function setState(e: Entity, state: BodyState): void {
   e.state = state;
   e.st = 0;
   if (state !== 'act') e.move = '';
+  // back on its feet: the juggle and the hits on the ground start over
+  if (state === 'getup') {
+    e.juggle = 0;
+    e.downHits = 0;
+  }
 }
 
-/** Alive, not lying down, not untouchable and not lurking unseen: something a hit can land on. */
+/** Alive, not untouchable, not lurking unseen and not getting up: something a hit can land on.
+ * A body lying down is, until it has taken WORLD.downHits hits there. */
 export function hittable(e: Entity): boolean {
-  return e.hp > 0 && e.inv === 0 && e.lurk <= 0 && e.state !== 'down' && e.state !== 'getup' && e.state !== 'dead';
+  if (e.state === 'down' && e.downHits >= WORLD.downHits) return false;
+  return e.hp > 0 && e.inv === 0 && e.lurk <= 0 && e.state !== 'getup' && e.state !== 'dead';
 }

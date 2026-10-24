@@ -144,6 +144,13 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
       startMove(e, m.early, events);
       return tickBuffer(p);
     }
+    // an air move chains into its follow-up on a fresh ATTACK press (held does not mash in the air,
+    // and skills and the dodge stay on the ground)
+    if (m.air && m.next && e.st >= m.active[0] && p.buf === BTN.ATTACK) {
+      consume(p);
+      startMove(e, m.next, events);
+      return tickBuffer(p);
+    }
     if (m.cancel > 0 && e.st >= m.cancel) {
       if (m.follow && m.of && p.buf === SLOT_BTN[p.skills.indexOf(m.of)]) {
         consume(p);

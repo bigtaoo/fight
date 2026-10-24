@@ -52,7 +52,6 @@ function land(e: Entity, events: SimEvent[]): void {
       return;
     }
     e.vz = 0;
-    e.juggle = 0;
     e.bounced = false;
     if (e.hp <= 0) setState(e, 'dead');
     else {

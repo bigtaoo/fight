@@ -17,6 +17,9 @@ import { armored } from './moves';
 // On the harder tiers monsters hit harder; a ward takes the hits (no stun) until it breaks, a
 // monster that revives gets up once from the blow that would kill it, and one with miasma leaves
 // a poison cloud where it dies (affix.ts).
+// A body lying down can still be hit, low enough, a few times (WORLD.downHits) for less damage:
+// each keeps it down a little longer, and a launching move lifts it off the floor again. A move
+// with `spike` slams an airborne body into the floor, and it bounces up for more.
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
@@ -47,7 +50,8 @@ export function overlaps(a: { x: number; y: number; z: number }, facing: number,
   const body = BODIES[t.kind];
   if (x1 < t.x - body.halfWidth || x0 > t.x + body.halfWidth) return false;
   if (Math.abs(a.y - t.y) > b.depth) return false;
-  return a.z + b.z0 <= t.z + body.height && a.z + b.z1 >= t.z;
+  const height = t.state === 'down' ? Math.min(body.height, WORLD.lyingHeight) : body.height;
+  return a.z + b.z0 <= t.z + height && a.z + b.z1 >= t.z;
 }
 
 /** Whether `e` has its shield up: on its feet (on the floor, or on a platform `ground` high),
@@ -79,6 +83,11 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     dmg = Math.trunc((dmg * monsterDmgPct(s)) / 100);
   }
   dmg = Math.max(1, Math.trunc((dmg * randRange(s.rng, 'combat', 90, 110)) / 100));
+  const downed = t.state === 'down';
+  if (downed) {
+    dmg = Math.max(1, Math.trunc((dmg * WORLD.downDmgPct) / 100));
+    t.downHits++;
+  }
   const guard = t.kind === 'hero' ? undefined : MONSTERS[t.kind].guard;
   if (guard && !m.breaks && t.facing === -facing && guarding(t, groundOf(s, t))) {
     const chip = Math.max(1, Math.trunc((dmg * guard.pct) / 100));
@@ -115,16 +124,28 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
 
   const airborne = aloft(s, t) || t.state === 'air';
   const kill = t.hp <= 0;
-  if (kill || airborne || m.launch > 0) {
-    const j = (t.kind !== 'hero' && MONSTERS[t.kind].juggle) || JUGGLE;
-    const lift = airborne
-      ? Math.trunc((m.lift * Math.max(j.floor, 100 - j.decay * t.juggle)) / 100)
-      : m.launch > 0 ? m.launch : DEATH_POP;
+  const j = (t.kind !== 'hero' && MONSTERS[t.kind].juggle) || JUGGLE;
+  const decay = Math.max(j.floor, 100 - j.decay * t.juggle);
+  // off the floor a launch lifts less, and less with every juggle; spent, it stays down
+  const relaunch = downed && m.launch > 0 ? Math.trunc((m.launch * WORLD.relaunchPct * decay) / 10000) : 0;
+  if (m.spike && airborne && !kill) {
+    setState(t, 'air');
+    t.vz = -m.spike;
+    t.vx = facing * Math.trunc(m.push / 2);
+    t.vy = 0;
+    t.bounced = false;
+    t.juggle++;
+  } else if (kill || airborne || (m.launch > 0 && !downed) || relaunch > 0) {
+    const lift = airborne ? Math.trunc((m.lift * decay) / 100) : downed ? relaunch || DEATH_POP : m.launch > 0 ? m.launch : DEATH_POP;
     setState(t, 'air');
     t.vz = lift;
     t.vx = facing * Math.trunc(m.push / 2);
     t.vy = 0;
     t.juggle++;
+  } else if (downed) {
+    t.timer += WORLD.downHitTicks;
+    t.vx = facing * Math.trunc(m.push / 2);
+    t.vy = 0;
   } else {
     setState(t, 'hurt');
     t.timer = m.hitstun;

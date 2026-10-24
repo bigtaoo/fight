@@ -63,6 +63,7 @@ const CUT_OF: Record<string, Cut> = {
   atk2: 'side',
   atk3: 'down',
   jumpAtk: 'down',
+  jumpSlam: 'down',
   tri1: 'side',
   tri2: 'down',
   tri3: 'up',
@@ -118,6 +119,8 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   atk2: ['atk2', [0, 12]],
   atk3: ['atk3', [0, 18]],
   jumpAtk: ['jumpAtk', [0, 14]],
+  // the dive lasts until it lands: the jump attack's cut over its first ticks, then held through
+  jumpSlam: ['jumpAtk', [0, 14], [0, 8]],
   tri1: ['tri1', [0, 14]],
   tri2: ['tri2', [0, 14]],
   tri3: ['tri3', [0, 20]],

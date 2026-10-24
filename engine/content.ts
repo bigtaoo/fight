@@ -16,9 +16,19 @@ export const WORLD = {
   depth: toFp(360),
   /** A launched body landing faster than this bounces once. */
   bounceSpeed: toFp(10),
-  /** Ticks lying down after a launch, then getting up (both untouchable). */
+  /** Ticks lying down after a launch, then getting up (untouchable). */
   downTicks: ticks(0.8),
   getupTicks: ticks(0.33),
+  /** A body lying down can be hit this many times from its knockdown to its getup (a relaunch
+   * and the landing after it included), then it is untouchable until it is up: no endless lock. */
+  downHits: 3,
+  /** Each hit on a body lying down keeps it down this much longer, does this percent of the
+   * damage, and a launching move lifts it this percent of the launch (before the juggle decay). */
+  downHitTicks: ticks(0.2),
+  downDmgPct: 70,
+  relaunchPct: 70,
+  /** How high a body lying down stands, for a hit's box to reach it. */
+  lyingHeight: toFp(60),
   /** A dead monster fades for this long before it leaves the state. */
   fadeTicks: ticks(1.5),
   /** A hero's combo lapses this long after its last hit. */
@@ -529,6 +539,9 @@ export interface HitData {
   lift: number;
   /** Goes through a shield (see Guard). */
   breaks?: boolean;
+  /** Slams an airborne target down at this speed instead of lifting it; it bounces off the floor
+   * (once more, however it was launched), so the juggle can go on. */
+  spike?: number;
 }
 
 export interface Move extends HitData {
@@ -604,7 +617,13 @@ const MOVE_LIST: Move[] = [
   {
     id: 'jumpAtk', total: 14, active: [2, 8], box: box(-10, 150, 40, -60, 160),
     damage: 36, hitstun: 14, stop: 3, push: toFp(4), launch: 0, lift: toFp(10),
-    cancel: 0, air: true,
+    cancel: 0, air: true, next: 'jumpSlam',
+  },
+  // a second ATTACK press in the air: a dive cutting down that slams what it hits into the floor
+  {
+    id: 'jumpSlam', total: 90, active: [2, 89], box: box(-20, 150, 45, -140, 120),
+    damage: 42, hitstun: 16, stop: 4, push: toFp(4), launch: 0, lift: toFp(10), spike: toFp(28),
+    cancel: 0, air: true, hop: { back: -toFp(6), up: -toFp(18) },
   },
   // the hero's skills (see SKILLS); every part of a skill is tagged with it
   {
