@@ -64,6 +64,7 @@ async function main(): Promise<void> {
     models: {
       hero: 'models/hero.glb',
       clips: { idle: 'models/archer.glb', walk: 'models/walk.glb', hit: 'models/hit.glb', fall: 'models/fall.glb' },
+      moves: { hero: 'models/swordsman.glb' },
       read,
     },
     onStats: (s) => {

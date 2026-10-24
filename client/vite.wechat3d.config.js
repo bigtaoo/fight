@@ -22,6 +22,7 @@ const copyAssets = {
     mkdirSync(models, { recursive: true });
     slimGlb(at('../art/model3d/sword/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg');
     slimGlb(at('../art/archer3d/model/anim_idle.glb'), `${models}/archer.glb`, 'archer.jpg');
+    slimGlb(at('../art/model3d/moves/swordsman.glb'), `${models}/swordsman.glb`);
     for (const clip of ['walk', 'hit', 'fall']) slimGlb(at(`../art/archer3d/model/anim_${clip}.glb`), `${models}/${clip}.glb`);
     writeFileSync(`${models}/game.js`, '// models: a pack, loaded by wx.loadSubpackage\n');
     console.log('  copied the scenery and slimmed the models into wechat/');

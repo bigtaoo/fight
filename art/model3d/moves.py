@@ -26,9 +26,11 @@ SET = args[0] if args else 'woodcutter'
 # drop/shift: the hips lowered / moved forward; turn: the hips' yaw (+ turns left); lean: the
 # chest pitched forward (degrees, over the three spine bones); twist: the chest's yaw on the hips;
 # tilt: the chest bent to its left; nod: the head pitched down; shake: a tremble (raised arms
-# held under strain).
+# held under strain); blade: which way a sword in the right hand points (hips' axes; None: the hand
+# follows the forearm); roll: the blade turned about itself (0: its flat to the camera and its edge
+# leading a cut forward and down; 180: leading a cut up).
 STANCE = dict(
-    drop=0.025, shift=0.0, turn=0.0, lean=12.0, twist=0.0, tilt=0.0, nod=-6.0, shake=0.0,
+    drop=0.025, shift=0.0, turn=0.0, lean=12.0, twist=0.0, tilt=0.0, nod=-6.0, shake=0.0, blade=None, roll=0.0,
     lh=(0.08, 0.25, -0.28), rh=(0.08, -0.25, -0.28),
     le=(-0.6, 0.6, -0.4), re=(-0.6, -0.6, -0.4),
     lf=(0.03, 0.03, 0.0), rf=(-0.03, -0.03, 0.0),
@@ -154,9 +156,9 @@ def walk():
         t = i * 9
         # the left foot: back of its plant at 0, swung through to the front by 18, planted back to 36
         lx = [-s, 0.0, s, 0.0][i % 4]
-        lu = [0.0, 0.07, 0.0, 0.0][i % 4]
+        lu = [0.0, 0.05, 0.0, 0.0][i % 4]
         rx = [s, 0.0, -s, 0.0][i % 4]
-        ru = [0.0, 0.0, 0.0, 0.07][i % 4]
+        ru = [0.0, 0.0, 0.0, 0.05][i % 4]
         # the right foot plants at 0, the left at 18: the hips lowest just after
         dip = [0.055, 0.025, 0.055, 0.025][i % 4]
         sway = [6, 0, -6, 0][i % 4]
@@ -167,7 +169,298 @@ def walk():
     return n, keys
 
 
-SETS = {'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}}}
+# ---- the swordsman (the hero) ------------------------------------------------------------------
+# A ready stance: the left foot forward and the hips turned a little away, the sword held out at
+# the belly with its point up at the enemy's throat, the free hand loose by the hip.
+GUARD = dict(drop=0.015, turn=-10.0, twist=8.0, lean=8.0, nod=-4.0,
+             lf=(0.11, 0.03, 0.0), rf=(-0.11, -0.04, 0.0),
+             rh=(0.15, -0.13, -0.20), re=(-0.3, -1.0, -0.4), lh=(0.06, 0.22, -0.30), le=(-0.5, 0.7, -0.4),
+             blade=(0.75, 0.0, 0.65))
+
+
+def G(**kw):
+    p = P(**GUARD); p.update(kw); return p
+
+
+def sw_idle():
+    """The guard, breathing (60 ticks, loops)."""
+    out = G(drop=0.024, lean=10, rh=(0.15, -0.13, -0.21), blade=(0.78, 0.0, 0.62))
+    return 60, [(0, G(), 'lin'), (30, out, 'io'), (60, G(), 'io')]
+
+
+def sw_walk():
+    """A light walk with the sword kept out in front (24 ticks, loops): the stride is the hero's
+    walk speed is more than its short legs can stride, so the steps are quick (16 ticks a cycle) and
+    the feet slide a little; the free arm swings."""
+    n, s = 16, 0.11
+    keys = []
+    for i in range(5):
+        t = i * 4
+        lx = [-s, 0.0, s, 0.0][i % 4]
+        lu = [0.0, 0.07, 0.0, 0.0][i % 4]
+        rx = [s, 0.0, -s, 0.0][i % 4]
+        ru = [0.0, 0.0, 0.0, 0.07][i % 4]
+        dip = [0.03, 0.012, 0.03, 0.012][i % 4]
+        sway = [5, 0, -5, 0][i % 4]
+        swing = [-1, 0, 1, 0][i % 4]
+        keys.append((t, G(drop=dip, lean=10, turn=-6 + sway * 0.5, twist=6 - sway, tilt=[-3, 0, 3, 0][i % 4],
+                          lf=(lx, 0.035, lu), rf=(rx, -0.035, ru),
+                          rh=(0.15, -0.13, -0.20 - 0.4 * (dip - 0.02)),
+                          lh=(0.04 + 0.09 * swing, 0.22, -0.31)), 'lin'))
+    return n, keys
+
+
+# the first cut's end, where the second starts: low out in front, the left foot stepped in
+CUT1 = dict(rh=(0.30, -0.06, -0.20), re=(-0.2, -1.0, 0.1), blade=(0.75, 0.0, -0.55), lean=22, twist=18, turn=5,
+            shift=0.05, drop=0.05, nod=6, lf=(0.15, 0.04, 0.0), rf=(-0.10, -0.04, 0.0), lh=(-0.05, 0.22, -0.30))
+
+
+def sw_atk1():
+    """The first cut (engine: 11 ticks, active 3..5): the sword drawn up over the right shoulder
+    and brought down across the front, a step in with the left foot."""
+    up = G(rh=(0.02, -0.16, 0.10), re=(-0.5, -0.8, 0.0), blade=(-0.5, 0.0, 0.85), lean=-4, twist=-15, turn=-20,
+           lh=(0.18, 0.20, -0.12), le=(-0.3, 0.8, -0.5))
+    return 11, [
+        (0, G(), 'lin'),
+        (2, up, 'io'),
+        (5, G(**CUT1), 'out'),
+        (7, G(**{**CUT1, 'blade': (0.7, 0.0, -0.62), 'drop': 0.055}), 'io'),
+        (11, G(), 'io'),
+    ]
+
+
+CUT2 = dict(rh=(0.26, -0.10, 0.12), re=(-0.3, -0.9, -0.3), blade=(0.45, 0.0, 0.9), roll=180.0, twist=20, turn=10,
+            lean=-6, drop=0.02, shift=0.04, lf=(0.13, 0.04, 0.0), rf=(-0.06, -0.04, 0.0), lh=(0.02, 0.24, -0.26))
+
+
+def sw_atk2():
+    """The second (12 ticks, active 3..5): from low in front, the blade turned over and swept back
+    past the right hip, then cut up through the enemy to over the head."""
+    low = G(rh=(-0.05, -0.20, -0.36), re=(-0.3, -0.9, 0.3), blade=(-0.85, 0.0, -0.25), roll=180.0, twist=-25, turn=-20,
+            lean=16, drop=0.045, shift=0.03, lf=(0.14, 0.04, 0.0), rf=(-0.08, -0.04, 0.0), lh=(0.20, 0.20, -0.20))
+    return 12, [
+        (0, G(**CUT1), 'lin'),
+        (2, low, 'io'),
+        (5, G(**CUT2), 'out'),
+        (7, G(**{**CUT2, 'blade': (0.35, 0.0, 0.94)}), 'io'),
+        (12, G(), 'io'),
+    ]
+
+
+def sw_atk3():
+    """The third (18 ticks, active 4..7): the sword raised high behind the head, the body thrown
+    back, then a lunge with everything brought down into a deep crouch."""
+    up = G(rh=(-0.06, -0.08, 0.30), re=(0.4, -0.9, 0.3), blade=(-0.7, 0.0, 0.6), lean=-16, nod=-10, drop=0.0,
+           twist=-10, turn=-15, lh=(0.30, 0.15, 0.02), le=(-0.4, 0.8, -0.4), lf=(0.06, 0.04, 0.0), rf=(-0.12, -0.04, 0.0))
+    slam = G(rh=(0.40, -0.04, -0.34), re=(-0.2, -1.0, 0.2), blade=(0.85, 0.0, -0.45), lean=34, nod=10, drop=0.085,
+             shift=0.07, twist=15, turn=5, lf=(0.18, 0.04, 0.0), rf=(-0.12, -0.05, 0.0), lh=(-0.12, 0.24, -0.18), le=(-0.6, 0.6, 0.2))
+    return 18, [
+        (0, G(**CUT2), 'lin'),
+        (3, up, 'io'),
+        (6, slam, 'out'),
+        (11, G(**{**slam, 'drop': 0.09, 'blade': (0.82, 0.0, -0.52)}), 'io'),
+        (18, G(), 'io'),
+    ]
+
+
+# ---- the swordsman's skills (engine/content.ts; each clip keyed on the move's own ticks) ---------
+# the sword raised over the right shoulder, the windup of every downward cut
+RAISED = dict(rh=(0.02, -0.16, 0.10), re=(-0.5, -0.8, 0.0), blade=(-0.5, 0.0, 0.85), lean=-4, twist=-15, turn=-20,
+              lh=(0.18, 0.20, -0.12), le=(-0.3, 0.8, -0.5))
+# swept back low past the right hip, the windup of every rising cut
+LOW = dict(rh=(-0.05, -0.20, -0.36), re=(-0.3, -0.9, 0.3), blade=(-0.85, 0.0, -0.25), roll=180.0, twist=-25, turn=-20,
+           lean=16, drop=0.045, shift=0.03, lh=(0.20, 0.20, -0.20))
+# the feet drawn up under the body, in the air
+TUCK = dict(lf=(0.08, 0.04, 0.10), rf=(-0.05, -0.04, 0.06))
+# a long step in, the front knee bent
+LUNGE = dict(lf=(0.20, 0.04, 0.0), rf=(-0.14, -0.04, 0.0), drop=0.06, shift=0.07)
+
+
+def sw_jumpAtk():
+    """A cut down from the air (14 ticks, active 2..8), the feet tucked."""
+    return 14, [
+        (0, G(**TUCK, **RAISED), 'lin'),
+        (2, G(**TUCK, **{**RAISED, 'lean': -10}), 'io'),
+        (6, G(**{**CUT1, 'drop': 0.0, 'shift': 0.0, 'lean': 30, **TUCK}), 'out'),
+        (9, G(**{**CUT1, 'drop': 0.0, 'shift': 0.0, 'lean': 30, 'blade': (0.6, 0.0, -0.8), **TUCK}), 'io'),
+        (14, G(**TUCK), 'io'),
+    ]
+
+
+def sw_tri1():
+    """The triple slash, first (14 ticks, active 3..7): a dash and a cut down across the front."""
+    return 14, [
+        (0, G(), 'lin'),
+        (2, G(**{**RAISED, 'lean': 6}), 'io'),
+        (5, G(**{**CUT1, **LUNGE, 'lean': 26}), 'out'),
+        (8, G(**{**CUT1, **LUNGE, 'lean': 26, 'blade': (0.6, 0.0, -0.8)}), 'io'),
+        (14, G(**CUT1), 'io'),
+    ]
+
+
+def sw_tri2():
+    """Second (14 ticks, active 3..7): the blade turned over and cut back up."""
+    return 14, [
+        (0, G(**CUT1), 'lin'),
+        (2, G(**LOW), 'io'),
+        (5, G(**{**CUT2, **LUNGE, 'drop': 0.03}), 'out'),
+        (8, G(**{**CUT2, **LUNGE, 'drop': 0.03, 'blade': (0.3, 0.0, 0.95)}), 'io'),
+        (14, G(**CUT2), 'io'),
+    ]
+
+
+def sw_tri3():
+    """Third (20 ticks, active 3..8): up on the toes, the sword over the head, and the whole body
+    brought down behind it."""
+    up = G(rh=(-0.06, -0.08, 0.30), re=(0.4, -0.9, 0.3), blade=(-0.6, 0.0, 0.75), lean=-18, nod=-10, drop=-0.01,
+           twist=-10, turn=-15, lh=(0.30, 0.15, 0.02), le=(-0.4, 0.8, -0.4), lf=(0.08, 0.04, 0.02), rf=(-0.10, -0.04, 0.03))
+    slam = G(rh=(0.40, -0.04, -0.34), re=(-0.2, -1.0, 0.2), blade=(0.85, 0.0, -0.45), lean=36, nod=10, drop=0.09,
+             shift=0.08, twist=15, turn=5, lf=(0.20, 0.04, 0.0), rf=(-0.14, -0.05, 0.0), lh=(-0.12, 0.24, -0.18), le=(-0.6, 0.6, 0.2))
+    return 20, [
+        (0, G(**CUT2), 'lin'),
+        (2, up, 'io'),
+        (5, slam, 'out'),
+        (12, G(**{**slam, 'blade': (0.82, 0.0, -0.52)}), 'io'),
+        (20, G(), 'io'),
+    ]
+
+
+# a thrust: the arm out straight, the blade level, the body behind it
+THRUST = dict(rh=(0.36, -0.08, -0.06), re=(-0.1, -1.0, 0.0), blade=(1.0, 0.0, 0.04), lean=26, twist=22, turn=8,
+              nod=4, lh=(-0.12, 0.22, -0.24), le=(-0.6, 0.6, 0.2), **LUNGE)
+
+
+def sw_dragon():
+    """One of the first three dragon dashes (9 ticks, active 2..7): drawn back, then run through."""
+    back = G(rh=(-0.02, -0.15, -0.10), re=(-0.4, -0.9, 0.0), blade=(1.0, 0.0, 0.1), lean=14, twist=-20, turn=-15,
+             lh=(0.16, 0.20, -0.16), lf=(0.12, 0.04, 0.0), rf=(-0.12, -0.04, 0.0), drop=0.05)
+    return 9, [
+        (0, G(), 'lin'),
+        (2, back, 'io'),
+        (4, G(**THRUST), 'out'),
+        (8, G(**{**THRUST, 'rh': (0.38, -0.08, -0.07)}), 'io'),
+        (9, G(**THRUST), 'io'),
+    ]
+
+
+def sw_dragon4():
+    """The last dash (20 ticks, active 2..8): run through and torn up out of the body, launching it."""
+    rise = G(rh=(0.18, -0.08, 0.34), re=(-0.2, -0.9, -0.3), blade=(0.25, 0.0, 0.97), roll=180.0, lean=-14, nod=-8,
+             twist=20, turn=10, drop=-0.01, shift=0.06, lf=(0.16, 0.04, 0.02), rf=(-0.10, -0.04, 0.04), lh=(-0.04, 0.24, -0.20))
+    return 20, [
+        (0, G(**THRUST), 'lin'),
+        (2, G(**{**THRUST, 'roll': 180.0, 'blade': (0.95, 0.0, -0.3), 'rh': (0.30, -0.10, -0.18)}), 'io'),
+        (6, rise, 'out'),
+        (12, G(**{**rise, 'blade': (0.1, 0.0, 1.0)}), 'io'),
+        (20, G(), 'io'),
+    ]
+
+
+def sw_upper():
+    """The rising slash (20 ticks, active 4..7): crouched with the blade low behind, then the
+    body stood up behind a cut straight up."""
+    crouch = G(**{**LOW, 'drop': 0.08, 'lean': 24, 'blade': (-0.8, 0.0, -0.5)}, lf=(0.15, 0.04, 0.0), rf=(-0.12, -0.04, 0.0))
+    rise = G(rh=(0.18, -0.08, 0.36), re=(-0.2, -0.9, -0.3), blade=(0.15, 0.0, 0.99), roll=180.0, lean=-16, nod=-10,
+             twist=20, turn=10, drop=-0.01, shift=0.04, lf=(0.13, 0.04, 0.02), rf=(-0.10, -0.04, 0.03), lh=(-0.04, 0.24, -0.20))
+    return 20, [
+        (0, G(), 'lin'),
+        (3, crouch, 'io'),
+        (6, rise, 'out'),
+        (12, G(**{**rise, 'blade': (0.05, 0.0, 1.0)}), 'io'),
+        (20, G(), 'io'),
+    ]
+
+
+def sw_crush1():
+    """Crushing charge, the ram (12 ticks, active 4..8): the sword held low behind, the left shoulder
+    driven in first."""
+    set_ = G(rh=(-0.06, -0.18, -0.24), re=(-0.4, -0.9, 0.2), blade=(-0.85, 0.0, -0.4), roll=180.0, twist=-35, turn=-25,
+             lean=22, drop=0.07, lh=(0.08, 0.16, -0.06), le=(-0.6, 0.6, -0.2), lf=(0.12, 0.04, 0.0), rf=(-0.12, -0.04, 0.0))
+    ram = G(**{**set_, 'lean': 32, 'twist': -40, 'nod': 8, 'lf': (0.22, 0.04, 0.0), 'rf': (-0.14, -0.04, 0.0), 'shift': 0.08})
+    return 12, [
+        (0, G(), 'lin'),
+        (3, set_, 'io'),
+        (6, ram, 'out'),
+        (12, G(**{**ram, 'lean': 26}), 'io'),
+    ]
+
+
+def sw_crush2():
+    """The cut that follows (20 ticks, active 3..6): one hand, from low behind up over the head."""
+    rise = G(rh=(0.20, -0.08, 0.36), re=(-0.2, -0.9, -0.3), blade=(0.3, 0.0, 0.95), roll=180.0, lean=-16, nod=-10,
+             twist=25, turn=12, drop=0.0, shift=0.06, lf=(0.16, 0.04, 0.0), rf=(-0.10, -0.04, 0.03), lh=(-0.10, 0.26, -0.16))
+    return 20, [
+        (0, G(rh=(-0.06, -0.18, -0.24), blade=(-0.85, 0.0, -0.4), roll=180.0, twist=-40, turn=-25, lean=26, drop=0.07,
+              lh=(0.08, 0.16, -0.06), lf=(0.22, 0.04, 0.0), rf=(-0.14, -0.04, 0.0), shift=0.08), 'lin'),
+        (5, rise, 'out'),
+        (11, G(**{**rise, 'blade': (0.15, 0.0, 0.99)}), 'io'),
+        (20, G(), 'io'),
+    ]
+
+
+def sw_iai():
+    """The drawing cut (34 ticks, active 14..16): crouched still, the sword back along the left hip
+    as if sheathed and the left hand on it; then one wide cut level across and held."""
+    draw = G(rh=(0.02, 0.10, -0.18), re=(-0.2, -1.0, -0.2), blade=(-0.95, 0.15, -0.2), lean=24, nod=8, twist=-30, turn=-20,
+             drop=0.07, lh=(0.04, 0.14, -0.18), le=(-0.4, 0.8, -0.3), lf=(0.16, 0.04, 0.0), rf=(-0.13, -0.04, 0.0))
+    cut = G(rh=(0.34, -0.20, -0.08), re=(-0.1, -1.0, 0.1), blade=(0.93, -0.32, 0.12), lean=18, nod=4, twist=35, turn=15,
+            drop=0.08, shift=0.08, lh=(-0.16, 0.26, -0.20), le=(-0.6, 0.6, 0.2), lf=(0.22, 0.04, 0.0), rf=(-0.15, -0.05, 0.0))
+    return 34, [
+        (0, G(), 'lin'),
+        (6, draw, 'io'),
+        (13, G(**{**draw, 'drop': 0.075, 'lean': 26}), 'io'),
+        (15, cut, 'out'),
+        (26, G(**{**cut, 'blade': (0.93, -0.3, 0.06)}), 'io'),
+        (34, G(), 'io'),
+    ]
+
+
+def sw_phantom():
+    """The phantom flurry (66 ticks, active 4..51, a hit every 3): cut down and up again and again
+    on the spot, then the sword raised and the wave sent off with a last cut (fired at 56)."""
+    keys = [(0, G(), 'lin'), (3, G(**RAISED), 'io')]
+    for i, t in enumerate(range(5, 51, 3)):
+        a = CUT1 if i % 2 == 0 else CUT2
+        keys.append((t, G(**{**a, **LUNGE, 'drop': 0.05, 'twist': a['twist'] + (6 if i % 4 < 2 else -6)}), 'out'))
+    up = G(rh=(-0.06, -0.08, 0.30), re=(0.4, -0.9, 0.3), blade=(-0.6, 0.0, 0.75), lean=-18, nod=-10, drop=0.0,
+           twist=-10, turn=-15, lh=(0.30, 0.15, 0.02), le=(-0.4, 0.8, -0.4), lf=(0.08, 0.04, 0.0), rf=(-0.12, -0.04, 0.0))
+    slam = G(rh=(0.40, -0.04, -0.30), re=(-0.2, -1.0, 0.2), blade=(0.9, 0.0, -0.35), lean=32, nod=10, drop=0.085,
+             shift=0.08, twist=15, turn=5, lf=(0.20, 0.04, 0.0), rf=(-0.14, -0.05, 0.0), lh=(-0.12, 0.24, -0.18), le=(-0.6, 0.6, 0.2))
+    keys += [(53, up, 'io'), (56, slam, 'out'), (60, slam, 'io'), (66, G(), 'io')]
+    return 66, keys
+
+
+def sw_phantomEnd():
+    """The flurry cut short (14 ticks, wave at 3): straight to the last cut."""
+    return 14, [
+        (0, G(**RAISED), 'lin'),
+        (3, G(rh=(0.40, -0.04, -0.30), re=(-0.2, -1.0, 0.2), blade=(0.9, 0.0, -0.35), lean=32, nod=10, drop=0.085,
+              shift=0.08, twist=15, turn=5, lf=(0.20, 0.04, 0.0), rf=(-0.14, -0.05, 0.0), lh=(-0.12, 0.24, -0.18)), 'out'),
+        (14, G(), 'io'),
+    ]
+
+
+def sw_backstep():
+    """The dodge (30 ticks): a crouch, a hop back with the feet drawn up and the sword kept on
+    guard, and a landing that sinks and comes up."""
+    return 30, [
+        (0, G(), 'lin'),
+        (2, G(drop=0.06, lean=16), 'io'),
+        (6, G(drop=-0.01, lean=-10, nod=-6, lf=(0.12, 0.04, 0.08), rf=(-0.02, -0.04, 0.12), lh=(-0.06, 0.24, -0.18)), 'out'),
+        (18, G(drop=0.0, lean=-6, lf=(0.10, 0.04, 0.05), rf=(-0.06, -0.04, 0.03), lh=(-0.04, 0.24, -0.22)), 'io'),
+        (22, G(drop=0.06, lean=14), 'io'),
+        (30, G(), 'io'),
+    ]
+
+
+SETS = {
+    'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}},
+    'swordsman': {'body': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
+                                                 'jumpAtk': sw_jumpAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
+                                                 'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
+                                                 'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
+                                                 'phantom': sw_phantom, 'phantomEnd': sw_phantomEnd, 'backstep': sw_backstep}},
+}
 BODY = args[1] if len(args) > 1 else SETS[SET]['body']
 CLIPS = SETS[SET]['clips']
 
@@ -224,8 +517,19 @@ Lax = pbs['L_Thigh'].head - pbs['R_Thigh'].head
 Lax.z = 0; Lax.normalize()
 F = Lax.cross(U)
 ANK = {s: pbs[f'{s}_Calf'].tail.copy() for s in 'LR'}
+# where the game puts a sword in the right hand (actor.ts arm()): from the rest pose, pointing
+# forward (the model's -z, Blender's +y) and a little down the forearm's line, its flat to +x
+_bn = arm.data.bones
+_along = (_bn['R_Hand'].head_local - _bn['R_Forearm'].head_local).normalized()
+_dir = (_along * 0.4 + Vector((0, 1, 0))).normalized()
+_flat = Vector((1, 0, 0))
+_flat = (_flat - _dir * _flat.dot(_dir)).normalized()
+SWORD_REST = Matrix((_flat, _dir, _flat.cross(_dir))).transposed()
+# the sword's frame in the hand's
+SWORD = _bn['R_Hand'].matrix_local.to_3x3().normalized().transposed() @ SWORD_REST
+HILT = _along * 0.05
 LEN = {n: (arm.data.bones[n].tail_local - arm.data.bones[n].head_local).length for n in ORDER}
-print(f'MOVES {SET} on {BODY}: forward {tuple(round(v, 3) for v in F)}')
+print(f'MOVES {SET} on {BODY}: forward {tuple(round(v, 3) for v in F)}, hip {pbs['Hip'].head.z:.3f}, scale {arm.matrix_world.to_scale()[0]:.3f}, top {max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices):.3f}, arm {LEN["R_Upperarm"]:.3f}+{LEN["R_Forearm"]:.3f}, leg {LEN["R_Thigh"]:.3f}+{LEN["R_Calf"]:.3f}')
 
 
 def axes(R):
@@ -305,6 +609,17 @@ def apply(p, t):
         foot = pbs[f'{s}_Foot']
         foot.matrix = Matrix.Translation(foot.matrix.translation) @ (Rh @ BASE[f'{s}_Foot']).to_4x4()
         update()
+    # the sword: the right hand turned so the blade points where it should, its flat to the side
+    if p['blade'] is not None:
+        d = vec(Rh, p['blade']).normalized()
+        side = vec(Rh, (0, 1, 0))
+        flat = side - d * side.dot(d)
+        flat = flat.normalized() if flat.length > 1e-4 else vec(Rh, (0, 0, 1))
+        flat = Matrix.Rotation(math.radians(p['roll']), 3, d) @ flat
+        S = Matrix((flat, d, flat.cross(d))).transposed()
+        hand = pbs['R_Hand']
+        hand.matrix = Matrix.Translation(hand.matrix.translation) @ (S @ SWORD.transposed()).to_4x4()
+        update()
 
 
 def ease(k, how):
@@ -321,6 +636,9 @@ def sample(keys, t):
             out = {}
             for key in p0:
                 a, b = p0[key], p1[key]
+                if a is None or b is None:
+                    out[key] = b if k > 0.5 else a
+                    continue
                 out[key] = tuple(x + (y - x) * k for x, y in zip(a, b)) if isinstance(a, tuple) else a + (b - a) * k
             return out
     return keys[-1][1]
@@ -349,6 +667,15 @@ cam.data.type = 'ORTHO'; cam.data.ortho_scale = 1.4
 side = F.cross(U)
 cam.location = Vector((0, 0, 0.55)) + side * 4 + F * 0.12
 cam.rotation_euler = (-side).to_track_quat('-Z', 'Y').to_euler()
+# a stand-in sword in the hand, as the game holds it
+bpy.ops.mesh.primitive_cube_add(size=1)
+blade = bpy.context.active_object
+blade.data.transform(Matrix.Translation((0, 0.3, 0)) @ Matrix.Diagonal((0.012, 0.6, 0.05, 1)))
+# bone-parented, an object hangs from the bone's tail in the bone's own axes
+_hr = _bn['R_Hand'].matrix_local.to_3x3().normalized()
+blade.parent = arm; blade.parent_type = 'BONE'; blade.parent_bone = 'R_Hand'
+blade.matrix_parent_inverse = Matrix.Identity(4)
+blade.matrix_basis = Matrix.Translation((0, -_bn['R_Hand'].length, 0)) @ Matrix.Translation(_hr.transposed() @ HILT) @ SWORD.to_4x4()
 OUT = os.path.join(HERE, 'moves')
 os.makedirs(OUT, exist_ok=True)
 SHOTS = os.path.join(OUT, '_frames')
@@ -383,6 +710,7 @@ for name, fn in CLIPS.items():
 # ---- the clips, on the skeleton alone ----------------------------------------------------------
 arm.animation_data.action = None
 bpy.data.objects.remove(mesh)
+bpy.data.objects.remove(blade)
 bpy.ops.object.select_all(action='DESELECT')
 arm.select_set(True); bpy.context.view_layer.objects.active = arm
 bpy.ops.export_scene.gltf(

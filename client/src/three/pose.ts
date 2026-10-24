@@ -113,6 +113,25 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   leapLand: ['chop', [27, 29, 31, 56]],
   leapLandF: ['chop', [27, 29, 31, 56]],
   roar: ['roar', [0, 40]],
+  // the swordsman's, keyed on the engine's own ticks
+  atk1: ['atk1', [0, 11]],
+  atk2: ['atk2', [0, 12]],
+  atk3: ['atk3', [0, 18]],
+  jumpAtk: ['jumpAtk', [0, 14]],
+  tri1: ['tri1', [0, 14]],
+  tri2: ['tri2', [0, 14]],
+  tri3: ['tri3', [0, 20]],
+  dragon1: ['dragon', [0, 9]],
+  dragon2: ['dragon', [0, 9]],
+  dragon3: ['dragon', [0, 9]],
+  dragon4: ['dragon4', [0, 20]],
+  upper: ['upper', [0, 20]],
+  crush1: ['crush1', [0, 12]],
+  crush2: ['crush2', [0, 20]],
+  iai: ['iai', [0, 34]],
+  phantom: ['phantom', [0, 66]],
+  phantomEnd: ['phantomEnd', [0, 14]],
+  backstep: ['backstep', [0, 30]],
 };
 
 /** The clip of a body's own for `move` and the tick in it `st` ticks (fractional) in, or null. */

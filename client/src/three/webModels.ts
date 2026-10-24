@@ -38,6 +38,7 @@ export const WEB_FILES: ModelFiles = {
   },
   // bodies' own move clips (art/model3d/moves.py)
   moves: {
+    hero: new URL('../../../art/model3d/moves/swordsman.glb', import.meta.url).href,
     inkwood: new URL('../../../art/model3d/moves/woodcutter.glb', import.meta.url).href,
   },
 };

@@ -63,7 +63,7 @@ export interface ModelFiles {
   clips: Record<ClipId, string>;
   /** Further bodies by name (chapter one's ink villagers), rigged on the same skeleton. */
   bodies?: Record<string, string>;
-  /** Clips of a body's own (a file of several), by the body's name in `bodies`. */
+  /** Clips of a body's own (a file of several), by the body's name in `bodies` ('hero': the hero's). */
   moves?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
 }
@@ -89,7 +89,7 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
   // the archer's own model comes with its clips (its rig_v1.glb has another skeleton)
   const load = (u: string) => (files.read ? files.read(u).then((b) => loader.parseAsync(b, u.slice(0, u.lastIndexOf('/') + 1))) : loader.loadAsync(u));
   const names = Object.keys(files.bodies ?? {});
-  const own = Object.keys(files.moves ?? {}).filter((n) => names.includes(n));
+  const own = Object.keys(files.moves ?? {}).filter((n) => n === 'hero' || names.includes(n));
   const [[hero, ...clips], bodies, moves] = await Promise.all([
     Promise.all([files.hero, ...Object.values(files.clips)].map(load)),
     Promise.all(names.map((n) => load(files.bodies![n]))),
@@ -117,7 +117,7 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
     }
     return m;
   };
-  return { hero: model(hero), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])) };
+  return { hero: model(hero, 'hero'), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])) };
 }
 
 /** The colour pictures of bodies by name (their glb's first skinned mesh's map), loaded on the
@@ -153,14 +153,17 @@ const _base = new Vector3();
 const _tip = new Vector3();
 
 /** A plain dao: grip, guard and a slightly curved blade, along +y from the hand. Its parts are
- * shared by every sword, so a body coming and going leaves nothing behind on the GPU. */
+ * shared by every sword, so a body coming and going leaves nothing behind on the GPU. The steel is
+ * pale, so a fine ink line runs down the cutting edge too: held low across the paper floor, the
+ * blade otherwise vanished into it and only the black grip showed. */
 const SWORD = (() => {
   const ink = new MeshBasicMaterial({ color: INK });
-  const steel = new MeshToonMaterial({ color: 0xd8dade, gradientMap: null });
+  const steel = new MeshToonMaterial({ color: 0xc8ccd2, gradientMap: null });
   steel.onBeforeCompile = bakeTone;
   return {
     blade: [new BoxGeometry(0.01, 0.46, 0.04), steel, [0, 0.3, 0]],
     edge: [new BoxGeometry(0.014, 0.47, 0.012), ink, [0, 0.3, -0.024]],
+    line: [new BoxGeometry(0.012, 0.46, 0.005), ink, [0, 0.3, 0.021]],
     guard: [new BoxGeometry(0.03, 0.016, 0.07), ink, [0, 0.065, 0]],
     grip: [new BoxGeometry(0.02, 0.12, 0.024), ink, [0, 0, 0]],
   } as const;
