@@ -238,6 +238,15 @@ CUT2 = dict(rh=(0.26, -0.10, 0.12), re=(-0.3, -0.9, -0.3), blade=(0.45, 0.0, 0.9
             lean=-6, drop=0.02, shift=0.04, lf=(0.13, 0.04, 0.0), rf=(-0.06, -0.04, 0.0), lh=(0.02, 0.24, -0.26))
 
 
+def hang(a, b):
+    """Halfway from a low cut in front (a) to the blade swept back low (b): the hand lifted to the
+    shoulder and the blade hanging from it, turned over, so its point swings under the hand and
+    clear of the floor rather than through it."""
+    p = sample([(0, a, 'lin'), (2, b, 'lin')], 1)
+    p.update(rh=(0.12, -0.18, 0.0), blade=(0.15, 0.0, -0.99), roll=180.0)
+    return p
+
+
 def sw_atk2():
     """The second (12 ticks, active 3..5): from low in front, the blade turned over and swept back
     past the right hip, then cut up through the enemy to over the head."""
@@ -245,6 +254,7 @@ def sw_atk2():
             lean=16, drop=0.045, shift=0.03, lf=(0.14, 0.04, 0.0), rf=(-0.08, -0.04, 0.0), lh=(0.20, 0.20, -0.20))
     return 12, [
         (0, G(**CUT1), 'lin'),
+        (1, hang(G(**CUT1), low), 'io'),
         (2, low, 'io'),
         (5, G(**CUT2), 'out'),
         (7, G(**{**CUT2, 'blade': (0.35, 0.0, 0.94)}), 'io'),
@@ -307,6 +317,7 @@ def sw_tri2():
     """Second (14 ticks, active 3..7): the blade turned over and cut back up."""
     return 14, [
         (0, G(**CUT1), 'lin'),
+        (1, hang(G(**CUT1), G(**LOW)), 'io'),
         (2, G(**LOW), 'io'),
         (5, G(**{**CUT2, **LUNGE, 'drop': 0.03}), 'out'),
         (8, G(**{**CUT2, **LUNGE, 'drop': 0.03, 'blade': (0.3, 0.0, 0.95)}), 'io'),
@@ -414,6 +425,9 @@ def sw_iai():
         (0, G(), 'lin'),
         (6, draw, 'io'),
         (13, G(**{**draw, 'drop': 0.075, 'lean': 26}), 'io'),
+        # drawn out level round the left side, not down through the floor
+        (14, G(**{**sample([(13, G(**{**draw, 'drop': 0.075, 'lean': 26}), 'lin'), (15, cut, 'lin')], 14),
+                  'blade': (-0.45, 0.88, 0.1)}), 'out'),
         (15, cut, 'out'),
         (26, G(**{**cut, 'blade': (0.93, -0.3, 0.06)}), 'io'),
         (34, G(), 'io'),
@@ -704,13 +718,18 @@ def ease(k, how):
     return k
 
 
-def sample(keys, t):
-    for (t0, p0, _), (t1, p1, how) in zip(keys, keys[1:]):
+def sample(keys, t, snap={}):
+    """The pose at tick `t`; in the spans (by index) in `snap` the blade turns over in one go,
+    just after the tick given, rather than rolling through its edge over the whole span."""
+    for i, ((t0, p0, _), (t1, p1, how)) in enumerate(zip(keys, keys[1:])):
         if t0 <= t <= t1:
             k = ease((t - t0) / max(1e-6, t1 - t0), how)
             out = {}
             for key in p0:
                 a, b = p0[key], p1[key]
+                if key == 'roll' and i in snap:
+                    out[key] = b if t > snap[i] else a
+                    continue
                 if a is None or b is None:
                     out[key] = b if k > 0.5 else a
                     continue
@@ -719,13 +738,18 @@ def sample(keys, t):
     return keys[-1][1]
 
 
-def key_clip(name, total, keys):
+def key_clip(name, total, keys, snap={}):
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data.action = act
+    prev = {}
     for t in range(total + 1):
-        apply(sample(keys, t), t)
+        apply(sample(keys, t, snap), t)
         for n in ORDER:
+            # each key on the same side as the last, so what is drawn between ticks turns the short way
+            q = pbs[n].rotation_quaternion
+            if n in prev and q.dot(prev[n]) < 0: pbs[n].rotation_quaternion = -q
+            prev[n] = pbs[n].rotation_quaternion.copy()
             pbs[n].keyframe_insert('rotation_quaternion', frame=t)
         pbs['Hip'].keyframe_insert('location', frame=t)
     return act
@@ -756,10 +780,55 @@ os.makedirs(OUT, exist_ok=True)
 SHOTS = os.path.join(OUT, '_frames')
 
 
+def tips(total, sub=0.0):
+    """The sword over every tick (or `sub` past each): its tip's height in world units (the floor
+    is 0: it should never go under), how much of its length the side camera sees, and how squarely
+    its flat faces it."""
+    out = []
+    for t in range(total + (0 if sub else 1)):
+        sc.frame_set(t, subframe=sub)
+        M = blade.evaluated_get(bpy.context.evaluated_depsgraph_get()).matrix_world
+        R = M.to_3x3().normalized()
+        d, n = R.col[1], R.col[0]
+        out.append(((M @ Vector((0, 0.6, 0))).z, math.sqrt(max(0.0, 1 - d.dot(side) ** 2)), abs(n.dot(side))))
+    return out
+
+
+def flip_tick(keys, i):
+    """Where in the span `i` the blade best turns over in one go: after the tick whose frame
+    drawn halfway to the next (the hand turned halfway between the two rolls) shows the least edge,
+    the nearest the middle of those."""
+    (t0, p0, _), (t1, p1, _) = keys[i], keys[i + 1]
+    q = {}
+    for t in range(t0, t1 + 1):
+        for r in (p0['roll'], p1['roll']):
+            p = sample(keys, t); p['roll'] = r
+            apply(p, t)
+            bpy.context.view_layer.update()
+            q[t, r] = blade.evaluated_get(bpy.context.evaluated_depsgraph_get()).matrix_world.to_3x3().normalized().to_quaternion()
+    best = []
+    for j in range(t0, t1):
+        a, b = q[j, p0['roll']], q[j + 1, p1['roll']]
+        if a.dot(b) < 0: b = -b
+        R = a.slerp(b, 0.5).to_matrix()
+        d, n = R.col[1], R.col[0]
+        seen = math.sqrt(max(0.0, 1 - d.dot(side) ** 2))
+        bad = max(0.0, 0.5 - abs(n.dot(side))) if seen > 0.5 else 0.0
+        best.append((round(bad, 2), abs(j + 0.5 - (t0 + t1) / 2), j))
+    return min(best)[2]
+
+
+def edges(total):
+    """(tick, flat) wherever, on a tick or halfway between, the sword's length is seen but its flat
+    is not: a blade on edge reads as a stick."""
+    both = [(t, x) for t, x in enumerate(tips(total))] + [(t + 0.5, x) for t, x in enumerate(tips(total, 0.5))]
+    return sorted((t, f) for t, (_, s, f) in both if s > 0.5 and f < 0.5)
+
+
 def lows(total):
-    """The lowest point of the body and the sword's tip over every tick, in world units (the floor
-    is 0): a body let down onto the ground should sit near 0, and the tip should never go under."""
-    body, tip = [], []
+    """The lowest point of the body over every tick, in world units (the floor is 0): a body let
+    down onto the ground should sit near 0."""
+    body = []
     for t in range(total + 1):
         sc.frame_set(t)
         dg = bpy.context.evaluated_depsgraph_get()
@@ -770,8 +839,7 @@ def lows(total):
         z = co.reshape(-1, 3) @ np.array(mw.row[2][:3]) + mw.row[2][3]
         ev.to_mesh_clear()
         body.append(float(z.min()))
-        tip.append((blade.evaluated_get(dg).matrix_world @ Vector((0, 0.6, 0))).z)
-    return body, tip
+    return body
 
 
 def strip(name, ticks, wide=False):
@@ -798,14 +866,43 @@ def strip(name, ticks, wide=False):
 # MOVES_ONLY=a,b: draw and check only these clips (all are still keyed and exported)
 ONLY = [n for n in os.environ.get('MOVES_ONLY', '').split(',') if n]
 acts = {}
+under = []
+edge = []
 for name, fn in CLIPS.items():
     total, keys = fn()
-    acts[name] = key_clip(name, total, keys)
+    # where the blade turns over, it rolls through its edge over the span or flips in one go,
+    # whichever shows less of the edge there (a flip shows it for the one frame between ticks)
+    turns = [i for i, (a, b) in enumerate(zip(keys, keys[1:])) if a[1]['roll'] != b[1]['roll']]
+    snap = {}
+    if turns:
+        flips = {i: flip_tick(keys, i) for i in turns}
+        trial = {}
+        for mode in ('roll', 'flip'):
+            act = key_clip(name, total, keys, flips if mode == 'flip' else {})
+            trial[mode] = edges(total)
+            bpy.data.actions.remove(act)
+        for i in turns:
+            t0, t1 = keys[i][0], keys[i + 1][0]
+            cost = {m: sum(max(0.0, 0.5 - f) for t, f in e if t0 < t < t1) for m, e in trial.items()}
+            if cost['flip'] < cost['roll']: snap[i] = flips[i]
+    acts[name] = key_clip(name, total, keys, snap)
+    # every clip's tip is checked, drawn or not
+    sw = tips(total)
+    tip = [z for z, _, _ in sw]
+    under += [f'{name}@{t} {z:.3f}' for t, z in enumerate(tip) if z < 0]
+    # the game draws between ticks too
+    under += [f'{name}@{t}.5 {z:.3f}' for t, (z, _, _) in enumerate(tips(total, 0.5)) if z < 0]
+    edge += [f'{name}@{t:g} {f:.2f}' for t, f in edges(total)]
+    if snap: print(f'MOVES {name} turned over in one go: ' + ' '.join(f'{j}..{j + 1}' for j in snap.values()))
+    print(f'MOVES {name} sword seen: ' + ' '.join(f'{v:.2f}' for _, v, _ in sw))
+    print(f'MOVES {name} sword flat: ' + ' '.join(f'{v:.2f}' for _, _, v in sw))
     if ONLY and name not in ONLY: continue
     n = 8
     strip(name, sorted({round(i * total / (n - 1)) for i in range(n)} | {k[0] for k in keys}), any(k[1]['fall'] > 45 for k in keys))
-    body, tip = lows(total)
+    body = lows(total)
     print(f'MOVES {name}: {total} ticks, body low {min(body):.3f}..{max(body):.3f}, tip low {min(tip):.3f} at {tip.index(min(tip))}')
+print(f'MOVES tip under the floor: {", ".join(under) if under else "none"}')
+print(f'MOVES blade on edge: {", ".join(edge) if edge else "none"}')
 
 # ---- the clips, on the skeleton alone ----------------------------------------------------------
 arm.animation_data.action = None
@@ -818,6 +915,7 @@ bpy.ops.export_scene.gltf(
     export_animations=True, export_animation_mode='ACTIONS', export_force_sampling=True,
     export_frame_step=1, export_optimize_animation_size=False,
 )
-for f in os.listdir(SHOTS): os.remove(os.path.join(SHOTS, f))
-os.rmdir(SHOTS)
+if os.path.isdir(SHOTS):
+    for f in os.listdir(SHOTS): os.remove(os.path.join(SHOTS, f))
+    os.rmdir(SHOTS)
 print(f'MOVES {SET}: {", ".join(acts)} -> {OUT}')
