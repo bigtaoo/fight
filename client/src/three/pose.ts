@@ -132,6 +132,10 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   phantom: ['phantom', [0, 66]],
   phantomEnd: ['phantomEnd', [0, 14]],
   backstep: ['backstep', [0, 30]],
+  // the birds' (art/model3d/bird.py)
+  flash: ['flash', [0, 12]],
+  dive: ['dive', [0, 40]],
+  peck: ['peck', [0, 20]],
 };
 
 /** The clip of a body's own for `move` and the tick in it `st` ticks (fractional) in, or null. */

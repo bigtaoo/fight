@@ -77,9 +77,9 @@ const INK_BODY: Partial<Record<string, { bodies: readonly InkBody[]; tint: numbe
   fisher: { bodies: ['inkfisher'], tint: 0xc8d0d4 },
   washer: { bodies: ['inkwasher'], tint: 0xd8ccd0 },
   hewer: { bodies: ['inkwood'], tint: 0xc8c0b8 },
-  // placeholder until the finch has a model of its own: a small, dark ink villager
+  // the birds' placeholders where a build has no model of theirs (art/model3d/bird.py): a small,
+  // dark ink villager for the finch, a brown one and a red-gold one for the big sparrow and the pheasant
   finch: { bodies: ['inkwasher'], tint: 0x585058 },
-  // and the big sparrow and the golden pheasant, until theirs: a brown one and a red-gold one
   bigfinch: { bodies: ['inkboatman'], tint: 0x8a6a48 },
   pheasant: { bodies: ['inkwood'], tint: 0xe0a040 },
 };
@@ -129,7 +129,7 @@ export class View3D {
   private readonly doors: Mesh[] = [];
   private readonly platforms = new Group();
   private platformKey = '';
-  private models!: { hero: Model; mob: Model; lead: Model; ink: Partial<Record<InkBody, Model>> };
+  private models!: { hero: Model; mob: Model; lead: Model; ink: Partial<Record<InkBody, Model>>; birds: Record<string, Model> };
   private shake = 0;
   private airKey = '';
   private time = 0;
@@ -242,7 +242,7 @@ export class View3D {
     // chapter one's ink villagers on the same budgets (left out of a build that does not pack them)
     const ink: Partial<Record<InkBody, Model>> = {};
     for (const [name, b] of Object.entries(models.bodies)) ink[name as InkBody] = variant(b, name === 'inkwood' ? { tris: 8000, bones: 0 } : { tris: 5000, bones: 'lean' });
-    this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink };
+    this.models = { hero: models.hero, mob: variant(models.archer, { tris: 5000, bones: 'lean' }), lead: variant(models.archer, { tris: 8000, bones: 0 }), ink, birds: models.birds };
     if (!this.host)
       void loadMaps(COLOUR_OF).then((maps) => {
         for (const t of Object.values(maps)) this.renderer.initTexture(t);
@@ -550,7 +550,7 @@ export class View3D {
       if (this.actors.has(e.id)) continue;
       const { model, tint } = this.modelFor(e.kind, e.id);
       const ink = INK_BODY[e.kind];
-      if (ink) this.bodyOf.set(e.id, ink.bodies[e.id % ink.bodies.length]);
+      if (ink && !this.models.birds[e.kind]) this.bodyOf.set(e.id, ink.bodies[e.id % ink.bodies.length]);
       const a = new Actor(e.id, e.kind, model, tint, !UNARMED.has(e.kind));
       this.actors.set(e.id, a);
       this.scene.add(a.root, a.floorShadow, a.trail.mesh);
@@ -560,6 +560,8 @@ export class View3D {
   private modelFor(kind: string, id: number): { model: Model; tint: number } {
     const m = this.models;
     if (kind === 'hero') return { model: m.hero, tint: 0xffffff };
+    // a bird on its own skeleton, already within budget
+    if (m.birds[kind]) return { model: m.birds[kind], tint: 0xffffff };
     const ink = INK_BODY[kind];
     if (ink) {
       const model = m.ink[ink.bodies[id % ink.bodies.length]];

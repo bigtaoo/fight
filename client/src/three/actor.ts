@@ -69,6 +69,8 @@ export interface ModelFiles {
   bodies?: Record<string, string>;
   /** Clips of a body's own (a file of several), by the body's name in `bodies` ('hero': the hero's). */
   moves?: Record<string, string>;
+  /** Birds by name (art/model3d/bird.py): a skeleton of their own that carries all their clips. */
+  birds?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
 }
 
@@ -89,15 +91,17 @@ function retarget(clip: AnimationClip, hip: number, from = CLIP_HIP): AnimationC
   return new AnimationClip(clip.name, clip.duration, tracks);
 }
 
-export async function loadModels(files: ModelFiles): Promise<{ hero: Model; archer: Model; bodies: Record<string, Model> }> {
+export async function loadModels(files: ModelFiles): Promise<{ hero: Model; archer: Model; bodies: Record<string, Model>; birds: Record<string, Model> }> {
   // the archer's own model comes with its clips (its rig_v1.glb has another skeleton)
   const load = (u: string) => (files.read ? files.read(u).then((b) => loader.parseAsync(b, u.slice(0, u.lastIndexOf('/') + 1))) : loader.loadAsync(u));
   const names = Object.keys(files.bodies ?? {});
   const own = Object.keys(files.moves ?? {}).filter((n) => n === 'hero' || names.includes(n));
-  const [[hero, ...clips], bodies, moves] = await Promise.all([
+  const flyers = Object.keys(files.birds ?? {});
+  const [[hero, ...clips], bodies, moves, birds] = await Promise.all([
     Promise.all([files.hero, ...Object.values(files.clips)].map(load)),
     Promise.all(names.map((n) => load(files.bodies![n]))),
     Promise.all(own.map((n) => load(files.moves![n]))),
+    Promise.all(flyers.map((n) => load(files.birds![n]))),
   ]);
   const ids = Object.keys(files.clips) as ClipId[];
   const model = (gltf: typeof hero, name = ''): Model => {
@@ -121,7 +125,23 @@ export async function loadModels(files: ModelFiles): Promise<{ hero: Model; arch
     }
     return m;
   };
-  return { hero: model(hero, 'hero'), archer: model(clips[0]), bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])) };
+  // a bird's clips are its own, keyed on its own skeleton: played as they are; the engine's height
+  // is its body's (`size` on the rig), its spread wings reach past it
+  const bird = (gltf: typeof hero): Model => {
+    const m = model(gltf);
+    const size = gltf.scene.getObjectByName('Rig')?.userData.size;
+    if (typeof size === 'number') m.height = size;
+    const own = Object.fromEntries(gltf.animations.map((a) => [a.name, a]));
+    for (const id of ids) if (own[id]) m.clips[id] = own[id];
+    m.moves = own;
+    return m;
+  };
+  return {
+    hero: model(hero, 'hero'),
+    archer: model(clips[0]),
+    bodies: Object.fromEntries(names.map((n, i) => [n, model(bodies[i], n)])),
+    birds: Object.fromEntries(flyers.map((n, i) => [n, bird(birds[i])])),
+  };
 }
 
 /** The colour pictures of bodies by name (their glb's first skinned mesh's map), loaded on the
