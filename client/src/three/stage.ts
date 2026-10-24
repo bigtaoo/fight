@@ -72,7 +72,7 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
 /** Where a dungeon inside a painting comes back out to (View3D.leaveScreen), fetched with its own scenery. */
 const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'parlor', pingfeng: 'parlor' };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
-const PICK = typeof location === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
+const PICK = typeof location === 'undefined' || typeof URLSearchParams === 'undefined' ? null : (new URLSearchParams(location.search).get('scene') as SceneId | null);
 const FAR = 0.2;
 const MID = 0.5;
 const FRONT = 1.25;

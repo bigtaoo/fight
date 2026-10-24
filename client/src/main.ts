@@ -28,6 +28,22 @@ async function main(): Promise<void> {
     const { runProto } = await import('./three/proto');
     return runProto(params);
   }
+  if (import.meta.env.DEV && params.has('wxui')) {
+    // the WeChat mini-game's chapter flow on a dev page: the canvas scroll and end card (three/chapterRun.ts)
+    const [{ runChapter }, { browserStore }, { setLang }] = await Promise.all([import('./three/chapterRun'), import('./platform/store'), import('./i18n')]);
+    setLang('zh');
+    return runChapter(params, {
+      store: browserStore,
+      art: `${import.meta.env.BASE_URL}art/`,
+      listen: (p) => {
+        const c = document.querySelector('canvas')!;
+        c.style.touchAction = 'none';
+        c.addEventListener('pointerdown', (ev) => p.down(ev.clientX, ev.clientY));
+        window.addEventListener('pointermove', (ev) => p.move(ev.clientX, ev.clientY));
+        window.addEventListener('pointerup', (ev) => p.up(ev.clientX, ev.clientY));
+      },
+    });
+  }
   // the platform first: the language and the saves come from it (when the page has its SDK)
   await initPlatform();
   platform.loadingStart();

@@ -1,7 +1,6 @@
 import type { Grade } from '@dnf/engine';
-import { CHAPTER1, PEEK, Pan, SEAL, STRIP, clearedCount, colouredTo, openCount, sectionAt, unrolledTo, type Cleared, type Section } from './chapter';
+import { CHAPTER1, PEEK, Pan, SEAL, STRIP, clock, colouredTo, openCount, opening, replay, sectionAt, unrolledTo, type Cleared, type Section, type Seen } from './chapter';
 import { FONT, INK, PAPER, RED, el, show, type Overlay } from './dom';
-import { clock } from './hud';
 import { getLang, t } from '../i18n';
 import type { BagStore } from '../platform/store';
 
@@ -14,7 +13,6 @@ import type { BagStore } from '../platform/store';
 // window's own pixels from the height of the painting (the scroll fills the width, not the logical
 // 1920x1080 screen), over every other part of the overlay.
 
-const SEEN_KEY = 'dnf.scroll.seen';
 /** The desk the scroll lies on, and the silk of its mounting. */
 const DESK = '#2b2723';
 const SILK = '#9fb4ab';
@@ -36,12 +34,6 @@ export function seal(parent: HTMLElement, text: string, size: number, style = ''
     text,
   );
   return s;
-}
-
-/** What the scroll showed last time: how many sections were open and cleared. */
-interface Seen {
-  open: number;
-  cleared: number;
 }
 
 interface Slip {
@@ -150,12 +142,10 @@ export class ScrollSelect {
     this.progress = progress;
     this.open = true;
     show(this.root, true);
-    const now: Seen = this.unrollAll ? { open: CHAPTER1.length, cleared: clearedCount(progress) } : { open: openCount(progress), cleared: clearedCount(progress) };
-    const seen = this.readSeen(now);
+    const { from: seen, to: now } = opening(this.store, progress, this.unrollAll);
     this.anim = seen.open !== now.open || seen.cleared !== now.cleared ? { from: seen, to: now, t: 0 } : null;
     this.unrolled = unrolledTo(seen.open);
     this.coloured = colouredTo(seen.cleared);
-    this.store.set(SEEN_KEY, JSON.stringify(now));
     this.stamped = seen.cleared;
     this.closeCard();
     this.layout();
@@ -172,19 +162,6 @@ export class ScrollSelect {
     this.open = false;
     show(this.root, false);
     cancelAnimationFrame(this.frame);
-  }
-
-  private readSeen(now: Seen): Seen {
-    try {
-      const v = JSON.parse(this.store.get(SEEN_KEY) ?? 'null') as Partial<Seen> | null;
-      if (v && typeof v.open === 'number' && typeof v.cleared === 'number') {
-        // only ever played forward: a reset save (or a dev switch) just shows the scroll as it is
-        return v.open <= now.open && v.cleared <= now.cleared ? { open: Math.max(1, v.open), cleared: v.cleared } : now;
-      }
-    } catch {
-      // unreadable: as if never seen
-    }
-    return { open: 1, cleared: 0 };
   }
 
   /** Sizes everything from the window: the painting as tall as fits, under the title. */
@@ -275,14 +252,10 @@ export class ScrollSelect {
     const a = this.anim;
     if (a) {
       a.t += dt;
-      // the colour blooms over the sections just cleared (1.6 s), their seals are stamped, then
-      // the roll unrolls to the next one (1.4 s), the view following its edge
-      const bloom = Math.min(1, a.t / 1600);
-      const roll = Math.max(0, Math.min(1, (a.t - 2000) / 1400));
-      const ease = (k: number) => k * k * (3 - 2 * k);
-      this.coloured = colouredTo(a.from.cleared) + (colouredTo(a.to.cleared) - colouredTo(a.from.cleared)) * ease(bloom);
-      this.unrolled = unrolledTo(a.from.open) + (unrolledTo(a.to.open) - unrolledTo(a.from.open)) * ease(roll);
-      if (bloom >= 1 && this.stamped < a.to.cleared) {
+      const r = replay(a.from, a.to, a.t);
+      this.coloured = r.coloured;
+      this.unrolled = r.unrolled;
+      if (r.stamp && this.stamped < a.to.cleared) {
         for (let i = this.stamped; i < a.to.cleared; i++) {
           const s = this.slips[i]?.seal;
           if (s) stamp(s);
@@ -290,9 +263,9 @@ export class ScrollSelect {
         this.stamped = a.to.cleared;
       }
       this.unroll();
-      if (roll > 0) this.pan.centre(MARGIN * this.h + this.rodW + this.unrolled * this.w - this.pan.view * 0.25);
+      if (r.rolling) this.pan.centre(MARGIN * this.h + this.rodW + this.unrolled * this.w - this.pan.view * 0.25);
       this.place();
-      if (roll >= 1) this.anim = null;
+      if (r.done) this.anim = null;
     }
     if (this.open) this.frame = requestAnimationFrame((n) => this.tick(n));
   }

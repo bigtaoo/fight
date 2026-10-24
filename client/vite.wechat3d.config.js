@@ -17,6 +17,7 @@ const copyAssets = {
     rmSync(at('./wechat/art'), { recursive: true, force: true });
     cpSync(at('./public/art/bg'), at('./wechat/art/bg'), { recursive: true });
     cpSync(at('./public/art/props'), at('./wechat/art/props'), { recursive: true });
+    cpSync(at('./public/art/scroll'), at('./wechat/art/scroll'), { recursive: true });
     const models = at('./wechat/models');
     rmSync(models, { recursive: true, force: true });
     mkdirSync(models, { recursive: true });
@@ -25,7 +26,7 @@ const copyAssets = {
     slimGlb(at('../art/model3d/moves/swordsman.glb'), `${models}/swordsman.glb`);
     for (const clip of ['walk', 'hit', 'fall']) slimGlb(at(`../art/archer3d/model/anim_${clip}.glb`), `${models}/${clip}.glb`);
     writeFileSync(`${models}/game.js`, '// models: a pack, loaded by wx.loadSubpackage\n');
-    console.log('  copied the scenery and slimmed the models into wechat/');
+    console.log('  copied the scenery and the scroll, slimmed the models into wechat/');
   },
 };
 
@@ -34,7 +35,7 @@ const noWebModels = {
   name: 'no-web-models',
   enforce: 'pre',
   resolveId: (source) => (source === './webModels' ? '\0web-models' : null),
-  load: (id) => (id === '\0web-models' ? 'export const WEB_FILES = null;' : null),
+  load: (id) => (id === '\0web-models' ? 'export const WEB_FILES = null; export const COLOUR_OF = {};' : null),
 };
 
 export default defineConfig(({ mode }) => ({

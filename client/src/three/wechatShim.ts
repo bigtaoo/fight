@@ -76,10 +76,18 @@ function element(tag: string): unknown {
   throw new Error(`no <${tag}> in a mini-game`);
 }
 
-def('document', {
+def('document', {});
+// newer DevTools simulators have a document of their own, without these
+for (const [key, fn] of Object.entries({
   createElementNS: (_ns: string, tag: string) => element(tag),
   createElement: (tag: string) => element(tag),
-});
+})) {
+  try {
+    Object.defineProperty(g.document, key, { value: fn, configurable: true, writable: true });
+  } catch {
+    // read-only: keep its own
+  }
+}
 
 if (typeof g.TextDecoder === 'undefined') {
   def('TextDecoder', class {
