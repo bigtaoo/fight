@@ -44,6 +44,10 @@ export const DEPTH_K = 2;
 
 export type ClipId = 'idle' | 'walk' | 'hit' | 'fall';
 
+/** A body's own clip (moves.py) for each knocked-down state, in place of the archer's 'fall'; keyed
+ * on the engine's ticks (WORLD.downTicks, getupTicks), and a death lies down the same way. */
+const LYING: Partial<Record<Entity['state'], string>> = { air: 'air', down: 'down', getup: 'getup', dead: 'down' };
+
 export interface Model {
   scene: Object3D;
   /** Height of the model at rest in its own units. */
@@ -327,10 +331,16 @@ export class Actor {
     const held = e.held;
     let speed = held ? 0 : 1;
     const own = e.state === 'act' ? moveClip(e.move, e.st + (held ? 0 : alpha)) : null;
+    const lying = LYING[e.state];
     if (own && this.actions[own.clip]) {
       const a = this.play(own.clip, 0.08);
       a.timeScale = 0;
       a.time = Math.min(own.tick / 30, a.getClip().duration);
+    } else if (lying && this.actions[lying]) {
+      // thrown, down and getting up on clips of its own: scrubbed to the state's ticks like a move
+      const a = this.play(lying, 0.08);
+      a.timeScale = 0;
+      a.time = Math.min((e.st + (held ? 0 : alpha)) / 30, a.getClip().duration);
     } else switch (e.state) {
       case 'walk':
         this.play('walk').timeScale = speed;

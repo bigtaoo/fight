@@ -3,6 +3,7 @@
 # engine's move timing (engine/content.ts). The clips set every bone outright, like the archer's.
 #
 #   blender -b --python art/model3d/moves.py -- [<set>] [<body>]    # set: a key of SETS (woodcutter)
+#   MOVES_ONLY=down,getup blender ...                                 # strips of these clips only
 #
 # Writes art/model3d/moves/<set>.glb (the skeleton and its clips, no mesh) and a frame strip of
 # each clip on <body> (default: the set's own) for a look. A pose is a handful of numbers on top of
@@ -29,8 +30,12 @@ SET = args[0] if args else 'woodcutter'
 # held under strain); blade: which way a sword in the right hand points (hips' axes; None: the hand
 # follows the forearm); roll: the blade turned about itself (0: its flat to the camera and its edge
 # leading a cut forward and down; 180: leading a cut up).
+# fall: the whole posed body then tipped back about the hips (degrees; 90 lies it on its back), so
+# hands, feet and blade are given as if it stood and turn with it; floor: 0..1, how far it is let
+# down onto the ground (1: its lowest joint, padded for flesh, rests on the floor).
 STANCE = dict(
     drop=0.025, shift=0.0, turn=0.0, lean=12.0, twist=0.0, tilt=0.0, nod=-6.0, shake=0.0, blade=None, roll=0.0,
+    fall=0.0, floor=0.0,
     lh=(0.08, 0.25, -0.28), rh=(0.08, -0.25, -0.28),
     le=(-0.6, 0.6, -0.4), re=(-0.6, -0.6, -0.4),
     lf=(0.03, 0.03, 0.0), rf=(-0.03, -0.03, 0.0),
@@ -453,13 +458,66 @@ def sw_backstep():
     ]
 
 
+# ---- knocked down and getting up (engine/content.ts WORLD; client actor.ts plays these on the state's ticks)
+# lying on the back, one knee up, the free arm flung out; the sword kept in hand along the near side,
+# its point toward the feet and a little up off the floor (given as if standing: up is toward the
+# head, forward is up off the floor)
+LIE = dict(fall=88.0, floor=1.0, drop=0.0, turn=0.0, lean=0.0, twist=0.0, nod=10.0,
+           lf=(0.04, 0.05, 0.14), rf=(0.0, -0.04, 0.02), le=(0.2, 0.6, 0.6), re=(0.3, -1.0, 0.0),
+           lh=(0.02, 0.36, -0.06), rh=(0.06, -0.26, -0.30), blade=(0.12, -0.12, -0.98))
+# thrown back through the air: the chest curled, the legs trailing forward, the sword held up
+TUMBLE = dict(fall=42.0, drop=0.0, turn=0.0, twist=-6.0, lean=14.0, nod=10.0,
+              lf=(0.14, 0.05, 0.12), rf=(0.03, -0.04, 0.05), le=(0.4, 0.6, 0.2), re=(0.0, -1.0, 0.2),
+              lh=(-0.10, 0.32, 0.04), rh=(0.04, -0.28, -0.04), blade=(0.6, -0.1, 0.78))
+
+
+def sw_air():
+    """Thrown by a blow (engine 'air', replayed from 0 on every hit in a juggle; held at the end
+    however long the flight): the head snapped back, then the body tumbling back."""
+    snap = G(lean=-14, nod=-14, fall=8, drop=0.0, rh=(0.10, -0.22, -0.12), blade=(0.7, -0.1, 0.6), lh=(-0.02, 0.30, -0.10))
+    return 16, [
+        (0, snap, 'lin'),
+        (5, P(**TUMBLE), 'out'),
+        (16, P(**{**TUMBLE, 'fall': 58.0, 'lean': 8.0}), 'io'),
+    ]
+
+
+def sw_down():
+    """Landed (engine 'down', 24 ticks; a death holds the end): the back slams down with the legs
+    thrown up, then settles to lie still."""
+    slam = {**LIE, 'fall': 96.0, 'nod': -4.0, 'lf': (0.10, 0.05, 0.22), 'rf': (0.06, -0.04, 0.14),
+            'lh': (0.0, 0.38, 0.02), 'blade': (0.2, -0.12, -0.97)}
+    return 24, [
+        (0, P(**{**TUMBLE, 'fall': 62.0, 'floor': 1.0}), 'lin'),
+        (3, P(**slam), 'out'),
+        (8, P(**LIE), 'io'),
+        (24, P(**{**LIE, 'nod': 14.0, 'lf': (0.03, 0.05, 0.12)}), 'io'),
+    ]
+
+
+def sw_getup():
+    """Up off the floor (engine 'getup', 10 ticks, the quick rise too): sits up with the knees
+    drawn in, rolls forward onto the feet in a crouch, and rises into the guard."""
+    sit = P(**{**LIE, 'lean': 62.0, 'nod': 0.0, 'lf': (0.04, 0.05, 0.24), 'rf': (0.0, -0.04, 0.18),
+               'lh': (-0.30, 0.20, 0.04), 'le': (0.6, 0.6, 0.0), 'rh': (-0.14, -0.22, -0.24), 'blade': (0.35, -0.12, -0.92)})
+    crouch = G(fall=12.0, floor=1.0, drop=0.16, lean=34.0, nod=6.0, lf=(0.10, 0.04, 0.0), rf=(-0.12, -0.05, 0.0),
+               lh=(0.20, 0.20, -0.36), le=(-0.6, 0.7, 0.0), rh=(0.18, -0.14, -0.28), blade=(0.85, 0.0, 0.35))
+    return 10, [
+        (0, P(**LIE), 'lin'),
+        (4, P(**sit), 'io'),
+        (7, crouch, 'io'),
+        (10, G(), 'io'),
+    ]
+
+
 SETS = {
     'woodcutter': {'body': 'wood', 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}},
     'swordsman': {'body': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
                                                  'jumpAtk': sw_jumpAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
                                                  'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
                                                  'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
-                                                 'phantom': sw_phantom, 'phantomEnd': sw_phantomEnd, 'backstep': sw_backstep}},
+                                                 'phantom': sw_phantom, 'phantomEnd': sw_phantomEnd, 'backstep': sw_backstep,
+                                                 'air': sw_air, 'down': sw_down, 'getup': sw_getup}},
 }
 BODY = args[1] if len(args) > 1 else SETS[SET]['body']
 CLIPS = SETS[SET]['clips']
@@ -500,7 +558,8 @@ for a in list(bpy.data.actions): bpy.data.actions.remove(a)
 
 objs = imp(os.path.join(HERE, BODY, 'rig_v1.glb'))
 arm = next(o for o in objs if o.type == 'ARMATURE')
-mesh = next(o for o in objs if o.type == 'MESH')
+# the body (a rig may carry a stray helper mesh too)
+mesh = max((o for o in objs if o.type == 'MESH'), key=lambda o: len(o.data.vertices))
 if arm.animation_data is None: arm.animation_data_create()
 ORDER = order(arm)
 pbs = arm.pose.bones
@@ -578,6 +637,7 @@ def apply(p, t):
     for n in ORDER:
         pbs[n].rotation_quaternion = BASEQ[n]
         pbs[n].location = (0, 0, 0)
+        pbs[n].scale = (1, 1, 1)
     update()
     sh = p['shake'] * math.sin(t * 2.6)
     # the hips: turned on the spot and moved
@@ -620,6 +680,21 @@ def apply(p, t):
         hand = pbs['R_Hand']
         hand.matrix = Matrix.Translation(hand.matrix.translation) @ (S @ SWORD.transposed()).to_4x4()
         update()
+    # the whole body tipped back about the hips (the bones below follow), then let down to the floor
+    if p['fall'] or p['floor']:
+        hip = pbs['Hip']
+        M = hip.matrix
+        hip.matrix = Matrix.Translation(M.translation) @ (rot(vec(Rh, (0, 1, 0)), -p['fall']) @ M.to_3x3()).to_4x4()
+        update()
+        if p['floor']:
+            # (the hips' bone hangs down to the root: only its head is flesh)
+            low = min(min(pbs[n].head.z, pbs[n].head.z if n == 'Hip' else pbs[n].tail.z) - PAD.get(n, 0.01) for n in ORDER if n != 'Root')
+            hip.matrix = Matrix.Translation(-U * low * p['floor']) @ hip.matrix
+            update()
+
+
+# how far each bone's flesh stands out from its line, for `floor` (the rest: 0.01)
+PAD = {'Hip': 0.05, 'Waist': 0.05, 'Spine01': 0.05, 'Spine02': 0.05, 'NeckTwist01': 0.03, 'Head': 0.05}
 
 
 def ease(k, how):
@@ -681,7 +756,28 @@ os.makedirs(OUT, exist_ok=True)
 SHOTS = os.path.join(OUT, '_frames')
 
 
-def strip(name, ticks):
+def lows(total):
+    """The lowest point of the body and the sword's tip over every tick, in world units (the floor
+    is 0): a body let down onto the ground should sit near 0, and the tip should never go under."""
+    body, tip = [], []
+    for t in range(total + 1):
+        sc.frame_set(t)
+        dg = bpy.context.evaluated_depsgraph_get()
+        ev = mesh.evaluated_get(dg)
+        me = ev.to_mesh()
+        co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co)
+        mw = ev.matrix_world
+        z = co.reshape(-1, 3) @ np.array(mw.row[2][:3]) + mw.row[2][3]
+        ev.to_mesh_clear()
+        body.append(float(z.min()))
+        tip.append((blade.evaluated_get(dg).matrix_world @ Vector((0, 0.6, 0))).z)
+    return body, tip
+
+
+def strip(name, ticks, wide=False):
+    """`wide`: framed for a body lying along the floor (its head well behind its hips)."""
+    cam.data.ortho_scale = 1.9 if wide else 1.4
+    cam.location = Vector((0, 0, 0.55 + (0.2 if wide else 0))) + side * 4 + F * (-0.18 if wide else 0.12)
     tiles = []
     for t in ticks:
         sc.frame_set(t)
@@ -699,13 +795,17 @@ def strip(name, ticks):
     im.filepath_raw = os.path.join(OUT, f'{SET}_{name}.png'); im.file_format = 'PNG'; im.save()
 
 
+# MOVES_ONLY=a,b: draw and check only these clips (all are still keyed and exported)
+ONLY = [n for n in os.environ.get('MOVES_ONLY', '').split(',') if n]
 acts = {}
 for name, fn in CLIPS.items():
     total, keys = fn()
     acts[name] = key_clip(name, total, keys)
+    if ONLY and name not in ONLY: continue
     n = 8
-    strip(name, sorted({round(i * total / (n - 1)) for i in range(n)} | {k[0] for k in keys}))
-    print(f'MOVES {name}: {total} ticks')
+    strip(name, sorted({round(i * total / (n - 1)) for i in range(n)} | {k[0] for k in keys}), any(k[1]['fall'] > 45 for k in keys))
+    body, tip = lows(total)
+    print(f'MOVES {name}: {total} ticks, body low {min(body):.3f}..{max(body):.3f}, tip low {min(tip):.3f} at {tip.index(min(tip))}')
 
 # ---- the clips, on the skeleton alone ----------------------------------------------------------
 arm.animation_data.action = None
