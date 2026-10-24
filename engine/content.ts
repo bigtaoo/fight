@@ -297,7 +297,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
   // sweep for a hero up close, a low rush along its lane and a leap onto the hero, two inklings
   // called in at half health
   woodcutter: {
-    body: { halfWidth: toFp(58), height: toFp(300), hp: 2600 },
+    body: { halfWidth: toFp(58), height: toFp(300), hp: 2000 },
     brain: 'boss',
     walkX: toFp(2.4),
     walkY: toFp(1.8),
@@ -349,7 +349,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
     // a lob comes down wherever the hero stands: no need to line up
     alignY: toFp(400),
     attack: 'lob',
-    cooldown: [ticks(2.2), ticks(3.2)],
+    cooldown: [ticks(3), ticks(4)],
     firstCooldown: [ticks(1), ticks(2)],
     ranged: { keep: toFp(420), flee: toFp(160), fleeY: toFp(70), backstep: 'hop', backstepCd: ticks(2.5) },
     drop: { item: 'potion', pct: 15 },
@@ -357,7 +357,7 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
   // the threshing floor's woodcutters: the boss's hack without the rest of the boss, under
   // super armour as it winds up; one may leave a big potion
   hewer: {
-    body: { halfWidth: toFp(50), height: toFp(260), hp: 1300 },
+    body: { halfWidth: toFp(50), height: toFp(260), hp: 1000 },
     brain: 'melee',
     walkX: toFp(2.2),
     walkY: toFp(1.8),
@@ -402,14 +402,14 @@ export const MONSTERS: Readonly<Record<MonsterKind, Monster>> = {
   // flight up out of the screen that comes down on the hero, and a fan of tail feathers along its
   // lane; quicker once it is down to 40 percent (no help comes: it is alone in the picture)
   pheasant: {
-    body: { halfWidth: toFp(70), height: toFp(200), hp: 2400 },
+    body: { halfWidth: toFp(70), height: toFp(200), hp: 1800 },
     brain: 'boss',
     walkX: toFp(3.2),
     walkY: toFp(2.2),
     range: toFp(220),
     alignY: toFp(40),
     attack: '',
-    cooldown: [ticks(1.2), ticks(2.2)],
+    cooldown: [ticks(2), ticks(3)],
     firstCooldown: [ticks(1), ticks(1.6)],
     juggle: { decay: 25, floor: 15 },
     elite: true,
@@ -471,7 +471,7 @@ export const INK = {
   tow: { ticks: ticks(0.8), speed: toFp(22), gap: toFp(130), release: 4 },
   lob: { flight: 26, apex: toFp(200), reach: toFp(820), x: toFp(70), y: toFp(36), z: toFp(80) },
   splash: { damage: 22, hitstun: 14, stop: 3, push: toFp(4), launch: 0, lift: toFp(8) } as HitData,
-  patch: { life: ticks(5), every: ticks(0.5), damage: 12, x: toFp(100), y: toFp(44), slowPct: 50 },
+  patch: { life: ticks(4), every: ticks(0.5), damage: 6, x: toFp(100), y: toFp(44), slowPct: 50 },
   pounce: 'pounce',
 };
 
@@ -708,7 +708,7 @@ const MOVE_LIST: Move[] = [
   },
   {
     id: 'smash', total: 56, active: [31, 34], box: box(0, 200, 45, 0, 240),
-    damage: 70, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
+    damage: 55, hitstun: 22, stop: 6, push: toFp(14), launch: toFp(16), lift: toFp(14),
     cancel: 0, advance: { from: 28, to: 32, speed: toFp(5) }, armor: [6, 34],
   },
   // 1-2: the fisher's cast and the washerwoman's lob, each a long wind-up; a lurker's pounce
@@ -825,7 +825,7 @@ function pheasantMoves(sfx: string, pct: number): Move[] {
   return [
     {
       id: `tail${sfx}`, total: tailW + 6 + t(24), active: [tailW + 1, tailW + 6], box: box(-170, 170, 70, 0, 160),
-      damage: 35, hitstun: 18, stop: 5, push: toFp(14), launch: toFp(12), lift: toFp(12),
+      damage: 28, hitstun: 18, stop: 5, push: toFp(14), launch: toFp(12), lift: toFp(12),
       cancel: 0, armor: [1, tailW + 6],
     },
     {
@@ -839,7 +839,7 @@ function pheasantMoves(sfx: string, pct: number): Move[] {
       cancel: 0, air: true, hop: { back: 0, up: toFp(50) }, leap: toFp(36), land: `soarLand${sfx}`, armor: [1, 90],
     },
     {
-      id: `soarLand${sfx}`, total: t(34), active: [1, 3], box: box(-120, 120, 60, 0, 160),
+      id: `soarLand${sfx}`, total: t(46), active: [1, 3], box: box(-120, 120, 60, 0, 160),
       damage: 40, hitstun: 20, stop: 5, push: toFp(14), launch: toFp(18), lift: toFp(12),
       cancel: 0, armor: [1, 3],
     },
@@ -868,7 +868,7 @@ function woodMoves(sfx: string, pct: number): Move[] {
     },
     {
       id: `sweep${sfx}`, total: sweepW + swings + t(26), active: [sweepW + 1, sweepW + swings], box: box(-90, 220, 80, 0, 200),
-      damage: 20, hitstun: 12, stop: 4, push: toFp(10), launch: 0, lift: toFp(8),
+      damage: 15, hitstun: 12, stop: 4, push: toFp(10), launch: 0, lift: toFp(8),
       cancel: 0, rehit: 9, advance: { from: sweepW + 1, to: sweepW + swings, speed: toFp(5) }, armor: [1, sweepW + swings],
     },
     {
