@@ -822,6 +822,83 @@
     58
    ],
    "seed": 3
+  },
+  "blossom_perch": {
+   "kind": "cut",
+   "src": "blossom_mid_t2i.png",
+   "crop": [
+    0.47,
+    0.59,
+    0.93,
+    0.78
+   ],
+   "single": true,
+   "feather": [
+    0.1,
+    0,
+    0.12,
+    0
+   ],
+   "height": 180,
+   "alpha": 0.95,
+   "rotate": 8
+  },
+  "lotus_perch": {
+   "kind": "cut",
+   "src": "lotus_front_t2i.png",
+   "crop": [
+    0.7,
+    0.665,
+    0.975,
+    0.865
+   ],
+   "single": true,
+   "feather": [
+    0,
+    0,
+    0,
+    0.15
+   ],
+   "height": 180,
+   "alpha": 0.95
+  },
+  "bamboo_perch": {
+   "kind": "cut",
+   "src": "bamboo_mid_t2i.png",
+   "crop": [
+    0.08,
+    0.72,
+    0.335,
+    0.95
+   ],
+   "single": true,
+   "feather": [
+    0.08,
+    0.08,
+    0.3,
+    0
+   ],
+   "height": 240,
+   "alpha": 0.95
+  },
+  "screen_perch": {
+   "kind": "cut",
+   "src": "screen_mid_t2i.png",
+   "crop": [
+    0.2,
+    0.76,
+    0.62,
+    0.97
+   ],
+   "single": true,
+   "feather": [
+    0.08,
+    0.08,
+    0.15,
+    0
+   ],
+   "height": 200,
+   "alpha": 0.95
   }
  }
 }

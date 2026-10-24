@@ -1,5 +1,5 @@
 import { DOOR_HALF, DUNGEONS, WORLD, fromFp, surfaceUnder, type DungeonId, type Entity, type SimEvent, type SimState } from '@dnf/engine';
-import { Vector3, AmbientLight, type Texture, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
+import { Vector3, AmbientLight, type Texture, type BufferGeometry, BoxGeometry, Group, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, NoToneMapping, PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, SRGBColorSpace, WebGLRenderer } from 'three';
 import { Decor } from './decor';
 import { Governor } from './governor';
 import { lodReady, variant } from './lod';
@@ -8,7 +8,7 @@ import { Beats } from './beats';
 import { Post } from './post';
 import { propWarmup, setGlow } from './props';
 import { Splash } from './splash';
-import { IN_SCREEN, Stage } from './stage';
+import { IN_SCREEN, PERCHES, Stage } from './stage';
 import { Vfx } from './vfx';
 import { COLOUR_OF, WEB_FILES } from './webModels';
 
@@ -98,6 +98,13 @@ const GONGBI_SEC = 0.8;
 /** Raised floors (Room.platforms): a pale wash on top, a thick ink stroke along the front. */
 const PLATFORM_TOP = new MeshBasicMaterial({ color: 0x8a8276, transparent: true, opacity: 0.55, toneMapped: false });
 const PLATFORM_EDGE = new MeshBasicMaterial({ color: 0x1a1816, toneMapped: false });
+/** The top over a painted perch: just enough to show how deep the platform runs, writing no depth
+ * so the half of the piece below it (it stands across the middle) still shows through. */
+const PERCH_TOP = new MeshBasicMaterial({ color: 0x8a8276, transparent: true, opacity: 0.15, depthWrite: false, toneMapped: false });
+/** A perch is drawn this much wider than its platform, so its ends do not stop at the edge. */
+const PERCH_OVERHANG = 1.15;
+/** How far above the floor a perch in the air keeps its lowest twig. */
+const PERCH_CLEAR = 12;
 
 export class View3D {
   readonly renderer: WebGLRenderer;
@@ -571,19 +578,29 @@ export class View3D {
   }
 
   /** The room's platforms, built when the room changes: each a slab with its top at the
-   * platform's height, a pale top and an ink-black front stroke. */
+   * platform's height, a pale top and an ink-black front stroke; in a scene with a perch
+   * (PERCHES), a fainter top on the painted piece instead of the stroke. */
   private drawPlatforms(s: SimState): void {
     const key = `${s.config.dungeon}:${s.room}`;
     if (key === this.platformKey) return;
     this.platformKey = key;
-    for (const m of this.platforms.children) (m as Mesh).geometry.dispose();
+    for (const c of this.platforms.children) {
+      const m = c as Mesh<BufferGeometry, MeshBasicMaterial>;
+      m.geometry.dispose();
+      // the perches' own materials (the rest are shared)
+      if (m.material.map) m.material.dispose();
+    }
     this.platforms.clear();
     if (!this.platforms.parent) this.scene.add(this.platforms);
     const list = s.room >= 0 ? (DUNGEONS[s.config.dungeon].rooms[s.room].platforms ?? []) : [];
-    for (const p of list) {
+    const scene = Stage.sceneOf(s.config.dungeon, s.room);
+    const perch = list.length ? this.stage.perch(scene) : null;
+    const slabs = list.map((p) => {
       const [x0, x1, z0, z1, h] = [fromFp(p.x0), fromFp(p.x1), fromFp(p.y0) * DEPTH_K, fromFp(p.y1) * DEPTH_K, fromFp(p.z)];
-      const top = new Mesh(new BoxGeometry(x1 - x0, 6, z1 - z0), PLATFORM_TOP);
+      const top = new Mesh(new BoxGeometry(x1 - x0, 6, z1 - z0), perch ? PERCH_TOP : PLATFORM_TOP);
       top.position.set((x0 + x1) / 2, h - 3, (z0 + z1) / 2);
+      this.platforms.add(top);
+      if (perch) return { x0, x1, z: (z0 + z1) / 2, h };
       const edge = new Mesh(new BoxGeometry(x1 - x0 + 8, 14, 10), PLATFORM_EDGE);
       edge.position.set((x0 + x1) / 2, h - 7, z1);
       // the stroke's legs down to the floor at the front corners, thin as a screen frame
@@ -592,8 +609,28 @@ export class View3D {
         leg.position.set(x, h / 2, z1);
         this.platforms.add(leg);
       }
-      this.platforms.add(top, edge);
-    }
+      this.platforms.add(edge);
+      return null;
+    });
+    // the painted pieces, upright across the middle of each platform's depth (the floor hides
+    // what reaches below it), every other one mirrored so a row of them does not repeat
+    void perch?.then((tex) => {
+      if (this.platformKey !== key) return;
+      const { stand, squash = 1, ground } = PERCHES[scene]!;
+      const { width, height } = tex.image as { width: number; height: number };
+      slabs.forEach((p, i) => {
+        if (!p) return;
+        const w = (p.x1 - p.x0) * PERCH_OVERHANG;
+        let ph = ((w * height) / width) * squash;
+        // one standing on the floor reaches down to it; one in the air (a branch) stops short of
+        // it, narrower in proportion if it must, so the floor never cuts across it
+        ph = ground ? Math.max(ph, p.h / (1 - stand)) : Math.min(ph, (p.h - PERCH_CLEAR) / (1 - stand));
+        const m = new Mesh(new PlaneGeometry(w, ph), new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
+        m.position.set((p.x0 + p.x1) / 2, p.h + stand * ph - ph / 2, p.z);
+        m.scale.x = i % 2 ? -1 : 1;
+        this.platforms.add(m);
+      });
+    }).catch(() => {});
   }
 
   /** A cleared room's doors, washed in pulsing cinnabar on the floor where they lead out. */
