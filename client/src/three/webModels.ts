@@ -36,6 +36,12 @@ export const WEB_FILES: ModelFiles = {
     inkboatman: new URL('../../../art/model3d/inkboatman/rig_v1.glb', import.meta.url).href,
     inkwood: new URL('../../../art/model3d/inkwood/rig_v1.glb', import.meta.url).href,
   },
+  // the birds, on skeletons of their own (art/model3d/bird.py)
+  birds: {
+    finch: new URL('../../../art/model3d/finch/rig_v1.glb', import.meta.url).href,
+    bigfinch: new URL('../../../art/model3d/bigfinch/rig_v1.glb', import.meta.url).href,
+    pheasant: new URL('../../../art/model3d/pheasant/rig_v1.glb', import.meta.url).href,
+  },
   // bodies' own move clips (art/model3d/moves.py)
   moves: {
     hero: new URL('../../../art/model3d/moves/swordsman.glb', import.meta.url).href,
