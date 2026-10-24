@@ -86,6 +86,11 @@ export class Beats {
     return this.beat !== null;
   }
 
+  /** Seconds into the seep, or -1 while it is not playing (figures.ts times its figures by it). */
+  get seeping(): number {
+    return this.beat === 'seep' ? this.t : -1;
+  }
+
   /** The outro has played: the run's result can be shown. True whenever there is no outro. */
   get outroDone(): boolean {
     return this.done;

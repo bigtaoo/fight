@@ -1,6 +1,7 @@
 # Ink-corrupted copy of a rigged chapter-1 body: same mesh and skeleton, texture washed to ink.
 #
 #   blender -b --python art/model3d/ink.py -- <src name> <out name>     # e.g. lion inklion
+#   python art/model3d/pad.py art/model3d/<out name>/rig_v1.glb
 #
 # Each texel keeps its light and shade but loses most of its colour, washing to a pale blue-grey ink
 # (not solid black: the light parts stay near the paper); some of the original hue (KEEP) survives,
@@ -33,7 +34,11 @@ for img in bpy.data.images:
     print(f'INK {img.name} {img.size[0]}x{img.size[1]}')
 out = os.path.join(HERE, DST)
 os.makedirs(out, exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=os.path.join(out, 'rig_v1.glb'), export_format='GLB', export_image_format='JPEG', export_animations=False)
+# the birds and beasts (bird.py) carry their own clips and a size in the extras; keep both
+clips = dict(export_animations=True, export_animation_mode='ACTIONS', export_force_sampling=True, export_frame_step=1,
+             export_optimize_animation_size=False) if bpy.data.actions else dict(export_animations=False)
+bpy.ops.export_scene.gltf(filepath=os.path.join(out, 'rig_v1.glb'), export_format='GLB', export_image_format='JPEG',
+                          export_extras=True, **clips)
 
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_WORKBENCH'

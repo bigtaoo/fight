@@ -302,6 +302,8 @@ export class Actor {
     model: Model,
     tint = 0xffffff,
     armed = false,
+    /** Height in world units, for a body that is not the engine's (figures.ts); else its kind's. */
+    height?: number,
   ) {
     this.body = SkeletonUtils.clone(model.scene) as Group;
     this.mat = bodyMaterial(model.map, tint);
@@ -323,7 +325,7 @@ export class Actor {
     });
     if (armed) this.blade = this.arm(prop(SWORD));
     else if (kind === 'fisher') this.rod = this.arm(prop(ROD));
-    this.scale = fromFp(BODIES[kind].height) / model.height;
+    this.scale = (height ?? fromFp(BODIES[kind].height)) / model.height;
     this.body.scale.setScalar(this.scale);
     this.root.add(this.body);
     this.shadow = new Mesh(SHADOW_GEO, SHADOW_MAT);
@@ -463,6 +465,31 @@ export class Actor {
       this.blade.localToWorld(_tip.set(0, 0.53, 0));
       this.trail.update(dt, e.state === 'act' && cutting(e.move, e.st + alpha), _base, _tip);
     }
+    this.paint(dt);
+    if (this.blade) this.blade.visible = this.dissolve < 0.5;
+    if (this.rod) this.rod.visible = this.dissolve < 0.5;
+    const dead = e.state === 'dead';
+    // a lurker is not there to see until it springs
+    this.root.visible = this.shadow.visible = e.lurk <= 0 && (!dead || e.st < 40);
+  }
+
+  /** Drawn by the scenery rather than the engine (figures.ts): stands at `x`, `depth` (engine
+   * units), facing `facing`, playing its clip `clip` at `speed`, a shadow `r` wide under it. */
+  stand(x: number, depth: number, facing: number, clip: string, speed: number, r: number, dt: number): void {
+    this.root.position.set(x, 0, depth * DEPTH_K);
+    this.shadow.position.set(x, 0.5, depth * DEPTH_K);
+    this.shadow.scale.set(r, r * 0.45, 1);
+    const want = facing > 0 ? 0 : Math.PI;
+    this.yaw += (want - this.yaw) * Math.min(1, dt * 8);
+    this.body.rotation.y = this.yaw;
+    if (this.actions[clip]) this.play(clip, 0.3).timeScale = speed;
+    this.mixer.update(dt);
+    this.body.updateMatrixWorld(true);
+    this.paint(dt);
+  }
+
+  /** The material's own state: the flash, the dissolve, the ink's run, gongbi. */
+  private paint(dt: number): void {
     this.flash = Math.max(0, this.flash - dt);
     this.mat.emissive.setRGB(this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.9 : 0, this.flash > 0 ? 0.85 : 0);
     this.mat.userData.dissolve.value = this.line.userData.dissolve.value = this.dissolve;
@@ -470,11 +497,6 @@ export class Actor {
     this.mat.userData.gongbi.value = this.gongbi;
     this.line.userData.width.value = OUTLINE.userData.width.value + (GONGBI_WIDTH - OUTLINE.userData.width.value) * this.gongbi;
     this.line.color.lerpColors(LINE_INK, LINE_GONGBI, this.gongbi);
-    if (this.blade) this.blade.visible = this.dissolve < 0.5;
-    if (this.rod) this.rod.visible = this.dissolve < 0.5;
-    const dead = e.state === 'dead';
-    // a lurker is not there to see until it springs
-    this.root.visible = this.shadow.visible = e.lurk <= 0 && (!dead || e.st < 40);
   }
 
   /** Rotates `bone` by `deg` about `axis` given in the body's own space (x: side to side). */

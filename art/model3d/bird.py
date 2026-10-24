@@ -1,4 +1,4 @@
-# Rigs a Tripo bird on a small skeleton of its own and keys its clips, one tick a frame (30 fps),
+# Rigs a Tripo bird (or beast) on a small skeleton of its own and keys its clips, one tick a frame (30 fps),
 # on the engine's move timing (engine/content.ts). Birds do not fit the 41-bone humanoid, so they
 # carry their own clips: idle, walk, hit and fall, and their moves (client pose.ts CLIP_OF).
 #
@@ -254,6 +254,195 @@ def pheasant_clip(name):
     raise KeyError(name)
 
 
+# ---- the beasts ------------------------------------------------------------------------------
+# Four-legged and the crane: the same own-skeleton rig as the birds. Legs, where they step, are
+# one bone each from the hip or shoulder down, swung about l.
+
+def legs4(front, back):
+    """Front legs `front` degrees forward (l negative swings the foot ahead), back legs `back`, each
+    pair (left, right)."""
+    return {'LegFL': (0, -front[0], 0), 'LegFR': (0, -front[1], 0), 'LegBL': (0, -back[0], 0), 'LegBR': (0, -back[1], 0)}
+
+
+def buffalo_weigh(v):
+    x, y, z = v
+    head = ramp(x, 0.3, 0.36)
+    neck = ramp(x, 0.14, 0.22) * ramp(z, 0.3, 0.38) * (1 - head)
+    # the tail hangs just off the rump, which reaches further back higher up
+    edge = 0.42 + 0.03 * ramp(z, 0.35, 0.5)
+    tail = ramp(-x, edge, edge + 0.015)
+    far = ramp(0.36 - z, 0.0, 0.06)
+    leg = ramp(0.24 - z, 0.0, 0.05) * (1 - tail)
+    side = 'L' if y > 0 else 'R'
+    return {'Head': head, 'Neck': neck, 'Tail': tail * (1 - far), 'Tail2': tail * far,
+            ('LegF' if x > -0.1 else 'LegB') + side: leg}
+
+
+def buffalo_clip(name):
+    if name == 'idle':
+        # chewing the cud: the head bobbing a little, the tail flicking now and then
+        return 90, lambda t: {'Neck': (0, 4 + 3 * sine(t, 45), 0), 'Head': (0, 4 * sine(t, 15), 0),
+                              'Tail': (12 * pulse(t, 50, 70) * sine(t, 10), 0, 0), 'Tail2': (18 * pulse(t, 52, 74) * sine(t, 10, -0.15), 0, 0),
+                              'lift': 0.004 * sine(t, 45)}
+    if name == 'graze':
+        # head down into the grass, cropping it, and up again
+        def graze(t):
+            p = ramp(t, 0, 24) * (1 - ramp(t, 96, 120))
+            return {'Neck': (0, 65 * p, 0), 'Head': (0, 35 * p + 8 * p * abs(sine(t, 16)), 6 * p * sine(t, 32)),
+                    'LegFL': (0, -6 * p, 0), 'LegFR': (0, -6 * p, 0)}
+        return 120, graze
+    if name == 'swish':
+        # a fly on the flank: the tail lashed side to side, the head turned round at it
+        return 36, lambda t: {'Tail': (35 * sine(t, 12) * pulse(t, 0, 36), 0, 0), 'Tail2': (45 * sine(t, 12, -0.15) * pulse(t, 0, 36), 0, 0),
+                              'Neck': (0, 0, -20 * pulse(t, 0, 36)), 'Head': (0, 0, -10 * pulse(t, 4, 32))}
+    if name == 'walk':
+        # a slow walk: legs in diagonal pairs, the head nodding each step
+        return 40, lambda t: {**legs4((18 * sine(t, 40), -18 * sine(t, 40)), (-18 * sine(t, 40), 18 * sine(t, 40))),
+                              'Neck': (0, 5 + 4 * sine(t, 20), 0), 'Tail2': (10 * sine(t, 40), 0, 0), 'lift': 0.006 * abs(sine(t, 20))}
+    raise KeyError(name)
+
+
+def crane_weigh(v):
+    x, y, z = v
+    head = ramp(z, 0.88, 0.92) * ramp(x, 0.15, 0.2)
+    neck = ramp(z, 0.7, 0.78) * ramp(x, 0.13, 0.17) * (1 - head)
+    wing = ramp(z, 0.7, 0.78) * (1 - ramp(x, 0.1, 0.14))
+    tail = ramp(-x, 0.08, 0.12) * (1 - ramp(z, 0.6, 0.66)) * ramp(z, 0.28, 0.32)
+    return {'Head': head, 'Neck': neck, 'WingL' if y > 0.02 else 'WingR': wing, 'Tail': tail}
+
+
+def crane_clip(name):
+    if name == 'idle':
+        # standing: the neck swaying, a look round now and then, the wings breathing
+        return 90, lambda t: {'Neck': (0, 3 * sine(t, 90), 0), 'Head': (0, 0, 25 * pulse(t, 40, 75)),
+                              'WingL': (2 * sine(t, 45), 0, 0), 'WingR': (-2 * sine(t, 45), 0, 0), 'Tail': (0, 3 * sine(t, 45), 0)}
+    if name == 'dip':
+        # the neck dipped forward and down to the water, a sip, and up
+        def dip(t):
+            p = ramp(t, 0, 18) * (1 - ramp(t, 42, 64))
+            return {'Neck': (0, 85 * p, 0), 'Head': (0, 40 * p + 10 * p * pulse(t, 24, 36), 0),
+                    'Tail': (0, -15 * p, 0)}
+        return 64, dip
+    if name == 'spread':
+        # the wings opened wide, two slow beats, and folded back
+        def spread(t):
+            p = pulse(t, 0, 72)
+            a = 40 * p + 25 * p * sine(t, 24, 0.25)
+            return {'WingL': (-a, 0, 15 * p), 'WingR': (a, 0, -15 * p), 'Neck': (0, -15 * p, 0), 'Head': (0, -20 * p, 0),
+                    'Tail': (0, 10 * p, 0), 'lift': 0.01 * p}
+        return 72, spread
+    raise KeyError(name)
+
+
+def cub_weigh(v):
+    x, y, z = v
+    head = ramp(z, 0.5, 0.56) * ramp(x, -0.05, 0.02)
+    tail = ramp(-x, 0.33, 0.37) * ramp(z, 0.46, 0.52)
+    leg = ramp(0.26 - z, 0.0, 0.06)
+    side = 'L' if y > 0 else 'R'
+    return {'Head': head, 'Tail': tail, ('LegF' if x > -0.05 else 'LegB') + side: leg}
+
+
+def cub_clip(name):
+    if name == 'idle':
+        # the big head bobbing, the tail wagging
+        return 40, lambda t: {'Head': (0, 4 * sine(t, 40), 5 * sine(t, 80)), 'Tail': (15 * sine(t, 20), 0, 0), 'lift': 0.006 * sine(t, 20)}
+    if name == 'walk':
+        # a bouncing trot
+        return 16, lambda t: {**legs4((25 * sine(t, 16), -25 * sine(t, 16)), (-25 * sine(t, 16), 25 * sine(t, 16))),
+                              'Head': (0, 5 * sine(t, 8), 0), 'Tail': (20 * sine(t, 16), 0, 0), 'lift': 0.02 * abs(sine(t, 8))}
+    if name == 'hit':
+        return 12, lambda t: blend({'Body': (0, -20, 0), 'Head': (0, -20, 0), 'Tail': (0, 20, 0)}, {}, ramp(t, 2, 12))
+    if name == 'fall':
+        # rolled over onto its side, paws up
+        return 20, lambda t: {'Body': (-85 * ramp(t, 0, 12), 0, 0), **legs4((30 * ramp(t, 4, 14),) * 2, (-30 * ramp(t, 4, 14),) * 2),
+                              'Head': (0, 15 * ramp(t, 6, 16), 0), 'lift': -0.02 * ramp(t, 4, 12)}
+    if name == 'bite':
+        # the ink cub's pounce-bite: crouched (12 ticks), the spring and the snap (3), landed and shaken off
+        crouch = {'Body': (0, 12, 0), 'Head': (0, 10, 0), **legs4((-20, -20), (25, 25)), 'Tail': (0, -20, 0), 'lift': -0.05}
+        leap = {'Body': (0, -15, 0), 'Head': (0, 20, 0), **legs4((50, 50), (-40, -40)), 'Tail': (0, 30, 0), 'lift': 0.08}
+
+        def bite(t):
+            if t < 12: return blend({}, crouch, ramp(t, 0, 10))
+            if t < 15: return blend(crouch, leap, ramp(t, 12, 15))
+            return blend(leap, {}, ramp(t, 15, 31))
+        return 31, bite
+    raise KeyError(name)
+
+
+def lioness_weigh(v):
+    x, y, z = v
+    head = ramp(z, 0.6, 0.68) * ramp(x, -0.02, 0.05)
+    tail = ramp(-x, 0.33, 0.38)
+    leg = ramp(0.42 - z, 0.0, 0.06) * ramp(x, 0.12, 0.18)
+    return {'Head': head, 'Tail': tail, 'LegFL' if y > 0 else 'LegFR': leg}
+
+
+def lioness_clip(name):
+    def paws(a, b): return {'LegFL': (0, -a, 0), 'LegFR': (0, -b, 0)}
+    if name == 'idle':
+        # sitting guard: breathing, the head turning, the tail flicking
+        return 60, lambda t: {'Body': (0, 1.5 * sine(t, 60), 0), 'Head': (0, 3 * sine(t, 60, 0.2), 18 * pulse(t, 25, 55)),
+                              'Tail': (0, 0, 15 * sine(t, 30))}
+    if name == 'walk':
+        # stalking forward: the paws reaching in turn, the body rolling with them
+        return 24, lambda t: {**paws(25 * sine(t, 24), -25 * sine(t, 24)), 'Body': (4 * sine(t, 24), 3 * abs(sine(t, 12)), 0),
+                              'Tail': (0, 0, 12 * sine(t, 24)), 'lift': 0.015 * abs(sine(t, 12))}
+    if name == 'hit':
+        return 12, lambda t: blend({'Body': (0, -12, 0), 'Head': (0, -25, 0), **paws(15, 15)}, {}, ramp(t, 2, 12))
+    if name == 'fall':
+        return 24, lambda t: {'Body': (-80 * ramp(t, 0, 14), -10 * ramp(t, 0, 14), 0), **paws(40 * ramp(t, 4, 16), 20 * ramp(t, 4, 16)),
+                              'Head': (0, 20 * ramp(t, 8, 18), 0), 'lift': -0.04 * ramp(t, 4, 14)}
+    if name == 'swipe':
+        # the paw slap: reared (16 ticks), the near paw slapped down (3), held, back down (24)
+        rear = {'Body': (0, -15, 0), 'Head': (0, -10, 0), **paws(70, 10), 'lift': 0.02}
+        slap = {'Body': (0, 12, 0), 'Head': (0, 15, 0), **paws(-15, 10)}
+        return 43, lambda t: (blend({}, rear, ramp(t, 0, 14)) if t < 16 else blend(rear, slap, ramp(t, 16, 19)) if t < 19
+                              else blend(slap, {}, ramp(t, 22, 43)))
+    if name == 'roar':
+        # the ink roar: drawn back (26 ticks), the head thrust out with the roar shaking it, settled
+        back = {'Body': (0, -10, 0), 'Head': (0, -25, 0), 'Tail': (0, 0, 30)}
+        roar = {'Body': (0, 10, 0), 'Head': (0, 10, 0), 'Tail': (0, -20, 0)}
+
+        def r(t):
+            if t < 26: return blend({}, back, ramp(t, 0, 22))
+            if t < 50: return {**blend(back, roar, ramp(t, 26, 30)), 'Head': (4 * sine(t, 3), 10, 0)}
+            return blend(roar, {}, ramp(t, 50, 66))
+        return 66, r
+    raise KeyError(name)
+
+
+def seal_weigh(v):
+    x, y, z = v
+    # the block is the seal itself (Body, rigid); the beast on top is the knob
+    knob = ramp(z, 0.37, 0.42)
+    head = ramp(z, 0.74, 0.8) * ramp(x, -0.04, 0.02)
+    tail = ramp(-x, 0.15, 0.2) * ramp(z, 0.46, 0.5) * (1 - head)
+    paw = ramp(x, 0.15, 0.2) * (1 - ramp(z, 0.6, 0.66))
+    w = {'Head': knob * head, 'Tail': knob * tail, 'PawL' if y > 0 else 'PawR': knob * paw}
+    w['Knob'] = knob * max(0.0, 1 - head - tail - paw)
+    return w
+
+
+def seal_clip(name):
+    if name == 'idle':
+        # the knob beast alive on a still block: looking about, the tail curling
+        return 60, lambda t: {'Knob': (0, 3 * sine(t, 60), 0), 'Head': (0, 4 * sine(t, 30), 20 * pulse(t, 20, 50)),
+                              'Tail': (0, 10 * sine(t, 30), 0)}
+    if name == 'hit':
+        return 12, lambda t: blend({'Body': (0, -6, 0), 'Knob': (0, -15, 0), 'Head': (0, -20, 0)}, {}, ramp(t, 2, 12))
+    if name == 'fall':
+        # toppled onto its side
+        return 30, lambda t: {'Body': (-90 * ramp(t, 4, 18) ** 2, 0, 0), 'Knob': (0, 20 * ramp(t, 0, 10), 0), 'Head': (0, 25 * ramp(t, 6, 16), 0)}
+    if name == 'stamp':
+        # the stamp: risen high (30 ticks), slammed face down (2), pressed into the ground, lifted off (36)
+        up = {'Body': (0, -8, 0), 'Knob': (0, -15, 0), 'Head': (0, -25, 0), 'PawL': (0, -40, 0), 'PawR': (0, -40, 0), 'lift': 0.45}
+        down = {'Knob': (0, 10, 0), 'Head': (0, 15, 0), 'lift': -0.02}
+        return 68, lambda t: (blend({}, up, ramp(t, 0, 26)) if t < 30 else blend(up, down, ramp(t, 30, 32)) if t < 32
+                              else blend(down, {}, ramp(t, 50, 68)))
+    raise KeyError(name)
+
+
 # ---- the pheasant's spread wings ------------------------------------------------------------------
 # Tripo drew the pheasant with its wings folded on its back, so a beat barely showed. Its flying
 # wings are built here instead: a fan of feathers each side, every feather a thin pillow (the
@@ -436,6 +625,63 @@ BIRDS = {
         weigh=pheasant_weigh, clip=pheasant_clip, extra=pheasant_wings, image='JPEG',
         clips=['idle', 'walk', 'hit', 'fall', 'tail', 'soar', 'soarAir', 'soarLand', 'fan', 'fan2', 'fan3', 'cry'],
     ),
+    # the beasts: buffalo and crane drawn facing -y, the rest facing -x (Tripo's default)
+    'buffalo': dict(
+        glb='buffalo/buffalo_A_h25.glb', turn=180, tris=4000, size=0.65, frame=1.6, image='JPEG',
+        bones={'Body': ((-0.15, 0, 0.4), (0.12, 0, 0.42), None),
+               'Neck': ((0.14, 0, 0.45), (0.3, 0, 0.5), 'Body'),
+               'Head': ((0.3, 0, 0.5), (0.48, 0, 0.42), 'Neck'),
+               'Tail': ((-0.44, 0, 0.55), (-0.47, 0, 0.36), 'Body'),
+               'Tail2': ((-0.47, 0, 0.36), (-0.48, 0, 0.12), 'Tail'),
+               'LegFL': ((0.1, 0.08, 0.28), (0.1, 0.08, 0.0), 'Body'),
+               'LegFR': ((0.1, -0.08, 0.28), (0.1, -0.08, 0.0), 'Body'),
+               'LegBL': ((-0.35, 0.08, 0.3), (-0.37, 0.08, 0.0), 'Body'),
+               'LegBR': ((-0.35, -0.08, 0.3), (-0.37, -0.08, 0.0), 'Body')},
+        weigh=buffalo_weigh, clip=buffalo_clip, clips=['idle', 'graze', 'swish', 'walk'],
+    ),
+    # the crane stands off to its left of the origin by 0.08; its wings are modelled raised
+    'crane': dict(
+        glb='crane/crane_A_h25.glb', turn=180, shift=(0, -0.08, 0), tris=3000, size=1.0, frame=1.8, image='JPEG',
+        bones={'Body': ((-0.05, 0, 0.5), (0.12, 0, 0.62), None),
+               'Neck': ((0.14, 0, 0.62), (0.22, 0.02, 0.85), 'Body'),
+               'Head': ((0.22, 0.02, 0.85), (0.38, 0.04, 1.0), 'Neck'),
+               'WingL': ((0.08, 0.06, 0.72), (-0.35, 0.15, 0.95), 'Body'),
+               'WingR': ((0.08, -0.04, 0.72), (-0.15, -0.35, 0.95), 'Body'),
+               'Tail': ((-0.1, 0, 0.52), (-0.2, 0, 0.38), 'Body')},
+        weigh=crane_weigh, clip=crane_clip, clips=['idle', 'dip', 'spread'],
+    ),
+    'cub': dict(
+        glb='cub/cub_A_h25.glb', turn=90, tris=3000, size=1.0, frame=1.8, image='JPEG',
+        bones={'Body': ((-0.35, 0, 0.35), (0.15, 0, 0.4), None),
+               'Head': ((0.12, 0, 0.5), (0.35, 0, 0.8), 'Body'),
+               'Tail': ((-0.36, 0, 0.48), (-0.45, 0, 0.78), 'Body'),
+               'LegFL': ((0.22, 0.12, 0.3), (0.22, 0.12, 0.0), 'Body'),
+               'LegFR': ((0.22, -0.12, 0.3), (0.22, -0.12, 0.0), 'Body'),
+               'LegBL': ((-0.3, 0.12, 0.3), (-0.3, 0.12, 0.0), 'Body'),
+               'LegBR': ((-0.3, -0.12, 0.3), (-0.3, -0.12, 0.0), 'Body')},
+        weigh=cub_weigh, clip=cub_clip, clips=['idle', 'walk', 'hit', 'fall', 'bite'],
+    ),
+    # a guardian lioness sat on her haunches; only the front paws step
+    'lioness': dict(
+        glb='lioness/lioness_A_h25.glb', turn=90, tris=5000, size=1.0, frame=1.8, image='JPEG',
+        bones={'Body': ((-0.25, 0, 0.3), (0.2, 0, 0.6), None),
+               'Head': ((0.2, 0, 0.66), (0.45, 0, 0.85), 'Body'),
+               'Tail': ((-0.33, 0, 0.3), (-0.46, 0, 0.4), 'Body'),
+               'LegFL': ((0.28, 0.13, 0.45), (0.33, 0.13, 0.0), 'Body'),
+               'LegFR': ((0.28, -0.13, 0.45), (0.33, -0.13, 0.0), 'Body')},
+        weigh=lioness_weigh, clip=lioness_clip, clips=['idle', 'walk', 'hit', 'fall', 'swipe', 'roar'],
+    ),
+    # the false seal: a stone seal whose knob is a crouched beast
+    'seal': dict(
+        glb='seal/seal_A_h25.glb', turn=90, tris=6000, size=1.0, frame=1.8, image='JPEG',
+        bones={'Body': ((0, 0, 0.0), (0, 0, 0.36), None),
+               'Knob': ((0, 0, 0.4), (0.05, 0, 0.65), 'Body'),
+               'Head': ((0.1, 0, 0.74), (0.25, 0, 0.95), 'Knob'),
+               'Tail': ((-0.17, 0, 0.55), (-0.3, 0, 0.7), 'Knob'),
+               'PawL': ((0.2, 0.1, 0.6), (0.27, 0.1, 0.42), 'Knob'),
+               'PawR': ((0.2, -0.1, 0.6), (0.27, -0.1, 0.42), 'Knob')},
+        weigh=seal_weigh, clip=seal_clip, clips=['idle', 'hit', 'fall', 'stamp'],
+    ),
 }
 B = BIRDS[NAME]
 OUT = os.path.join(HERE, NAME)
@@ -456,6 +702,18 @@ mesh.matrix_world = (Matrix.Translation(B.get('shift', (0, 0, 0))) @ Matrix.Rota
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 for o in list(sc.objects):
     if o is not mesh: bpy.data.objects.remove(o)
+# the game reads only the base colour; newer Tripo exports also carry 4096 normal and roughness
+# maps, so those go and the colour comes down to 2048 (as in rig.py)
+for mat in mesh.data.materials:
+    nt = mat.node_tree
+    bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if bsdf is None: continue
+    for key in ('Normal', 'Metallic', 'Roughness'):
+        for l in list(bsdf.inputs[key].links): nt.links.remove(l)
+    for n in [n for n in nt.nodes if n.type in ('NORMAL_MAP', 'SEPARATE_COLOR')]: nt.nodes.remove(n)
+    for n in [n for n in nt.nodes if n.type == 'TEX_IMAGE' and not n.outputs['Color'].links]: nt.nodes.remove(n)
+    for n in nt.nodes:
+        if n.type == 'TEX_IMAGE' and n.image.size[0] > 2048: n.image.scale(2048, 2048)
 tris = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
 dec = mesh.modifiers.new('dec', 'DECIMATE')
 dec.ratio = B['tris'] / tris

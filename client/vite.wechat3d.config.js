@@ -14,10 +14,11 @@ const at = (p) => fileURLToPath(new URL(p, import.meta.url));
 const MAP = 1024;
 /** Chapter one's ink villagers (already cut to the 5k triangles view.ts would cut them to, which
  * matters here: the mini-game has no WebAssembly for lod.ts to cut them with) and the birds, by the
- * names main.wechat3d.ts loads them by; the villagers' colour pictures (1-1 draws them turning to ink). */
-const BODIES = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood'];
-const BIRDS = ['finch', 'bigfinch', 'pheasant'];
-const COLOURS = { inkfisher: 'fisher', inkwasher: 'washer', inkboatman: 'boatman', inkwood: 'wood' };
+ * names main.wechat3d.ts loads them by, with the scenery's child, buffalo and crane (figures.ts); the
+ * villagers' and the buffalo's colour pictures (1-1 draws them turning to ink). */
+const BODIES = ['inkfisher', 'inkwasher', 'inkboatman', 'inkwood', 'inkoldman', 'inkpeddler', 'child'];
+const BIRDS = ['finch', 'bigfinch', 'pheasant', 'inkbuffalo', 'crane'];
+const COLOURS = { inkfisher: 'fisher', inkwasher: 'washer', inkboatman: 'boatman', inkwood: 'wood', inkoldman: 'oldman', inkpeddler: 'peddler', inkbuffalo: 'buffalo' };
 /** The ink villagers' own clips, by monster kind (art/model3d/moves.py). */
 const KINDS = ['inkling', 'brute', 'fisher', 'washer'];
 
