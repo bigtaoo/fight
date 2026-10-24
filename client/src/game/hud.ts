@@ -1,6 +1,7 @@
-import { DUNGEONS, MONSTERS, TICK_RATE, rateRun, type Dungeon, type Entity, type Rating, type SimState } from '@dnf/engine';
+import { DUNGEONS, MONSTERS, rateRun, type Dungeon, type Entity, type Rating, type SimState } from '@dnf/engine';
 import { PAUSE_SIZE } from './menu';
 import type { Best } from './progress';
+import { clock } from './chapter';
 import { OnlineSession } from '../net/OnlineSession';
 import { OfflineSession, type Session } from '../net/Session';
 import type { Item } from '@dnf/server/protocol';
@@ -367,11 +368,6 @@ export class Hud {
     setText(this.verdict, text);
     this.showBag(session.inventory);
   }
-}
-
-export function clock(ticks: number): string {
-  const sec = Math.floor(ticks / TICK_RATE);
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 function lootLine(loot: readonly Item[]): string {

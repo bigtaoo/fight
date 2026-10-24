@@ -28,8 +28,9 @@ export function getLang(): Lang {
 export function setLang(l: Lang): void {
   lang = l;
   // (no DOM types here: the server's type check reaches this through the online session)
-  const doc = (globalThis as { document?: { documentElement: { lang: string }; title: string } }).document;
-  if (doc) {
+  // (and the WeChat shim's document has no root element)
+  const doc = (globalThis as { document?: { documentElement?: { lang: string }; title: string } }).document;
+  if (doc?.documentElement) {
     doc.documentElement.lang = l;
     doc.title = TABLES[l]['game.title'];
   }

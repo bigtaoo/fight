@@ -1,10 +1,14 @@
 import { screenCanvas, wxLog } from './three/wechatShim';
-import { runProto } from './three/proto';
+import { runChapter } from './three/chapterRun';
+import { setLang } from './i18n';
+import type { BagStore } from './platform/store';
+import type { ViewHost } from './three/view';
 
-// The 3D trial as a WeChat mini-game (client/wechat, built by `npm run build:wechat3d`): the
-// engine's bot plays the trial dungeon over and over, and the frame rate is logged to the console
-// once a second and kept in `${USER_DATA_PATH}/three-report.json`, so a run in DevTools can be
-// read from disk and one on a phone from vConsole.
+// Chapter one as a WeChat mini-game (client/wechat, built by `npm run build:wechat3d`): the
+// section select scroll drawn on a canvas, a section played by the engine's bot (no touch
+// controls yet), its end card, back to the scroll (three/chapterRun.ts). The frame rate is logged
+// to the console once a second and kept in `${USER_DATA_PATH}/three-report.json`, so a run in
+// DevTools can be read from disk and one on a phone from vConsole.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const wx: any;
@@ -54,7 +58,25 @@ async function main(): Promise<void> {
   const read = (url: string) => Promise.resolve(fs.readFileSync(url) as ArrayBuffer);
   const started = Date.now();
   const none = { get: () => null, has: () => false } as unknown as URLSearchParams;
-  await runProto(none, {
+  setLang('zh');
+  const store: BagStore = {
+    get: (key) => {
+      try {
+        const v = wx.getStorageSync(key);
+        return typeof v === 'string' && v !== '' ? v : null;
+      } catch {
+        return null;
+      }
+    },
+    set: (key, value) => {
+      try {
+        wx.setStorageSync(key, value);
+      } catch {
+        // storage full or refused: this visit only
+      }
+    },
+  };
+  const view: ViewHost = {
     canvas: screen.canvas,
     context,
     width: screen.width,
@@ -74,6 +96,29 @@ async function main(): Promise<void> {
       console.info(`[three] ${s.fps.toFixed(1)} fps, worst ${s.worstMs.toFixed(0)} ms, ${s.draws} draws, ${s.triangles} tris`);
       save();
       wxLog('stats', report.last);
+    },
+  };
+  await runChapter(none, {
+    store,
+    art: 'art/',
+    view,
+    listen: (p) => {
+      // one finger drives the scroll; the touch that changed is the one lifted
+      const at = (e: any) => e.changedTouches?.[0] ?? e.touches?.[0];
+      wx.onTouchStart((e: any) => {
+        const t = at(e);
+        if (t) p.down(t.clientX, t.clientY);
+      });
+      wx.onTouchMove((e: any) => {
+        const t = at(e);
+        if (t) p.move(t.clientX, t.clientY);
+      });
+      const up = (e: any) => {
+        const t = at(e);
+        if (t) p.up(t.clientX, t.clientY);
+      };
+      wx.onTouchEnd(up);
+      wx.onTouchCancel(up);
     },
   });
   report.loadMs = Date.now() - started;

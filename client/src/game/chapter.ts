@@ -1,4 +1,4 @@
-import type { DungeonId, Grade } from '@dnf/engine';
+import { TICK_RATE, type DungeonId, type Grade } from '@dnf/engine';
 import type { Key } from '../i18n';
 
 // Chapter one as the section-select scroll shows it (design/CHAPTER1.md, 选节界面): its sections
@@ -73,6 +73,54 @@ export function sectionAt(x: number, sections = CHAPTER1): Section | null {
 /** The chapter section a dungeon is, or null. */
 export function sectionOf(dungeon: DungeonId, sections = CHAPTER1): Section | null {
   return sections.find((s) => s.dungeon === dungeon) ?? null;
+}
+
+/** What the scroll showed: how many sections were open and cleared. */
+export interface Seen {
+  open: number;
+  cleared: number;
+}
+
+const SEEN_KEY = 'dnf.scroll.seen';
+
+/** The scroll opening: what it showed last time (`from`, kept in `store`) and what the progress
+ * now opens (`to`), which it then keeps. Only ever played forward: a reset save (or a dev switch)
+ * just shows the scroll as it is. */
+export function opening(store: { get(k: string): string | null; set(k: string, v: string): void }, p: Cleared, unrollAll = false): { from: Seen; to: Seen } {
+  const to: Seen = { open: unrollAll ? CHAPTER1.length : openCount(p), cleared: clearedCount(p) };
+  let from: Seen = { open: 1, cleared: 0 };
+  try {
+    const v = JSON.parse(store.get(SEEN_KEY) ?? 'null') as Partial<Seen> | null;
+    if (v && typeof v.open === 'number' && typeof v.cleared === 'number') {
+      from = v.open <= to.open && v.cleared <= to.cleared ? { open: Math.max(1, v.open), cleared: v.cleared } : to;
+    }
+  } catch {
+    // unreadable: as if never seen
+  }
+  store.set(SEEN_KEY, JSON.stringify(to));
+  return { from, to };
+}
+
+/** The scroll paying back a clear, `ms` into it: the colour blooms over the sections just cleared
+ * (1.6 s), their seals are stamped, then the roll unrolls to the next one (1.4 s). Where the colour
+ * reaches and the roll stands then, whether the seals are due and whether it is rolling or done. */
+export function replay(from: Seen, to: Seen, ms: number): { coloured: number; unrolled: number; stamp: boolean; rolling: boolean; done: boolean } {
+  const bloom = Math.min(1, ms / 1600);
+  const roll = Math.max(0, Math.min(1, (ms - 2000) / 1400));
+  const ease = (k: number) => k * k * (3 - 2 * k);
+  return {
+    coloured: colouredTo(from.cleared) + (colouredTo(to.cleared) - colouredTo(from.cleared)) * ease(bloom),
+    unrolled: unrolledTo(from.open) + (unrolledTo(to.open) - unrolledTo(from.open)) * ease(roll),
+    stamp: bloom >= 1,
+    rolling: roll > 0,
+    done: roll >= 1,
+  };
+}
+
+/** A run's ticks as minutes and seconds. */
+export function clock(ticks: number): string {
+  const sec = Math.floor(ticks / TICK_RATE);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 /** The seal a grade is stamped with: the old ranks of painting (神品 the highest). */

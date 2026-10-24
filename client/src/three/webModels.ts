@@ -15,7 +15,7 @@ const RIGS: Record<string, string> = {
   inklion: new URL('../../../art/model3d/inklion/rig_v1.glb', import.meta.url).href,
   boatman: new URL('../../../art/model3d/boatman/rig_v1.glb', import.meta.url).href,
 };
-const pick = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hero');
+const pick = typeof location === 'undefined' || typeof URLSearchParams === 'undefined' ? null : new URLSearchParams(location.search).get('hero');
 
 /** The ink villagers' bodies as they were, by the ink body's name: their pictures, for the
  * villagers drawn turning to ink at the start of 1-1 (the meshes and UVs are the same). */

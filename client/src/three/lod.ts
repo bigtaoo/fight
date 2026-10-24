@@ -33,7 +33,13 @@ function decimate(geo: BufferGeometry, tris: number): BufferGeometry {
   index.set(src);
   if (tris * 3 >= index.length) return geo.clone();
   const pos = geo.attributes.position.array as Float32Array;
-  const [cut] = MeshoptSimplifier.simplify(index, pos, 3, tris * 3, 0.2, ['Permissive']);
+  let cut: Uint32Array;
+  try {
+    [cut] = MeshoptSimplifier.simplify(index, pos, 3, tris * 3, 0.2, ['Permissive']);
+  } catch {
+    // no WebAssembly to run it on (the WeChat mini-game): the full body
+    return geo.clone();
+  }
   const remap = new Int32Array(geo.attributes.position.count).fill(-1);
   let n = 0;
   for (const i of cut) if (remap[i] < 0) remap[i] = n++;
