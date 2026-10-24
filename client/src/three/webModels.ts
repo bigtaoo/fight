@@ -47,4 +47,11 @@ export const WEB_FILES: ModelFiles = {
     hero: new URL('../../../art/model3d/moves/swordsman.glb', import.meta.url).href,
     inkwood: new URL('../../../art/model3d/moves/woodcutter.glb', import.meta.url).href,
   },
+  // the ink villagers' own clips, by kind (art/model3d/moves.py), on whichever ink body draws them
+  kinds: {
+    inkling: new URL('../../../art/model3d/moves/inkling.glb', import.meta.url).href,
+    brute: new URL('../../../art/model3d/moves/brute.glb', import.meta.url).href,
+    fisher: new URL('../../../art/model3d/moves/fisher.glb', import.meta.url).href,
+    washer: new URL('../../../art/model3d/moves/washer.glb', import.meta.url).href,
+  },
 };

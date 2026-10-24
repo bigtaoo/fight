@@ -132,6 +132,13 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   phantom: ['phantom', [0, 66]],
   phantomEnd: ['phantomEnd', [0, 14]],
   backstep: ['backstep', [0, 30]],
+  // the ink villagers' (keyed on the engine's own ticks; a body without one is posed in code)
+  claw: ['claw', [0, 38]],
+  smash: ['smash', [0, 56]],
+  cast: ['cast', [0, 40]],
+  lob: ['lob', [0, 40]],
+  hop: ['hop', [0, 30]],
+  pounce: ['pounce', [0, 40]],
   // the birds' (art/model3d/bird.py)
   flash: ['flash', [0, 12]],
   dive: ['dive', [0, 40]],
