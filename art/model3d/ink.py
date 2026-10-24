@@ -2,16 +2,18 @@
 #
 #   blender -b --python art/model3d/ink.py -- <src name> <out name>     # e.g. lion inklion
 #
-# Each texel keeps its light and shade but loses its colour, sinking to a blue-black ink; a little of
-# the original hue (KEEP) survives, like the one colour the corrupted villagers keep.
+# Each texel keeps its light and shade but loses most of its colour, washing to a pale blue-grey ink
+# (not solid black: the light parts stay near the paper); some of the original hue (KEEP) survives,
+# so the one colour the corrupted villagers keep still reads.
 import bpy, os, sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC, DST = sys.argv[sys.argv.index('--') + 1:][:2]
-KEEP = 0.07
-INK = np.array([0.10, 0.11, 0.14])   # darkest ink
-WASH = np.array([0.58, 0.57, 0.55])  # lightest wash
+KEEP = 0.30
+INK = np.array([0.22, 0.23, 0.27])   # darkest ink
+WASH = np.array([0.86, 0.84, 0.80])  # lightest wash, near the paper
+GAMMA = 1.15
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, SRC, 'rig_v1.glb'))
@@ -20,7 +22,11 @@ for img in bpy.data.images:
     px = np.array(img.pixels[:]).reshape(-1, 4)
     rgb = px[:, :3]
     lum = (rgb @ np.array([0.299, 0.587, 0.114]))[:, None]
-    ink = INK + (WASH - INK) * lum ** 1.9
+    # the scanned villagers are dark all over (most texels under a third of white): stretch each
+    # texture's own range to the full wash, or the corrupted body still reads near black in game
+    lo, hi = np.percentile(lum, [3, 97])
+    span = np.clip((lum - lo) / max(hi - lo, 0.05), 0, 1)
+    ink = INK + (WASH - INK) * span ** GAMMA
     px[:, :3] = ink * (1 - KEEP) + rgb * KEEP * (ink / np.maximum(lum, 0.05))
     img.pixels[:] = np.clip(px, 0, 1).ravel()
     img.pack()
