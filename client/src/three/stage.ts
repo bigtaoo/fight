@@ -69,6 +69,17 @@ const ROOMS: Partial<Record<DungeonId, SceneId[]>> = {
   // flowering branch, lotus pond, bamboo and rock, the pheasant on the open silk
   pingfeng: ['blossom', 'lotus', 'bamboo', 'screen'],
 };
+/** The painted piece each raised floor (Room.platforms) of a scene stands on, `<scene>_perch.png`
+ * (art/chapter1/bg/layers.json): the crabapple's long branch, a lotus leaf, rocks. `stand`: where
+ * the floor's top crosses the piece, a share of its height from the top; `squash`: its height
+ * against its drawn proportions; `ground`: it stands on the floor (rocks, a stem), stretched down
+ * to it if it would stop short, else it is in the air and kept clear of it. */
+export const PERCHES: Partial<Record<SceneId, { stand: number; squash?: number; ground?: true }>> = {
+  blossom: { stand: 0.5 },
+  lotus: { stand: 0.1 },
+  bamboo: { stand: 0.5, ground: true },
+  screen: { stand: 0.25, ground: true },
+};
 /** Where a dungeon inside a painting comes back out to (View3D.leaveScreen), fetched with its own scenery. */
 const LEAVES_TO: Partial<Record<DungeonId, SceneId>> = { screen: 'parlor', pingfeng: 'parlor' };
 /** ?scene=<id> shows one scene in every room, to look at scenery no dungeon uses yet. */
@@ -130,6 +141,7 @@ export class Stage {
   /** The scene the flat layers show now. */
   private scene: SceneId | null = null;
   private readonly sets = new Map<SceneId, Promise<Scenery>>();
+  private readonly perches = new Map<SceneId, Promise<Texture>>();
   private paper = 0xf1ece0;
   private farTop = 0;
   private readonly _v = new Vector3();
@@ -175,8 +187,10 @@ export class Stage {
    * into a room never stalls a frame on decoding and uploading a painting. */
   async preload(dungeon: DungeonId, renderer: WebGLRenderer): Promise<void> {
     const ids = PICK && SCENES[PICK] ? [PICK] : [...new Set<SceneId>([...(ROOMS[dungeon] ?? ['road']), ...(LEAVES_TO[dungeon] ? [LEAVES_TO[dungeon]] : [])])];
+    const perches = ids.flatMap((id) => this.perch(id) ?? []);
     const [silk, ...sets] = await Promise.all([this.mount(), ...ids.map((id) => this.scenery(id))]);
     renderer.initTexture(silk);
+    for (const t of await Promise.all(perches.map((p) => p.catch(() => null)))) if (t) renderer.initTexture(t);
     for (const set of sets) for (const t of Object.values(set)) renderer.initTexture(t);
   }
 
@@ -212,8 +226,21 @@ export class Stage {
     return set;
   }
 
+  /** The scene of a room of `dungeon` (?scene= wins), not counting `instead`. */
+  static sceneOf(dungeon: DungeonId, roomIndex: number): SceneId {
+    return PICK && SCENES[PICK] ? PICK : (ROOMS[dungeon]?.[roomIndex] ?? 'road');
+  }
+
+  /** The piece a scene's raised floors stand on (PERCHES), fetched once; null where it has none. */
+  perch(id: SceneId): Promise<Texture> | null {
+    if (!PERCHES[id]) return null;
+    let tex = this.perches.get(id);
+    if (!tex) this.perches.set(id, (tex = load(`${this.base}${id}_perch.png`)));
+    return tex;
+  }
+
   async show(dungeon: DungeonId, roomIndex: number, roomWidth: number): Promise<void> {
-    const id = this.instead ?? (PICK && SCENES[PICK] ? PICK : (ROOMS[dungeon]?.[roomIndex] ?? 'road'));
+    const id = this.instead ?? Stage.sceneOf(dungeon, roomIndex);
     const key = `${id}:${roomWidth}`;
     if (key === this.current) return;
     this.current = key;

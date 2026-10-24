@@ -1134,11 +1134,13 @@ export const DUNGEONS: Record<DungeonId, Dungeon> = {
         ...room(2600, [], [['left', 0], ['right', 2]]),
         spawns: [
           bird('finch', 900, 120), bird('finch', 1050, 260), bird('finch', 1200, 80), bird('finch', 1350, 220),
-          bird('finch', 1950, 230, 45, -260),
+          bird('finch', 1950, 230, 125, -260),
           // the rest of the pond, down among the lotus until the perched one is startled
           ...[1500, 1700, 2100, 2300, 2450].map((x, i) => bird('finch', x, [60, 300, 90, 280, 160][i], 30, 0.001)),
         ],
-        platforms: [platform(450, 800, 40, 160, 45), platform(900, 1250, 190, 310, 35), platform(1350, 1700, 50, 190, 55), platform(1800, 2150, 170, 300, 45)],
+        // the leaves stand up out of the pond on their stems, as painted (lotus_perch), low enough
+        // to jump onto from the floor
+        platforms: [platform(480, 780, 40, 160, 95), platform(920, 1220, 190, 310, 120), platform(1380, 1680, 50, 190, 105), platform(1820, 2120, 170, 300, 125)],
       },
       {
         ...room(2600, [], [['left', 1], ['right', 3]]),

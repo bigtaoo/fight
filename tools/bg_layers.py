@@ -18,6 +18,10 @@ the client only tiles it horizontally. Kinds:
           blacks lifted to "lo", cropped to the ink, faded by "alpha";
           then (unless "wrap") the cut-out and its mirror image side by side, each followed by "gap" (a share
           of its width) of nothing, so foreground pieces stand apart.
+  "single" (cut) the cut-out alone, no mirror image or gap: a piece placed by itself (the perches
+          drawn under the screen's platforms), first turned "rotate" degrees (counter-clockwise),
+          its edges faded out over "feather" ([left, right, top, bottom], shares of its width and
+          height) where the crop cut through the painting.
   ground  no painting: a wash texture drawn here, periodic in both directions. "paper" and
           "ink" are the two colours it blends, "streaks" the number of long horizontal brush
           marks, "boards" > 0 draws that many floorboard seams instead.
@@ -123,6 +127,8 @@ def cut(spec, base):
     lo = np.array(spec.get("lo", [0, 0, 0]), dtype=np.float32) / 255
     a[..., :3] = lo + (1 - lo) * a[..., :3]
     im = Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA")
+    if spec.get("rotate"):
+        im = im.rotate(spec["rotate"], Image.BICUBIC, expand=True)
     box = im.getchannel("A").point(lambda v: 255 if v > 12 else 0).getbbox()
     if "wrap" in spec:
         box = (0, box[1], im.width, box[3])   # keep the full width, it tiles
@@ -131,7 +137,16 @@ def cut(spec, base):
     a = np.asarray(im, dtype=np.float32)
     a[..., 3] *= spec.get("alpha", 1)
     im = Image.fromarray((a + 0.5).astype(np.uint8), "RGBA")
-    if "wrap" in spec:
+    if "feather" in spec:
+        a = np.asarray(im, dtype=np.float32)
+        def ramp(n, lo, hi):
+            t = np.linspace(0, 1, n, dtype=np.float32)
+            r = np.minimum(np.clip(t / max(lo, 1e-3), 0, 1), np.clip((1 - t) / max(hi, 1e-3), 0, 1))
+            return r * r * (3 - 2 * r)
+        left, right, top, bottom = spec["feather"]
+        a[..., 3] *= ramp(im.height, top, bottom)[:, None] * ramp(im.width, left, right)[None, :]
+        im = Image.fromarray((a + 0.5).astype(np.uint8), "RGBA")
+    if "wrap" in spec or spec.get("single"):
         return im
     gap = round(im.width * spec.get("gap", 0))
     one = Image.new("RGBA", (im.width + gap, im.height))
