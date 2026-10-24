@@ -19,6 +19,9 @@ import {
   VectorKeyframeTrack,
   QuaternionKeyframeTrack,
   Sphere,
+  RepeatWrapping,
+  SRGBColorSpace,
+  TextureLoader,
   type AnimationAction,
   type Bone,
   type Skeleton,
@@ -77,6 +80,8 @@ export interface ModelFiles {
   kinds?: Record<string, string>;
   /** Birds by name (art/model3d/bird.py): a skeleton of their own that carries all their clips. */
   birds?: Record<string, string>;
+  /** The colour pictures of `bodies` by name, as image files (see loadPictures). */
+  colours?: Record<string, string>;
   read?: (url: string) => Promise<ArrayBuffer>;
 }
 
@@ -172,6 +177,23 @@ export async function loadMaps(urls: Record<string, string>): Promise<Record<str
         const map = m.isSkinnedMesh ? (m.material as MeshToonMaterial).map : null;
         if (map && !out[name]) out[name] = map;
       });
+    }),
+  );
+  return out;
+}
+
+/** The same pictures from image files (the mini-game packs them apart from their bodies), set up
+ * as GLTFLoader sets up a body's colour map. */
+export async function loadPictures(urls: Record<string, string>): Promise<Record<string, Texture>> {
+  const images = new TextureLoader();
+  const out: Record<string, Texture> = {};
+  await Promise.all(
+    Object.entries(urls).map(async ([name, url]) => {
+      const t = await images.loadAsync(url);
+      t.flipY = false;
+      t.colorSpace = SRGBColorSpace;
+      t.wrapS = t.wrapT = RepeatWrapping;
+      out[name] = t;
     }),
   );
   return out;
