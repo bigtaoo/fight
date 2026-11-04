@@ -59,13 +59,14 @@ describe('combat', () => {
     const ev = play(e, 70, (_s, t) => {
       const k = t - t0;
       if (k === 1) return BTN.SKILL2;
-      if (k === 22) return BTN.JUMP;
-      if (k >= 25 && k <= 27) return BTN.ATTACK;
+      if (k === 24) return BTN.JUMP;
+      if (k >= 28 && k <= 30) return BTN.ATTACK;
       return 0;
     });
     const hits = ev.filter((x) => x.type === 'hit');
     expect(hits[0]).toMatchObject({ launch: true });
     expect(hits.slice(1).some((x) => x.type === 'hit' && x.z > 0)).toBe(true);
+    expect(ev.some((x) => x.type === 'swing' && x.move === 'jumpAtk')).toBe(true);
   });
 
   it('a launched dummy bounces once, lies down, then gets up', () => {

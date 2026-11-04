@@ -87,11 +87,11 @@ describe('engine', () => {
   it('matches the golden hash (bump ENGINE_VERSION when this changes on purpose)', () => {
     const e = newRun({ seed: 42 });
     play(e, 600, bot);
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 22, tick: 600, hash: 62334366 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 23, tick: 600, hash: 2661986223 });
   });
 
   it('matches the golden hash in Black Wind Fort: arrows, shields, sword waves, super armour, cancels, the chief', () => {
-    // (the bot clears it at tick 11424, rated A)
+    // (the bot clears it at tick 8380)
     const e = newRun({ dungeon: 'heifeng', seed: 7 });
     // the hero's move changing before it ran out: into the same skill's next part (a follow-up
     // press) or into another skill or the dodge (a cancel)
@@ -117,6 +117,6 @@ describe('engine', () => {
     expect(ev.filter((x) => x.type === 'fire' && x.shot === 'quake').length).toBeGreaterThan(3);
     expect(ev.filter((x) => x.type === 'phase')).toHaveLength(1);
     expect(e.state.outcome).toBe('cleared');
-    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 22, tick: 10177, hash: 2155661399 });
+    expect({ version: ENGINE_VERSION, tick: e.state.tick, hash: hashState(e.state) }).toEqual({ version: 23, tick: 8380, hash: 3286433072 });
   });
 });
