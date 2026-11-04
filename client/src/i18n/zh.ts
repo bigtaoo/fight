@@ -8,6 +8,8 @@ export const zh: Record<Key, string> = {
   'pad.attack': '攻击',
   'pad.jump': '跳',
   'pad.dodge': '闪避',
+  'hint.rise': '倒地时按「跳」立刻起身',
+  'hint.riseKey': '倒地时按「跳」（{KeyC}）立刻起身',
   'skill.triple': '叠浪',
   'skill.dragon': '奔雷',
   'skill.upper': '挑月',

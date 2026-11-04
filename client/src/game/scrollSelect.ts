@@ -173,8 +173,16 @@ export class ScrollSelect {
     this.band.style.top = `${top}px`;
     this.band.style.height = `${bandH}px`;
     this.title.style.top = `${Math.max(4, top - bandH * 0.16)}px`;
-    this.title.style.fontSize = `${Math.max(14, Math.min(bandH * 0.075, iw / 28))}px`;
+    let fs = Math.max(14, Math.min(bandH * 0.075, iw / 28));
+    this.title.style.fontSize = `${fs}px`;
     this.title.textContent = t('scroll.title');
+    // a long title (the English one) is set smaller until it fits across the window
+    const room = iw * 0.94;
+    const wide = this.title.scrollWidth;
+    if (wide > room) {
+      fs = Math.max(10, (fs * room) / wide);
+      this.title.style.fontSize = `${fs}px`;
+    }
     this.h = bandH * 0.86;
     this.w = (this.h * STRIP.w) / STRIP.h;
     this.rodW = bandH * 0.05;

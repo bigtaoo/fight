@@ -1,5 +1,5 @@
 import { MONSTERS, TICK_RATE, fromFp, type DungeonId, type SimState } from '@dnf/engine';
-import { INK, PAPER, RED, el, type Overlay } from './dom';
+import { FONT, INK, PAPER, RED, el, type Overlay } from './dom';
 import { keyName, t, type Key } from '../i18n';
 import type { View3D } from '../three/view';
 
@@ -76,6 +76,8 @@ const TIPS: Partial<Record<DungeonId, readonly Tip[]>> = {
   ],
 };
 
+/** Chinese is written in a brush hand; a Latin line in the UI's own face (the Kai faces' Latin
+ * letters are fixed-width and read as a typewriter's). */
 const BRUSH = '"STXingkai", "华文行楷", "Xingkai SC", "KaiTi", "STKaiti", "Kaiti SC", serif';
 /** Where a line is written: this far ahead of the hero, this high on the paper, at the back. */
 const AHEAD = 420;
@@ -160,7 +162,7 @@ export class Tutorial {
     const tall = /[一-鿿]/.test(text);
     const div = el(
       'div',
-      `position:absolute;left:0;top:0;font:400 64px/1.25 ${BRUSH};color:${INK};white-space:pre-wrap;` +
+      `position:absolute;left:0;top:0;font:${tall ? `400 64px/1.25 ${BRUSH}` : `bold 56px/1.25 ${FONT}`};color:${INK};white-space:pre-wrap;` +
         `${tall ? 'writing-mode:vertical-rl;max-height:640px;' : 'width:900px;text-align:center;'}` +
         `text-shadow:0 0 2px ${PAPER},0 0 10px ${PAPER};will-change:transform,opacity`,
       this.layer,

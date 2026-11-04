@@ -8,6 +8,8 @@ export const en = {
   'pad.attack': 'Attack',
   'pad.jump': 'Jump',
   'pad.dodge': 'Dodge',
+  'hint.rise': 'Knocked down? Press Jump to get up at once',
+  'hint.riseKey': 'Knocked down? Press Jump ({KeyC}) to get up at once',
   'skill.triple': 'Tide',
   'skill.dragon': 'Rush',
   'skill.upper': 'Lift',

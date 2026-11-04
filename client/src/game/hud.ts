@@ -70,6 +70,10 @@ const BOSS_LEFT = (VIEW_W - BOSS_W) / 2;
 const BOSS_TOP = 200;
 /** The height of the end-of-run banner. */
 const MID = VIEW_H * 0.36;
+/** How long the offline note stays before it fades (it says nothing more after a glance), and
+ * how long the quick-rise hint shows (seconds). */
+const NOTE_SECS = 6;
+const RISE_SECS = 4;
 
 /** A bar: a dark back, a fill scaled along x from the left (over an `under` one, for the boss's
  * next bar), an ink outline. */
@@ -133,6 +137,15 @@ export class Hud {
    * the banner, rating and reward wait. */
   holding = false;
   readonly controls: Controls;
+  /** When the offline note was first shown (performance.now ms), and which note it was. */
+  private noteAt = 0;
+  private noteKey: Key | null = null;
+  /** The quick-rise hint: the line, whether this run has had it, when it went up, and the last
+   * tick seen (a restart winds it back, and the hint may come again). */
+  private readonly rise: HTMLDivElement;
+  private riseDone = false;
+  private riseAt = -1;
+  private lastTick = 0;
 
   constructor(ui: Overlay) {
     // the controls first: their touch layer lies under everything else
@@ -146,8 +159,11 @@ export class Hud {
     this.hp = bar(lt, 40, 40, 520, 30, 'rgba(0,0,0,.25)', RED, 3);
     this.xp = bar(lt, 40, 74, 520, 8, 'rgba(0,0,0,.2)', '#b8742a', 0);
     this.level = label(lt, '', 580, 55, 30, INK, 0, 0.5, ring(2.5));
-    this.net = label(lt, '', 40, 84, 24, DARK);
-    this.help = label(lt, '', 40, 124, 22, DARK);
+    // under the experience bar, clear of the level beside the health bar
+    this.net = label(lt, '', 40, 96, 26, DARK, 0, 0, `${ring(2)};transition:opacity .8s`);
+    // the keys, along the bottom (the keyboard's: a touch screen has its buttons instead)
+    const cb = ui.frame('cb');
+    this.help = label(cb, '', VIEW_W / 2, VIEW_H - 24, 22, DARK, 0.5, 1, ring(2));
 
     this.map = el('canvas', 'position:absolute;display:none', rt);
     this.room = label(rt, '', MAP_RIGHT, MAP_TOP, 34, INK, 1, 0);
@@ -163,12 +179,14 @@ export class Hud {
     this.stats = label(cm, '', VIEW_W / 2, MID + 80, 36, INK, 0.5, 0, `text-align:center;${ring(3)}`);
     this.verdict = label(cm, '', VIEW_W / 2, MID + 200, 44, INK, 0.5, 0, `text-align:center;${ring(3)}`);
     this.reward = el('div', `position:absolute;left:0;top:${MID + 200}px;width:${VIEW_W}px;${ring(3)}`, cm);
+    this.rise = label(ct, '', VIEW_W / 2, BOSS_TOP + 70, 44, RED, 0.5, 0, `text-align:center;${ring(3)};opacity:0;transition:opacity .4s`);
   }
 
   /** `keys`: the keyboard's held buttons, lit on the controls too. */
   update(s: SimState, session: Session, keys: number): void {
     const hero = s.entities.find((e) => e.team === 0);
-    setText(this.help, t('help'));
+    setText(this.help, this.controls.touch ? '' : t('help'));
+    this.riseHint(s, hero);
     show(this.hp.root, !!hero);
     if (hero) setBar(this.hp, Math.max(0, hero.hp) / hero.maxHp);
     this.boss(s);
@@ -184,7 +202,7 @@ export class Hud {
     const res = session instanceof OnlineSession ? reached(session, s) : null;
     const r = res?.ok ? res.rating : null;
     this.rating(outcome === 'cleared' && s.config.dungeon !== 'training' ? (r ?? rateRun(s)) : null);
-    setText(this.net, session.status() || (this.offlineNote ? t(this.offlineNote) : ''));
+    this.netLine(session.status());
     if (session instanceof OnlineSession) this.online(session, s);
     else if (session instanceof OfflineSession) this.offline(session, s);
     else {
@@ -196,6 +214,43 @@ export class Hud {
       show(this.xp.root, false);
       this.showReward(null);
     }
+  }
+
+  /** The connection: online, its state all along; offline, why, for a few seconds. */
+  private netLine(status: string): void {
+    if (status) {
+      setText(this.net, status);
+      this.net.style.opacity = '1';
+      return;
+    }
+    const note = this.offlineNote;
+    if (note !== this.noteKey) {
+      this.noteKey = note;
+      this.noteAt = performance.now();
+    }
+    setText(this.net, note ? t(note) : '');
+    const on = !!note && performance.now() - this.noteAt < NOTE_SECS * 1000;
+    const o = on ? '1' : '0';
+    if (this.net.style.opacity !== o) this.net.style.opacity = o;
+  }
+
+  /** The first time in a run the hero is knocked down: that jump gets them up at once (the
+   * engine's quick rise), and the jump button flashes. */
+  private riseHint(s: SimState, hero: Entity | undefined): void {
+    if (s.tick < this.lastTick) {
+      this.riseDone = false;
+      this.riseAt = -1;
+    }
+    this.lastTick = s.tick;
+    if (!this.riseDone && hero?.state === 'down' && hero.hp > 0 && s.outcome === 'playing') {
+      this.riseDone = true;
+      this.riseAt = performance.now();
+      this.controls.flashJump(RISE_SECS * 1000);
+    }
+    const on = this.riseAt >= 0 && performance.now() - this.riseAt < RISE_SECS * 1000 && s.outcome === 'playing';
+    setText(this.rise, this.controls.touch ? t('hint.rise') : t('hint.riseKey'));
+    const o = on ? '1' : '0';
+    if (this.rise.style.opacity !== o) this.rise.style.opacity = o;
   }
 
   /** Single player: the level and its experience bar under the health bar, and the run's
