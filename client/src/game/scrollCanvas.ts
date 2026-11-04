@@ -260,11 +260,18 @@ export class ScrollCanvas {
     g.fillRect(0, 0, vw, vh);
 
     // the title above the scroll
-    const fs = Math.max(14, Math.min(this.bandH * 0.075, vw / 28));
-    g.fillStyle = 'rgba(243,238,226,.85)';
+    let fs = Math.max(14, Math.min(this.bandH * 0.075, vw / 28));
     g.font = font(fs, true);
+    // a long title (the English one) is set smaller until it fits across the screen
+    const title = t('scroll.title');
+    const wide = [...title].reduce((w, c) => w + g.measureText(c).width + fs * 0.3, -fs * 0.3);
+    if (wide > vw * 0.94) {
+      fs = Math.max(10, (fs * vw * 0.94) / wide);
+      g.font = font(fs, true);
+    }
+    g.fillStyle = 'rgba(243,238,226,.85)';
     g.textBaseline = 'top';
-    spaced(g, t('scroll.title'), vw / 2, Math.max(4, this.bandTop - this.bandH * 0.16), fs * 0.3);
+    spaced(g, title, vw / 2, Math.max(4, this.bandTop - this.bandH * 0.16), fs * 0.3);
 
     const top = this.bandTop;
     const bh = this.bandH;
