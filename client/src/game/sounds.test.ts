@@ -3,7 +3,7 @@ import { Engine, LocalInputSource, runConfig } from '@dnf/engine';
 import { botButtons } from '@dnf/engine/bot';
 import { Character } from '../rpg/character';
 import { OfflineSession } from '../net/Session';
-import { AUDIO_FILES, SFX, cues, trackFor } from './sounds';
+import { AUDIO_FILES, SFX, comboRate, cues, trackFor } from './sounds';
 
 // The sound map: every file it names is there with its licence note, a bot's run through the fort
 // makes the sounds it should, and the music turns to the boss's theme in the hall.
@@ -44,5 +44,21 @@ describe('sounds', () => {
     const s = new Engine(runConfig({ seed: 1, dungeon: 'trial' }), new LocalInputSource()).state;
     expect(trackFor(s)).toBe('road');
     expect(trackFor({ ...s, outcome: 'failed' })).toBeNull();
+  });
+
+  it("raises a hero's blows a step per ten combo hits, up to a limit", () => {
+    const s = new Engine(runConfig({ seed: 1, dungeon: 'trial' }), new LocalInputSource()).state;
+    const p = s.players[0];
+    const rate = (combo: number) => {
+      p.combo = combo;
+      return comboRate(s, p.hero);
+    };
+    expect(rate(0)).toBe(1);
+    expect(rate(9)).toBe(1);
+    expect(rate(10)).toBeCloseTo(1.03);
+    expect(rate(35)).toBeCloseTo(1.09);
+    expect(rate(500)).toBeCloseTo(1.15);
+    // a monster's blow is never raised
+    expect(comboRate(s, -1)).toBe(1);
   });
 });

@@ -1,4 +1,5 @@
 import { DUNGEONS, MONSTERS, MOVES, type SimEvent, type SimState } from '@dnf/engine';
+import { telegraphed } from './telegraph';
 
 // What the game sounds like: which sound each engine event plays, and which music a room has.
 // Kept apart from the player (audio.ts) so it can be tested without a browser. The files are in
@@ -45,12 +46,24 @@ const HEAVY_SWINGS = new Set(['atk3', 'upper', 'slash', 'bash', 'tri3', 'dragon4
 /** Moves with no swing to hear (besides turns): the dodge, and the boss's roar (its `phase` event roars). */
 const SILENT_SWINGS = new Set(['roar', 'backstep']);
 
+/** A hero's blows ring higher as the combo climbs: this much per COMBO_STEP hits, up to COMBO_TOP. */
+const COMBO_STEP = 10;
+const COMBO_PITCH = 0.03;
+const COMBO_TOP = 0.15;
+
+/** The pitch of a blow by `attacker` in the state after it: 1, or higher deep in a hero's combo. */
+export function comboRate(s: SimState, attacker: number): number {
+  const combo = s.players.find((p) => p.hero === attacker)?.combo ?? 0;
+  return 1 + Math.min(COMBO_TOP, Math.floor(combo / COMBO_STEP) * COMBO_PITCH);
+}
+
 /** The cues for one tick's events, against the state after it. The hero's sounds are louder than
  * the monsters', so the player hears their own blows over a crowd's. */
 export function cues(events: readonly SimEvent[], s: SimState): Cue[] {
   const out: Cue[] = [];
   const team = (id: number) => s.entities.find((e) => e.id === id)?.team;
   const won = events.some((e) => e.type === 'dungeonClear');
+  let warned = false;
   for (const ev of events) {
     switch (ev.type) {
       case 'swing': {
@@ -59,14 +72,20 @@ export function cues(events: readonly SimEvent[], s: SimState): Cue[] {
           break;
         }
         const k = team(ev.id) === 0 ? 1 : 0.6;
+        // a heavy monster wind-up rings out ahead of the blow, the cue to dodge (once a tick, so a
+        // crowd winding up together doesn't stack it over the hero's own blows)
+        if (team(ev.id) !== 0 && telegraphed(ev.move) && !warned) {
+          warned = true;
+          out.push({ sfx: 'armor', vol: 0.5 });
+        }
         out.push(HEAVY_SWINGS.has(ev.move) ? { sfx: 'slash', vol: 0.55 * k } : { sfx: 'swish', vol: 0.5 * k });
         break;
       }
       case 'hit':
         if (ev.blocked) out.push({ sfx: 'clang', vol: 0.55 });
         else if (ev.armor) out.push({ sfx: 'armor', vol: 0.45 }, { sfx: 'hit', vol: 0.35 });
-        else if (ev.stop >= 5 || ev.launch) out.push({ sfx: 'heavy', vol: 0.85 });
-        else out.push({ sfx: 'hit', vol: 0.7 });
+        else if (ev.stop >= 5 || ev.launch) out.push({ sfx: 'heavy', vol: 0.85, rate: comboRate(s, ev.attacker) });
+        else out.push({ sfx: 'hit', vol: 0.7, rate: comboRate(s, ev.attacker) });
         break;
       case 'fire':
         if (ev.shot === 'arrow') out.push({ sfx: 'swish', vol: 0.4, rate: 1.5 });

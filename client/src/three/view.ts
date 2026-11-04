@@ -139,6 +139,10 @@ export class View3D {
   private platformKey = '';
   private models!: { hero: Model; mob: Model; lead: Model; ink: Partial<Record<InkBody, Model>>; birds: Record<string, Model> };
   private shake = 0;
+  /** How hard the current shake is, 1 for a heavy blow. */
+  private shakeAmp = 0;
+  /** ?snap=1: the heroes drawn on the latest tick, not tweened from the one before. */
+  private readonly snap: boolean;
   private airKey = '';
   private time = 0;
   /** Where the last monster fell (world units), for the colour to flow back from. */
@@ -175,6 +179,7 @@ export class View3D {
     this.beast = params.get('beast');
     this.postOn = this.postWanted = this.fx;
     this.drainOn = params.get('drain') !== '0';
+    this.snap = params.get('snap') === '1';
     setGlow(this.fx);
     if (this.fx) {
       renderer.shadowMap.enabled = true;
@@ -323,9 +328,12 @@ export class View3D {
     this.post?.settle();
   }
 
-  /** Shakes the camera for `sec` seconds at least. */
-  shakeFor(sec: number): void {
+  /** Shakes the camera for `sec` seconds at least, `amp` hard (1 for a heavy blow). A lighter shake
+   * never cuts a harder one short. */
+  shakeFor(sec: number, amp = 1): void {
+    if (this.shake > 0 && amp < this.shakeAmp) return;
     this.shake = Math.max(this.shake, sec);
+    this.shakeAmp = amp;
   }
 
   /** The effects of a tick's events. */
@@ -341,7 +349,9 @@ export class View3D {
         const power = ev.blocked ? 0.4 : ev.launch || ev.stop >= 5 ? 1.4 : 1;
         this.ink.burst(at, ev.dir, ev.blocked ? 12 : 40, power);
         if (ev.crit) this.cinnabar.burst(at, ev.dir, 24, power * 1.2);
+        // every blow nudges the camera a little; a heavy one or a launch shakes it
         if (ev.stop >= 5 || ev.launch) this.shakeFor(0.14);
+        else if (!ev.blocked) this.shakeFor(0.06, 0.35);
       } else if (ev.type === 'death') {
         const e = s.entities.find((b) => b.id === ev.id);
         if (e && e.team !== 0) {
@@ -406,10 +416,13 @@ export class View3D {
     const shown = this.stage.showing;
     const g = shown && IN_SCREEN.has(shown) ? 1 : 0;
     this.gongbi += Math.sign(g - this.gongbi) * Math.min(Math.abs(g - this.gongbi), dt / GONGBI_SEC);
+    // with ?snap=1 the heroes stand where the latest tick put them, half a tick sooner than the
+    // tweened rest (the camera keeps to them, so they don't judder on the screen)
+    const heroAlpha = this.snap ? 1 : alpha;
     for (const e of s.entities) {
       const a = this.actors.get(e.id)!;
       if (e.team === 0) a.gongbi = this.gongbi;
-      a.update(e, alpha, dt, fromFp(surfaceUnder(s, e.x, e.y, e.z)));
+      a.update(e, e.team === 0 ? heroAlpha : alpha, dt, fromFp(surfaceUnder(s, e.x, e.y, e.z)));
     }
     const pxPerUnit = renderer.domElement.height / (2 * Math.tan((FOV * Math.PI) / 360));
     this.ink.update(dt, pxPerUnit);
@@ -419,7 +432,7 @@ export class View3D {
 
     // the camera follows the hero along x, kept inside the room
     const hero = s.entities.find((e) => e.team === 0);
-    const hx = hero ? fromFp(hero.px + (hero.x - hero.px) * alpha) : roomW / 2;
+    const hx = hero ? fromFp(hero.px + (hero.x - hero.px) * heroAlpha) : roomW / 2;
     // half the width the camera sees at the bodies' depth (VIEW_W on a 16:9 screen)
     const follow = (half: number) => Math.min(Math.max(hx + VIEW_W * 0.1, half), Math.max(half, roomW - half));
     const tan = Math.tan((FOV * Math.PI) / 360);
@@ -432,8 +445,8 @@ export class View3D {
     const halfView = tan * dist * camera.aspect;
     const cx = follow(halfView) + (beats.camera.x - follow(halfView)) * look;
     this.shake = Math.max(0, this.shake - dt);
-    const sx = this.shake > 0 ? (Math.random() - 0.5) * 16 : 0;
-    const sy = this.shake > 0 ? (Math.random() - 0.5) * 10 : 0;
+    const sx = this.shake > 0 ? (Math.random() - 0.5) * 16 * this.shakeAmp : 0;
+    const sy = this.shake > 0 ? (Math.random() - 0.5) * 10 * this.shakeAmp : 0;
     const tz = (fromFp(WORLD.depth) * DEPTH_K) / 2;
     // `dist` ahead of the aim and as high as a 20-degree look down; a heavy blow pushes the camera
     // in a little for an instant
@@ -441,7 +454,7 @@ export class View3D {
     const aim = AIM_Y + (beats.camera.y - AIM_Y) * look;
     camera.position.set(cx + sx, aim + Math.tan(PITCH) * d + sy, tz + d);
     level(camera, Math.tan(PITCH) * d, d);
-    const feet = hero ? at.set(hx, fromFp(hero.pz + (hero.z - hero.pz) * alpha), fromFp(hero.py + (hero.y - hero.py) * alpha) * DEPTH_K) : undefined;
+    const feet = hero ? at.set(hx, fromFp(hero.pz + (hero.z - hero.pz) * heroAlpha), fromFp(hero.py + (hero.y - hero.py) * heroAlpha) * DEPTH_K) : undefined;
     if (vfx) {
       const air = this.stage.showing ?? 'road';
       const key = `${air}:${roomW}`;

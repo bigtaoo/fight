@@ -3,6 +3,7 @@ import { HERO, MOVES } from './content';
 import type { Engine } from './Engine';
 import { BTN } from './input';
 import { toFp } from './math/fixed';
+import { spawnMonster } from './systems/affix';
 import { hero, newRun, play, type Buttons } from './testUtil';
 
 // The feel of the hero's controls on the training dummies (x 900 and 1300): a press made during a
@@ -160,4 +161,32 @@ describe('feel', () => {
     for (let i = 0; i < 40 && g.state === 'act'; i++) play(f, 1, () => 0);
     expect(g.state).not.toBe('jump');
   });
+
+  for (const kind of ['inkling', 'brute'] as const) {
+    it(`holding attack on a ${kind} keeps it in reach: no cut of six seconds misses`, () => {
+      const e = newRun({ dungeon: 'luobi', seed: 1 });
+      play(e, 2, () => 0);
+      const h = hero(e.state);
+      const m = spawnMonster(e.state, kind, h.x + toFp(110), h.y, false);
+      m.hp = m.maxHp = 1_000_000;
+      let swings = 0;
+      let hit = true;
+      let misses = 0;
+      for (let t = 0; t < 30 * 6; t++) {
+        for (const x of play(e, 1, () => BTN.ATTACK)) {
+          if (x.type === 'swing' && x.id === h.id) {
+            if (!hit) misses++;
+            swings++;
+            hit = false;
+          }
+          if (x.type === 'hit' && x.attacker === h.id && x.target === m.id) hit = true;
+        }
+      }
+      // the last cut counts too, once it has had its active ticks
+      for (const x of play(e, 10, () => 0)) if (x.type === 'hit' && x.attacker === h.id && x.target === m.id) hit = true;
+      if (!hit) misses++;
+      expect(swings).toBeGreaterThan(15);
+      expect(misses).toBe(0);
+    });
+  }
 });

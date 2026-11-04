@@ -456,6 +456,7 @@ export class Game {
     const s = this.engine.state;
     this.view.draw(s, dt, alpha);
     this.numbers.update(this.view, dt);
+    this.tutorial.touch = this.hud.controls.touch;
     this.tutorial.update(s, this.view, dt);
     this.hud.holding = !this.view.outroDone;
     this.hud.update(s, this.session!, this.keys.down);

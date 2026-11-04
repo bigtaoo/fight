@@ -118,8 +118,8 @@ const CLIP_OF: Record<string, [clip: string, ticks: number[], at?: number[]]> = 
   atk1: ['atk1', [0, 11]],
   atk2: ['atk2', [0, 12]],
   atk3: ['atk3', [0, 18]],
-  // the dash attack lunges with the triple slash's first cut
-  dashAtk: ['tri1', [0, 18]],
+  // the dash attack: its own running thrust
+  dashAtk: ['dashAtk', [0, 18]],
   jumpAtk: ['jumpAtk', [0, 14]],
   // the dive lasts until it lands: the jump attack's cut over its first ticks, then held through
   jumpSlam: ['jumpAtk', [0, 14], [0, 8]],

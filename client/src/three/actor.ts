@@ -411,8 +411,11 @@ export class Actor {
 
     // turn to face the way the engine faces (the clips themselves turn the hips a quarter, so the
     // model already faces +x on screen and -x is a half turn)
+    // a hero's move turns at once: a reversed swing must not open still facing the old way
+    const hero = e.team === 0;
     const want = e.facing > 0 ? 0 : Math.PI;
-    this.yaw += (want - this.yaw) * Math.min(1, dt * 18);
+    if (hero && e.state === 'act') this.yaw = want;
+    else this.yaw += (want - this.yaw) * Math.min(1, dt * 18);
     this.body.rotation.y = this.yaw;
 
     const held = e.held;
@@ -420,7 +423,9 @@ export class Actor {
     const own = e.state === 'act' ? moveClip(e.move, e.st + (held ? 0 : alpha)) : null;
     const lying = LYING[e.state];
     if (own && this.actions[own.clip]) {
-      const a = this.play(own.clip, 0.08);
+      // a hero's move snaps to its first pose (its hit lands on tick 3, a blend would hide the
+      // wind-up); a monster's keeps the blend, its wind-up is there to be read
+      const a = this.play(own.clip, hero ? 0.02 : 0.08);
       a.timeScale = 0;
       a.time = Math.min(own.tick / 30, a.getClip().duration);
     } else if (lying && this.actions[lying]) {

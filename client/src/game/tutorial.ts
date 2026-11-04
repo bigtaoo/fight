@@ -85,13 +85,27 @@ const HEIGHT = 470;
 /** Marks a key's name in the filled-in text, so it can be cut out as a seal. */
 const SEAL = /\u0001([^\u0002]*)\u0002/g;
 
-/** The key placeholders' values, wrapped in seal marks. */
-function sealVars(): Record<string, string> {
+/** The touch button each key stands for, by the button's own name. */
+const PADS: Record<string, Key> = { KeyX: 'pad.attack', KeyC: 'pad.jump', KeyZ: 'pad.dodge', Arrows: 'pad.stick' };
+
+/** A line's touch-screen wording, for the lines that name keys a touch screen has no button for. */
+const TOUCH_TEXT: Partial<Record<Key, Key>> = {
+  'tip.move': 'tip.move.touch',
+  'tip.hurt': 'tip.hurt.touch',
+  'tip.arrow': 'tip.arrow.touch',
+  'tip.shield': 'tip.shield.touch',
+  'tip.ink.skill': 'tip.ink.skill.touch',
+};
+
+/** The key placeholders' values, wrapped in seal marks: the keyboard's keys, or on a touch screen
+ * the names of the buttons (and the stick) under the player's thumbs. */
+function sealVars(touch: boolean): Record<string, string> {
   const vars: Record<string, string> = { Arrows: '\u0001←→↑↓\u0002' };
   for (let c = 65; c <= 90; c++) {
     const code = `Key${String.fromCharCode(c)}`;
     vars[code] = `\u0001${keyName(code)}\u0002`;
   }
+  if (touch) for (const [code, name] of Object.entries(PADS)) vars[code] = `\u0001${t(name)}\u0002`;
   return vars;
 }
 
@@ -114,6 +128,8 @@ interface Line {
 export class Tutorial {
   /** Off with ?notutorial. */
   on = true;
+  /** Whether the touch controls show: the lines then name the buttons, not the keys. */
+  touch = false;
   private readonly layer: HTMLDivElement;
   private seen = new Set<string>();
   private queue: Tip[] = [];
@@ -158,7 +174,7 @@ export class Tutorial {
     const roomW = fromFp(s.roomWidth);
     const x = h ? Math.max(300, Math.min(roomW - 300, fromFp(h.x) + AHEAD * h.facing)) : roomW / 2;
     // looked up now: the language can change in the pause menu, but a line once written stays
-    const text = t(tip.id, sealVars());
+    const text = t((this.touch && TOUCH_TEXT[tip.id]) || tip.id, sealVars(this.touch));
     const tall = /[一-鿿]/.test(text);
     const div = el(
       'div',

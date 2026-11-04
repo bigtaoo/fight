@@ -1,4 +1,4 @@
-import { INK as INK_DEF, MOVES, fromFp, type Entity, type SimEvent, type SimState } from '@dnf/engine';
+import { BODIES, INK as INK_DEF, MOVES, fromFp, type Entity, type SimEvent, type SimState } from '@dnf/engine';
 import {
   AdditiveBlending,
   CircleGeometry,
@@ -23,6 +23,7 @@ import {
   Vector3,
   type Object3D,
 } from 'three';
+import { telegraphed } from '../game/telegraph';
 import { DEPTH_K, type Actor, type Model } from './actor';
 import { Ghosts } from './ghosts';
 import { CINNABAR, INK, RAMP, bakeTone } from './ink';
@@ -305,6 +306,16 @@ export class Vfx {
       case 'swing': {
         const m = MOVES[ev.move];
         const e = s.entities.find((b) => b.id === ev.id);
+        if (e && e.team !== 0 && telegraphed(ev.move)) {
+          // a monster winding up a heavy blow: a flick of cinnabar over its head, the warning to dodge
+          const a = actors.get(ev.id);
+          const c = a ? _w.copy(a.root.position) : _w.copy(this.at(e.x, e.y, 0));
+          c.y += fromFp(BODIES[e.kind].height) * 0.85;
+          c.z += 6;
+          this.burn.add(c, 120, 0.5 * e.facing, RED_HOT, 0.6, 1, 1.6);
+          this.cut.add(c.setZ(c.z + 2), 90, -0.6 * e.facing, RED_HOT, 0.5, 0.9, 1.3);
+          break;
+        }
         if (!m?.of || !e) break;
         // a skill: ink kicked up round the feet and speed lines
         const f = this.at(e.x, e.y, 0);

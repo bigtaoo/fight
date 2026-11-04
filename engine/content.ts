@@ -611,17 +611,17 @@ const MOVE_LIST: Move[] = [
   {
     id: 'atk1', total: 11, active: [3, 5], box: box(10, 150, 40, 40, 200),
     damage: 34, hitstun: 12, stop: 3, push: toFp(5), launch: 0, lift: toFp(9),
-    cancel: 6, next: 'atk2', basic: true, advance: { from: 1, to: 3, speed: toFp(3) },
+    cancel: 6, next: 'atk2', basic: true, advance: { from: 1, to: 3, speed: toFp(6) },
   },
   {
     id: 'atk2', total: 12, active: [3, 5], box: box(10, 160, 40, 40, 200),
     damage: 38, hitstun: 13, stop: 3, push: toFp(5), launch: 0, lift: toFp(9),
-    cancel: 6, next: 'atk3', basic: true, advance: { from: 1, to: 3, speed: toFp(3) },
+    cancel: 6, next: 'atk3', basic: true, advance: { from: 1, to: 3, speed: toFp(6) },
   },
   {
     id: 'atk3', total: 18, active: [4, 7], box: box(0, 190, 45, 20, 220),
     damage: 60, hitstun: 18, stop: 5, push: toFp(14), launch: 0, lift: toFp(12),
-    cancel: 9, next: 'atk1', basic: true, advance: { from: 1, to: 5, speed: toFp(6) },
+    cancel: 9, next: 'atk1', basic: true, advance: { from: 1, to: 5, speed: toFp(11) },
   },
   // X while running: a lunge of about 120 px, chaining into the basic string
   {

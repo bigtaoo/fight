@@ -313,6 +313,27 @@ def sw_tri1():
     ]
 
 
+def sw_dashAtk():
+    """The dash attack (engine dashAtk: 18 ticks, active 3..7, lunging over ticks 1..6): a running
+    thrust. In low with the sword drawn back at the hip and its point forward, one long step, the
+    arm driven straight out at the height of the chest, held while the lunge carries on, then back
+    to the guard (it chains into atk1, which starts there). The blade points along f throughout, so
+    it never turns over or sweeps the floor (any l would foreshorten it)."""
+    drawn = G(rh=(-0.10, -0.18, -0.16), re=(-0.8, -0.6, -0.2), blade=(0.97, 0.0, 0.12), lean=26, nod=4, twist=-22, turn=-14,
+              drop=0.05, shift=0.04, lh=(0.24, 0.20, -0.12), le=(-0.3, 0.8, -0.5), lf=(0.10, 0.04, 0.03), rf=(-0.12, -0.04, 0.0))
+    step = G(**{**drawn, 'rh': (-0.14, -0.18, -0.14), 'lean': 30, 'twist': -28, 'drop': 0.07, 'shift': 0.07,
+                'lf': (0.24, 0.04, 0.0), 'rf': (-0.20, -0.04, 0.0)})
+    thrust = G(rh=(0.44, -0.04, -0.06), re=(-0.1, -1.0, 0.0), blade=(0.99, 0.0, -0.04), lean=32, nod=2, twist=24, turn=10,
+               drop=0.08, shift=0.10, lh=(-0.16, 0.24, -0.20), le=(-0.6, 0.6, 0.0), lf=(0.27, 0.04, 0.0), rf=(-0.21, -0.04, 0.0))
+    return 18, [
+        (0, drawn, 'lin'),
+        (2, step, 'io'),
+        (4, thrust, 'out'),
+        (9, G(**{**thrust, 'rh': (0.42, -0.04, -0.09), 'blade': (0.97, 0.0, -0.18), 'drop': 0.085}), 'io'),
+        (18, G(), 'io'),
+    ]
+
+
 def sw_tri2():
     """Second (14 ticks, active 3..7): the blade turned over and cut back up."""
     return 14, [
@@ -796,7 +817,7 @@ SETS = {
     'washer': {'body': 'washer', 'prop': None, 'clips': {'idle': washer_idle, 'walk': washer_walk, 'lob': washer_lob,
                                                         'hop': lambda: hop_of(WASHER, {'rh': (-0.10, -0.30, -0.12), 're': (-0.4, -0.6, -0.6)}), **knocked(WASHER)}},
     'swordsman': {'body': 'sword', 'prop': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
-                                                 'jumpAtk': sw_jumpAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
+                                                 'jumpAtk': sw_jumpAtk, 'dashAtk': sw_dashAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
                                                  'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
                                                  'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
                                                  'phantom': sw_phantom, 'phantomEnd': sw_phantomEnd, 'backstep': sw_backstep,
