@@ -1,4 +1,4 @@
-import { AFFIX, BODIES, MONSTERS, MOVES, WORLD, type HitBox, type HitData, type SkillId } from '../content';
+import { AFFIX, BODIES, HERO, MONSTERS, MOVES, WORLD, type HitBox, type HitData, type SkillId } from '../content';
 import type { SimEvent } from '../events';
 import { toFp } from '../math/fixed';
 import { randInt, randRange } from '../math/prng';
@@ -20,6 +20,8 @@ import { armored } from './moves';
 // A body lying down can still be hit, low enough, a few times (WORLD.downHits) for less damage:
 // each keeps it down a little longer, and a launching move lifts it off the floor again. A move
 // with `spike` slams an airborne body into the floor, and it bounces up for more.
+// A hero's hit freezes its target a little longer than the hero (HERO.hitstopLead), so the hero
+// is moving again first.
 
 /** A killed body that was on the ground pops up this fast before it falls dead. */
 const DEATH_POP = toFp(16);
@@ -37,8 +39,9 @@ export function combatSystem(s: SimState, events: SimEvent[]): void {
       if (t.team === a.team || !hittable(t) || a.hitList.includes(t.id)) continue;
       if (!overlaps(a, a.facing, m.box, t)) continue;
       a.hitList.push(t.id);
-      a.stop = Math.max(a.stop, m.stop);
-      applyHit(s, events, a, a.facing, t, m, m.of);
+      const stop = m.lastStop !== undefined && m.rehit && a.st >= m.active[1] - ((m.active[1] - m.active[0]) % m.rehit) ? m.lastStop : m.stop;
+      a.stop = Math.max(a.stop, stop);
+      applyHit(s, events, a, a.facing, t, m, m.of, stop);
     }
   }
 }
@@ -64,8 +67,10 @@ export function guarding(e: Entity, ground = 0): boolean {
 }
 
 /** Hit `t` with `m`, struck by `a` (a body, or the one that fired a projectile) heading `facing`;
- * `of`: the skill it is part of, whose level adds to a hero's damage. */
-export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData, of?: SkillId): void {
+ * `of`: the skill it is part of, whose level adds to a hero's damage; `stop`: the attacker's
+ * hitstop, when not the hit's own. */
+export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team: number }, facing: number, t: Entity, m: HitData, of?: SkillId, stop = m.stop): void {
+  const held = a.team === 0 && stop > 0 ? stop + HERO.hitstopLead : stop;
   // a perched bird hit starts the whole flock up
   if (t.lurk < 0) startle(s);
   let dmg = m.damage;
@@ -94,22 +99,22 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     // a block that would kill is a hit: the last blow goes through
     if (chip < t.hp) {
       t.hp -= chip;
-      t.stop = m.stop;
+      t.stop = held;
       tally(s, a, t);
-      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false, crit });
+      events.push({ type: 'hit', attacker: a.id, target: t.id, dmg: chip, x: t.x, y: t.y, z: t.z, dir: facing, stop, launch: false, blocked: true, armor: false, crit });
       return;
     }
   }
   if (t.ward > 0) {
     t.ward = Math.max(0, t.ward - dmg);
-    t.stop = m.stop;
+    t.stop = held;
     tally(s, a, t);
-    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: true, armor: false, crit });
+    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop, launch: false, blocked: true, armor: false, crit });
     if (t.ward === 0) events.push({ type: 'affix', id: t.id, affix: 'ward' });
     return;
   }
   t.hp -= dmg;
-  t.stop = m.stop;
+  t.stop = held;
   if (t.hp <= 0 && t.team === 1 && hasAffix(t, 'revive')) {
     dropAffix(t, 'revive');
     t.hp = Math.trunc(t.maxHp / 2);
@@ -117,7 +122,7 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
   }
   tally(s, a, t);
   if (t.hp > 0 && armored(t)) {
-    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: false, blocked: false, armor: true, crit });
+    events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop, launch: false, blocked: false, armor: true, crit });
     return;
   }
   if (!guard) t.facing = -facing;
@@ -152,7 +157,7 @@ export function applyHit(s: SimState, events: SimEvent[], a: { id: number; team:
     t.vx = facing * m.push;
     t.vy = 0;
   }
-  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop: m.stop, launch: t.state === 'air', blocked: false, armor: false, crit });
+  events.push({ type: 'hit', attacker: a.id, target: t.id, dmg, x: t.x, y: t.y, z: t.z, dir: facing, stop, launch: t.state === 'air', blocked: false, armor: false, crit });
   if (kill) events.push(t.team === 0 ? { type: 'heroDown', id: t.id } : { type: 'death', id: t.id });
   if (kill && t.team === 1 && hasAffix(t, 'miasma')) {
     s.clouds.push({ id: s.nextId++, x: t.x, y: t.y, life: AFFIX.miasma.life });

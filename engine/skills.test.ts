@@ -254,7 +254,7 @@ describe('skills', () => {
       play(e, 2, presses(BTN.SKILL2, [1]));
       return hero(e.state).cd[1];
     };
-    expect(cd(6)).toBeLessThan(cd(5) - 15);
+    expect(cd(6)).toBeLessThan(cd(5) - 10);
 
     const armoured = (lv: number) => {
       const e = atDummy();

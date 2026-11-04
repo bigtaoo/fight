@@ -508,6 +508,11 @@ export const HERO = {
   doubleTap: 8,
   /** A press is remembered this long (in unfrozen ticks) until the hero can act on it. */
   buffer: 6,
+  /** A skill, dodge or jump pressed during a move that cancels is kept until its cancel tick, then
+   * this many unfrozen ticks more (if that is longer than `buffer`). */
+  bufferTail: 4,
+  /** Hit by a hero, the target freezes this many ticks longer than the attacker. */
+  hitstopLead: 2,
   /** Untouchable this long after a quick rise has got the hero up (on top of the getup itself). */
   riseInv: ticks(0.4),
   /** Clearing a room (not the last) gives this many percent of the hero's health back. */
@@ -529,7 +534,7 @@ export interface HitData {
   damage: number;
   /** Ticks a grounded target stays stunned after the hitstop. */
   hitstun: number;
-  /** Ticks both bodies freeze on contact. */
+  /** Ticks both bodies freeze on contact (a hero's target a little longer, HERO.hitstopLead). */
   stop: number;
   /** Speed the target slides away at, FP per tick. */
   push: number;
@@ -557,6 +562,10 @@ export interface Move extends HitData {
   cancel: number;
   /** The follow-up an ATTACK press chains into. */
   next?: string;
+  /** A plain attack on the ground: from `cancel` on, a JUMP press cancels it into a jump. */
+  basic?: boolean;
+  /** With `rehit`: hits in the last rehit window freeze for this long instead of `stop`. */
+  lastStop?: number;
   /** The skill this move is part of: no move of a skill cancels into the same skill. */
   of?: SkillId;
   /** The next part a press of the same skill's button chains into (from `cancel` on). */
@@ -602,17 +611,23 @@ const MOVE_LIST: Move[] = [
   {
     id: 'atk1', total: 11, active: [3, 5], box: box(10, 150, 40, 40, 200),
     damage: 34, hitstun: 12, stop: 3, push: toFp(5), launch: 0, lift: toFp(9),
-    cancel: 6, next: 'atk2', advance: { from: 1, to: 3, speed: toFp(3) },
+    cancel: 6, next: 'atk2', basic: true, advance: { from: 1, to: 3, speed: toFp(3) },
   },
   {
     id: 'atk2', total: 12, active: [3, 5], box: box(10, 160, 40, 40, 200),
     damage: 38, hitstun: 13, stop: 3, push: toFp(5), launch: 0, lift: toFp(9),
-    cancel: 6, next: 'atk3', advance: { from: 1, to: 3, speed: toFp(3) },
+    cancel: 6, next: 'atk3', basic: true, advance: { from: 1, to: 3, speed: toFp(3) },
   },
   {
     id: 'atk3', total: 18, active: [4, 7], box: box(0, 190, 45, 20, 220),
     damage: 60, hitstun: 18, stop: 5, push: toFp(14), launch: 0, lift: toFp(12),
-    cancel: 12, advance: { from: 1, to: 5, speed: toFp(6) },
+    cancel: 9, next: 'atk1', basic: true, advance: { from: 1, to: 5, speed: toFp(6) },
+  },
+  // X while running: a lunge of about 120 px, chaining into the basic string
+  {
+    id: 'dashAtk', total: 18, active: [3, 7], box: box(0, 170, 45, 30, 210),
+    damage: 40, hitstun: 15, stop: 3, push: toFp(9), launch: 0, lift: toFp(10),
+    cancel: 10, next: 'atk1', basic: true, advance: { from: 1, to: 6, speed: toFp(20) },
   },
   {
     id: 'jumpAtk', total: 14, active: [2, 8], box: box(-10, 150, 40, -60, 160),
@@ -678,7 +693,7 @@ const MOVE_LIST: Move[] = [
   {
     id: 'phantom', of: 'phantom', total: 66, active: [4, 51], box: box(-40, 200, 60, 0, 240),
     damage: 22, hitstun: 14, stop: 1, push: toFp(2), launch: 0, lift: toFp(7),
-    cancel: 0, rehit: 3, armor: [1, 66], early: 'phantomEnd', fire: { at: 56, shot: 'wave', x: toFp(60), z: 0 },
+    cancel: 0, rehit: 3, lastStop: 4, armor: [1, 66], early: 'phantomEnd', fire: { at: 56, shot: 'wave', x: toFp(60), z: 0 },
   },
   {
     id: 'phantomEnd', of: 'phantom', total: 14, active: [0, -1],
@@ -687,7 +702,7 @@ const MOVE_LIST: Move[] = [
   },
   // the dodge: a hop back, untouchable as it leaves the ground
   {
-    id: 'backstep', total: 30, active: [0, -1],
+    id: 'backstep', total: 22, active: [0, -1],
     damage: 0, hitstun: 0, stop: 0, push: 0, launch: 0, lift: 0,
     cancel: 0, air: true, hop: { back: toFp(17), up: toFp(20) }, inv: 8,
   },
@@ -979,7 +994,7 @@ export const SKILLS: Readonly<Record<SkillId, Skill>> = {
   triple: { move: 'tri1', cooldown: ticks(4), perk: { lv: 6, cdPct: 20 } },
   // through all four dashes
   dragon: { move: 'dragon1', cooldown: ticks(7), perk: { lv: 6, armor: 47 } },
-  upper: { move: 'upper', cooldown: ticks(2.5), perk: { lv: 6, cdPct: 30 } },
+  upper: { move: 'upper', cooldown: ticks(1.5), perk: { lv: 6, cdPct: 30 } },
   crush: { move: 'crush1', cooldown: ticks(6), perk: { lv: 6, cdPct: 25 } },
   // while gathering, up to the cut
   iai: { move: 'iai', cooldown: ticks(8), perk: { lv: 6, armor: 16 } },

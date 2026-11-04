@@ -7,7 +7,9 @@ import { moveVelocity, startMove } from './moves';
 
 // The hero: buttons in, presses and double taps derived, then the state machine. Recovery is
 // cancelled from a move's `cancel` tick on: into any skill but the move's own, or into the dodge;
-// a skill of several parts chains into its next part on another press of its button.
+// a basic attack also into a jump; a skill of several parts chains into its next part on another
+// press of its button. A press made during a move is kept until that move can be cancelled (the
+// buffer runs out `bufferTail` ticks past it), so an early press is never lost to the hitstop.
 
 /** Which press the buffer keeps when several land on one tick. */
 const ACTION_ORDER = [BTN.DODGE, BTN.SKILL6, BTN.SKILL5, BTN.SKILL4, BTN.SKILL3, BTN.SKILL2, BTN.SKILL1, BTN.JUMP, BTN.ATTACK] as const;
@@ -17,6 +19,7 @@ const SLOT_BTN = [BTN.SKILL1, BTN.SKILL2, BTN.SKILL3, BTN.SKILL4, BTN.SKILL5, BT
 /** Takes this tick's buttons; finds presses, double-tap runs and the buffered press. */
 export function applyInput(s: SimState, cmds: readonly PlayerCommand[]): void {
   for (const p of s.players) {
+    const e = s.entities.find((q) => q.id === p.hero);
     const cmd = cmds.find((c) => c.owner === p.owner);
     p.prev = p.buttons;
     if (cmd) p.buttons = cmd.buttons;
@@ -29,11 +32,14 @@ export function applyInput(s: SimState, cmds: readonly PlayerCommand[]): void {
     }
     if (!(p.buttons & (BTN.LEFT | BTN.RIGHT))) p.running = false;
     for (const b of ACTION_ORDER) {
-      if (pressed & b) {
-        p.buf = b;
-        p.bufLeft = HERO.buffer;
-        break;
-      }
+      if (!(pressed & b)) continue;
+      // mashing ATTACK does not push out a skill or the dodge waiting for its cancel
+      if (b === BTN.ATTACK && p.buf !== 0 && p.buf !== BTN.ATTACK && p.buf !== BTN.JUMP) break;
+      p.buf = b;
+      p.bufLeft = HERO.buffer;
+      const m = e && e.state === 'act' ? MOVES[e.move] : null;
+      if (b !== BTN.ATTACK && m && m.cancel > e!.st) p.bufLeft = Math.max(HERO.buffer, m.cancel - e!.st + HERO.bufferTail);
+      break;
     }
   }
 }
@@ -62,6 +68,15 @@ function wantedSlot(s: SimState, p: PlayerSlot, e: Entity): number {
 
 function wantsDodge(p: PlayerSlot, e: Entity): boolean {
   return p.buf === BTN.DODGE && e.cd[DODGE.slot] === 0;
+}
+
+/** Jumps off the ground, at running speed along x when `run`. */
+function jump(e: Entity, events: SimEvent[], dx: number, dy: number, run: boolean): void {
+  setState(e, 'jump');
+  e.vz = HERO.jumpVz;
+  e.vx = dx * (run ? HERO.runX : HERO.walkX);
+  e.vy = dy * HERO.walkY;
+  events.push({ type: 'jump', id: e.id });
 }
 
 function consume(p: PlayerSlot): void {
@@ -113,14 +128,11 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
       events.push({ type: 'jump', id: e.id });
     } else if (p.buf === BTN.JUMP) {
       consume(p);
-      setState(e, 'jump');
-      e.vz = HERO.jumpVz;
-      e.vx = dx * (p.running ? HERO.runX : HERO.walkX);
-      e.vy = dy * HERO.walkY;
-      events.push({ type: 'jump', id: e.id });
+      jump(e, events, dx, dy, p.running);
     } else if (wantsAttack(p)) {
       consume(p);
-      startMove(e, 'atk1', events, dx);
+      // X on the run: the dash attack
+      startMove(e, p.running && dx !== 0 ? 'dashAtk' : 'atk1', events, dx);
     } else {
       if (dx !== 0) e.facing = dx;
       e.vx = dx * (p.running ? HERO.runX : HERO.walkX);
@@ -166,6 +178,11 @@ export function heroControl(s: SimState, e: Entity, events: SimEvent[]): void {
       if (wantsDodge(p, e)) {
         consume(p);
         dodge(e, events);
+        return tickBuffer(p);
+      }
+      if (m.basic && p.buf === BTN.JUMP) {
+        consume(p);
+        jump(e, events, dx, dy, false);
         return tickBuffer(p);
       }
       if (m.next && wantsAttack(p)) {
