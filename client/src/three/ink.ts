@@ -128,6 +128,21 @@ if ( gongbi > 0.0 ) {
   gl_FragColor.rgb = mix( gl_FragColor.rgb, clamp( full, 0.0, 1.0 ), gongbi );
 }`;
 
+/** The ink look's own colour (gongbi 0): the cloth's colours held back towards the painting's,
+ * the shadow bands going the blue-grey of a wash rather than a darker dye, and a grain of paper
+ * fibre and brush on the body (in rest-pose units, so it moves with the body, not the screen). */
+const WASH = /* glsl */ `
+if ( gongbi < 1.0 ) {
+  vec3 c = gl_FragColor.rgb;
+  float wl = dot( c, vec3( 0.299, 0.587, 0.114 ) );
+  vec3 w = mix( vec3( wl ), c, 0.58 ) * vec3( 1.0, 0.97, 0.92 );
+  w = mix( w * vec3( 0.80, 0.86, 0.94 ), w, smoothstep( 0.18, 0.62, wl ) );
+  float grain = inkNoise( vRest * 95.0 ) * 0.55 + inkNoise( vRest * vec3( 30.0, 6.0, 30.0 ) ) * 0.45;
+  w *= 0.9 + 0.17 * grain;
+  w = mix( w, vec3( 0.93, 0.91, 0.86 ), 0.07 );
+  gl_FragColor.rgb = mix( clamp( w, 0.0, 1.0 ), gl_FragColor.rgb, gongbi );
+}`;
+
 /** The body's own colours under the ramp. `tint` multiplies them (another kind on the same model).
  * Each body has its own, so it can flash, dissolve, turn to ink and turn gongbi on its own; they all
  * share one shader. */
@@ -145,7 +160,7 @@ export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMate
     shader.uniforms.gongbi = this.userData.gongbi;
     shader.fragmentShader = shader.fragmentShader
       .replace('void main() {', 'uniform float gongbi;\nvoid main() {')
-      .replace('gl_FragColor.rgb = inkAces( gl_FragColor.rgb );', `gl_FragColor.rgb = inkAces( gl_FragColor.rgb );\n${GONGBI}`);
+      .replace('gl_FragColor.rgb = inkAces( gl_FragColor.rgb );', `gl_FragColor.rgb = inkAces( gl_FragColor.rgb );\n${GONGBI}\n${WASH}`);
   };
   return m;
 }
@@ -156,6 +171,19 @@ export function bodyMaterial(map: Texture | null, tint = 0xffffff): MeshToonMate
  * this, the line still shows round the silhouette and between parts further apart than this. */
 const OUTLINE_BACK = 12;
 
+/** A brush's line swells and thins along its stroke: the outline's width over the body, from a
+ * slow noise in rest-pose units (0.45 to 1.55 of `width`), so it holds still on the body. */
+const BRUSH = /* glsl */ `
+float brushHash( vec3 p ) { p = fract( p * 0.3183099 + 0.1 ); p *= 17.0; return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) ); }
+float brushWidth( vec3 p ) {
+  p *= 7.0;
+  vec3 i = floor( p ); vec3 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+  float n = mix( mix( mix( brushHash( i ), brushHash( i + vec3( 1, 0, 0 ) ), f.x ), mix( brushHash( i + vec3( 0, 1, 0 ) ), brushHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+                 mix( mix( brushHash( i + vec3( 0, 0, 1 ) ), brushHash( i + vec3( 1, 0, 1 ) ), f.x ), mix( brushHash( i + vec3( 0, 1, 1 ) ), brushHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+  return 0.45 + 1.1 * n;
+}
+`;
+
 /** The outline: `width` in the mesh's own units (`userData.width.value`, which can change). */
 export function outlineMaterial(width: number): MeshBasicMaterial {
   const m = new MeshBasicMaterial({ color: INK, side: BackSide });
@@ -164,8 +192,8 @@ export function outlineMaterial(width: number): MeshBasicMaterial {
     shader.uniforms.outline = this.userData.width;
     withDissolve(shader, this, false);
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', 'uniform float outline;\nvoid main() {')
-      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize( objectNormal ) * outline;')
+      .replace('void main() {', `uniform float outline;\n${BRUSH}\nvoid main() {`)
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize( objectNormal ) * outline * brushWidth( position );')
       .replace(
         '#include <project_vertex>',
         `#include <project_vertex>\nmvPosition.xyz *= 1.0 + ${OUTLINE_BACK.toFixed(1)} / length( mvPosition.xyz );\ngl_Position = projectionMatrix * mvPosition;`,

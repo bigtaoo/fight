@@ -30,13 +30,15 @@ import { fade, flicker, prop, type PropKind } from './props';
 
 export type SceneId = 'road' | 'fort' | 'hall' | 'village' | 'plank' | 'manor' | 'ferry' | 'temple' | 'tail' | 'screen'
   | 'creek' | 'shore' | 'parlor' | 'blossom' | 'lotus' | 'bamboo';
-const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true }> = {
+/** `floor`: the ground is a painting (tools/bg_layers.py painted_ground) spanning the floor's depth
+ * once and repeating sideways every that many world units; without it a wash tiled both ways. */
+const SCENES: Record<SceneId, { paper: number; farTop: number; props?: true; floor?: number }> = {
   road: { paper: 0xf1ece0, farTop: -274 },
   fort: { paper: 0xe9e4d7, farTop: -17 },
   // the hall's furniture stands in the room in 3D, so its flat foreground (the same burner and jar) is left out
   hall: { paper: 0x7a7d92, farTop: -600, props: true },
   // 1-1's river village (a stopgap cut from the concept art, art/chapter1/bg); the shore sits on the floor's back edge
-  village: { paper: 0xd4e0cc, farTop: -380 },
+  village: { paper: 0xd4e0cc, farTop: -380, floor: 1600 },
   // the other places of chapter one's painting (art/chapter1/bg, design/CHAPTER1.md)
   plank: { paper: 0xe6e8de, farTop: -380 },
   manor: { paper: 0xdfe2d6, farTop: -380 },
@@ -115,6 +117,24 @@ function blankPaper(hex: number): Texture {
   return t;
 }
 
+/** How deep the mist along the back of the floor reaches into the room. */
+const MIST_DEPTH = 340;
+
+/** White fading out toward the front, tinted by its material: the texture's first row lies at the
+ * front of the plane (laid flat, its top edge is at the back of the floor). */
+function mistRamp(): Texture {
+  const n = 32;
+  const px = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const a = t * t * (3 - 2 * t);
+    px.set([255, 255, 255, Math.round(230 * a)], i * 4);
+  }
+  const tex = new DataTexture(px, 1, n);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function size(t: Texture): { width: number; height: number } {
   return t.image as { width: number; height: number };
 }
@@ -133,6 +153,7 @@ export class Stage {
   private mid: Mesh | null = null;
   private front: Mesh | null = null;
   private ground: Mesh | null = null;
+  private mist: Mesh | null = null;
   /** The mounting silk along the top and bottom of the view (the second one flipped). */
   private readonly silk: Mesh[] = [];
   private silkTex: Promise<Texture> | null = null;
@@ -264,7 +285,11 @@ export class Stage {
     const w = roomWidth + 3000;
     const gd = depth + 900;
     const gi = size(ground);
-    ground.repeat.set(w / gi.width, gd / (gi.height * 1.6));
+    const span = SCENES[id].floor;
+    if (span) {
+      ground.repeat.set(w / span, 1);
+      ground.offset.x = -1500 / span;
+    } else ground.repeat.set(w / gi.width, gd / (gi.height * 1.6));
     // one floor, refitted: a new material would drop its shader and build it again mid-fight
     if (!this.ground) {
       this.ground = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: ground, toneMapped: false }));
@@ -275,6 +300,16 @@ export class Stage {
     this.ground.geometry = new PlaneGeometry(w, gd);
     (this.ground.material as MeshBasicMaterial).map = ground;
     this.ground.position.set(roomWidth / 2, 0, gd / 2 - 60);
+    // a bank of mist along the back of the floor, so the painted shore above runs into it
+    if (!this.mist) {
+      this.mist = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: mistRamp(), transparent: true, depthWrite: false, toneMapped: false }));
+      this.mist.rotation.x = -Math.PI / 2;
+      this.mist.renderOrder = -0.9;
+      this.room.add(this.mist);
+    }
+    (this.mist.material as MeshBasicMaterial).color.set(this.paper);
+    this.mist.scale.set(w, MIST_DEPTH, 1);
+    this.mist.position.set(roomWidth / 2, 0.2, MIST_DEPTH / 2 - 60);
     if (this.catcher) {
       this.catcher.scale.set(w, gd, 1);
       this.catcher.position.set(roomWidth / 2, 0.4, gd / 2 - 60);

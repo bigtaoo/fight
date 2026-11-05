@@ -20,8 +20,8 @@ import { COLOUR_OF, WEB_FILES } from './webModels';
 
 /** Camera: vertical field of view, how far down it looks, and how far back it stands. */
 export const FOV = 30;
-export const PITCH = (20 * Math.PI) / 180;
-export const DIST = 2050;
+export const PITCH = (15 * Math.PI) / 180;
+export const DIST = 1800;
 /** The height on the bodies the camera aims at. */
 export const AIM_Y = 110;
 const VIEW_W = 1920;

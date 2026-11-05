@@ -259,9 +259,9 @@ function prop(parts: Record<string, readonly [BoxGeometry, Material, readonly [n
 /** The blob of shadow under every body, and the ink line round every body (one width for all). */
 const SHADOW_GEO = new CircleGeometry(1, 24);
 const SHADOW_MAT = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.28, depthWrite: false });
-const OUTLINE = outlineMaterial(0.006);
+const OUTLINE = outlineMaterial(0.016);
 /** Gongbi's line: finer and even, in a dark brown ink rather than black. */
-const GONGBI_WIDTH = 0.0032;
+const GONGBI_WIDTH = 0.007;
 const LINE_INK = new Color(INK);
 const LINE_GONGBI = new Color(0x3a2218);
 

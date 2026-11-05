@@ -60,7 +60,8 @@ function mistBank(): Mesh {
         vec2 p = vec2( vWorld.x / 520.0 + time * 0.035 + seed, vWorld.y / 190.0 - time * 0.02 );
         float n = dFbm( p );
         float h = vUv.y;
-        float body = smoothstep( 1.0, 0.15, h + ( n - 0.5 ) * 0.7 ) * smoothstep( 0.0, 0.06, h );
+        // its foot fades out too: standing on the floor it would draw a hard line across it
+        float body = smoothstep( 1.0, 0.15, h + ( n - 0.5 ) * 0.7 ) * smoothstep( 0.0, 0.4, h );
         float ends = smoothstep( 0.0, 0.08, vUv.x ) * smoothstep( 1.0, 0.92, vUv.x );
         float a = body * ends * smoothstep( 0.25, 0.65, n ) * alpha;
         gl_FragColor = vec4( color, a );

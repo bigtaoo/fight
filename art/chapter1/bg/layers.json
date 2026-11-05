@@ -43,21 +43,25 @@
   },
   "village_ground": {
    "kind": "ground",
-   "width": 1024,
-   "height": 450,
+   "parts": [
+    {
+     "src": "village_ground2_t2i.png"
+    },
+    {
+     "src": "village_ground_t2i.png"
+    }
+   ],
+   "join": 120,
+   "wrap": 0.06,
+   "width": 2048,
+   "height": 768,
    "paper": [
     226,
     220,
     204
    ],
-   "ink": [
-    104,
-    120,
-    110
-   ],
-   "wash": 0.015,
-   "streaks": 0,
-   "seed": 4
+   "sat": 0.55,
+   "fade": 0.5
   },
   "village_front": {
    "kind": "cut",

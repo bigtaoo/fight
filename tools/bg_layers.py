@@ -22,7 +22,8 @@ the client only tiles it horizontally. Kinds:
           drawn under the screen's platforms), first turned "rotate" degrees (counter-clockwise),
           its edges faded out over "feather" ([left, right, top, bottom], shares of its width and
           height) where the crop cut through the painting.
-  ground  no painting: a wash texture drawn here, periodic in both directions. "paper" and
+  ground  with "src"/"parts": a painted floor, see painted_ground.
+          Otherwise no painting: a wash texture drawn here, periodic in both directions. "paper" and
           "ink" are the two colours it blends, "streaks" the number of long horizontal brush
           marks, "boards" > 0 draws that many floorboard seams instead.
   silk    no painting: the mounting silk along the top of the scroll, periodic sideways. A woven
@@ -168,7 +169,22 @@ def periodic_noise(rng, h, w, scale):
     return (n - n.mean()) / (n.std() + 1e-9)
 
 
-def ground(spec, _base):
+def painted_ground(spec, base):
+    """A painted floor ("src" or "parts", looped sideways by "wrap"): its colour drained by "sat"
+    (0 grey .. 1 as painted) and pulled toward "paper" by "fade", so it sits under the bodies as a
+    quiet wash; scaled to width x height (the client spans the floor's depth with it once)."""
+    rgb = load(spec, base)
+    grey = rgb.mean(axis=2, keepdims=True)
+    rgb = grey + spec.get("sat", 1) * (rgb - grey)
+    paper = np.array(spec["paper"], dtype=np.float32) / 255
+    rgb = paper + (1 - spec.get("fade", 0)) * (rgb - paper)
+    im = Image.fromarray((np.clip(rgb, 0, 1) * 255 + 0.5).astype(np.uint8))
+    return im.resize((spec["width"], spec["height"]), Image.LANCZOS)
+
+
+def ground(spec, base):
+    if "src" in spec or "parts" in spec:
+        return painted_ground(spec, base)
     w, h = spec["width"], spec["height"]
     rng = np.random.default_rng(spec.get("seed", 1))
     paper = np.array(spec["paper"], dtype=np.float32) / 255
