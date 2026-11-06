@@ -66,6 +66,25 @@ JOBS: dict[str, tuple[str, float, str]] = {
     'down': ('hurt_1', 3.5,
              'The swordsman is knocked off his feet, falls backward onto the ground and lies flat, then '
              'pushes himself up and stands again.'),
+    # the same moves again from the side-view stance (side.png), so the body stays in profile: the
+    # stance three-quarters to the camera (base) left the clips facing the viewer or turning round
+    'side_combo': ('side', 3.5,
+                   'The swordsman steps forward and strikes three quick sword slashes in a row to the left: '
+                   'a horizontal cut, a backhand cut, then a big overhead downward chop, and returns to his '
+                   'stance.' + ' He stays in profile facing left the whole time; every cut goes to the left, '
+                   'in front of him, and he never turns towards the viewer or away.'),
+    'side_smash': ('side', 2.5,
+                   'The swordsman raises the sword high above his head with both hands and smashes it down '
+                   'hard onto the ground in front of him to the left, crouching low with the impact.'
+                   ' He stays in profile facing left the whole time and never turns towards the viewer or away.'),
+    'side_rising': ('side', 2.5,
+                    'The swordsman crouches low then sweeps the sword upward in a rising arc in front of him '
+                    'to the left, from the ground to high over his head, rising up on his toes, then settles '
+                    'back into his stance. He stays in profile facing left the whole time and never turns '
+                    'towards the viewer or away.'),
+    'side_spin': ('side', 2.5,
+                  'The swordsman spins forward to the left with a flurry of fast whirling sword cuts, the '
+                  'blade sweeping round him in circles, and ends in profile facing left.'),
 }
 
 
