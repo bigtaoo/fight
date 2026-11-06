@@ -207,7 +207,7 @@ export class Paper {
   private t = 0;
   /** How far the body has walked or run (room units), for the stride paintings. */
   private gone = 0;
-  private lastX: number | null = null;
+  private last: [number, number] | null = null;
   private readonly uTime = { value: 0 };
   /** How hard the wind moves the painting now (1 standing, less while moving or striking). */
   private readonly uWind = { value: 1 };
@@ -249,9 +249,11 @@ ${SWAY_BODY}`);
 
   update(dt: number, e: Entity, flash: number): void {
     this.t += dt;
+    // across the floor and up or down it alike: the legs step either way
     const x = fromFp(e.x);
-    const dx = this.lastX === null ? 0 : Math.abs(x - this.lastX);
-    this.lastX = x;
+    const y = fromFp(e.y);
+    const dx = this.last === null ? 0 : Math.hypot(x - this.last[0], y - this.last[1]);
+    this.last = [x, y];
     const name = this.frame(e, dx);
     if (name !== this.shown) {
       if (!follows(this.shown, name)) {
