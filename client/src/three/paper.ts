@@ -74,7 +74,7 @@ const STILLS = ['jump_1', 'hurt_1', 'down_1', 'backstep_1'];
 const MOVE_STILL: Record<string, string> = { backstep: 'backstep_1' };
 /** How far the body goes on each walk and run painting (figure heights), so the feet keep to the floor. */
 const WALK_STEP = 0.06;
-const RUN_STEP = 0.1;
+const RUN_STEP = 0.065;
 /**
  * Each clip is painted on its own, so where one ends and the next begins the poses do not meet:
  * the card cross-fades from the last painting over these seconds (longer into the stance, where
