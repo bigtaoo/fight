@@ -10,7 +10,7 @@
 # the archer's idle (which also gives the quarter turn every clip has at the hips): the hips dropped,
 # shifted and turned; the spine leant and twisted; the wrists and ankles placed, and the arms and
 # legs bent to reach them (two-bone IK). Poses are eased between keys and sampled every tick.
-import bpy, math, os, sys
+import bpy, json, math, os, sys
 import numpy as np
 from mathutils import Matrix, Vector, Quaternion
 
@@ -35,7 +35,7 @@ SET = args[0] if args else 'woodcutter'
 # down onto the ground (1: its lowest joint, padded for flesh, rests on the floor).
 STANCE = dict(
     drop=0.025, shift=0.0, turn=0.0, lean=12.0, twist=0.0, tilt=0.0, nod=-6.0, shake=0.0, blade=None, roll=0.0,
-    fall=0.0, floor=0.0,
+    fall=0.0, floor=0.0, mo=None, mof=0.0,
     lh=(0.08, 0.25, -0.28), rh=(0.08, -0.25, -0.28),
     le=(-0.6, 0.6, -0.4), re=(-0.6, -0.6, -0.4),
     lf=(0.03, 0.03, 0.0), rf=(-0.03, -0.03, 0.0),
@@ -808,6 +808,38 @@ def washer_lob():
     ]
 
 
+def mo_idle():
+    """The library's shield guard (75 ticks, loops)."""
+    return 75, [(0, P(mo='guard', mof=0.0), 'lin'), (75, P(mo='guard', mof=75.0), 'lin')]
+
+
+def warp(clip, pts):
+    """A one-shot played with its time bent: pts are (tick, library frame) pairs, straight between."""
+    n = pts[-1][0]
+    keys = []
+    for t in range(n + 1):
+        i = next(i for i in range(1, len(pts)) if t <= pts[i][0])
+        (t0, f0), (t1, f1) = pts[i - 1], pts[i]
+        keys.append((t, P(mo=clip, mof=f0 + (f1 - f0) * (t - t0) / (t1 - t0)), 'lin'))
+    return n, keys
+
+
+def mo_dashAtk():
+    """The library's dash cut (engine dashAtk: 18 ticks, active 3..7): wind up, cut through low,
+    crouch with the blade behind, stand."""
+    return warp('dash', [(0, 0), (3, 4), (7, 12), (14, 28), (18, 38)])
+
+
+def mo_getup():
+    """The library's rise off the floor in the engine's 10 ticks, its still start skipped."""
+    return warp('rise', [(0, 6), (10, 37)])
+
+
+def mo_walk():
+    """The library's walk at the hero's pace (18 ticks a cycle, loops)."""
+    return 18, [(t, P(mo='walk', mof=float(t)), 'lin') for t in range(0, 19)]
+
+
 SETS = {
     'woodcutter': {'body': 'wood', 'prop': None, 'clips': {'chop': chop, 'sweep': sweep, 'rush': rush, 'leap': leap, 'roar': roar, 'idle': idle, 'walk': walk}},
     'inkling': {'body': 'fisher', 'prop': None, 'clips': {'idle': ink_idle, 'walk': ink_walk, 'claw': ink_claw, 'pounce': ink_pounce, **knocked(INKLING)}},
@@ -816,13 +848,22 @@ SETS = {
                                                          'hop': lambda: hop_of(FISHER, {}), **knocked(FISHER, prop=True)}},
     'washer': {'body': 'washer', 'prop': None, 'clips': {'idle': washer_idle, 'walk': washer_walk, 'lob': washer_lob,
                                                         'hop': lambda: hop_of(WASHER, {'rh': (-0.10, -0.30, -0.12), 're': (-0.4, -0.6, -0.6)}), **knocked(WASHER)}},
-    'swordsman': {'body': 'sword', 'prop': 'sword', 'clips': {'idle': sw_idle, 'walk': sw_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
-                                                 'jumpAtk': sw_jumpAtk, 'dashAtk': sw_dashAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
+    'swordsman': {'body': 'sword2', 'prop': 'sword', 'clips': {'idle': mo_idle, 'walk': mo_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
+                                                 'jumpAtk': sw_jumpAtk, 'dashAtk': mo_dashAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
                                                  'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
                                                  'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
                                                  'phantom': sw_phantom, 'phantomEnd': sw_phantomEnd, 'backstep': sw_backstep,
-                                                 'air': sw_air, 'down': sw_down, 'getup': sw_getup}},
+                                                 'air': sw_air, 'down': sw_down, 'getup': mo_getup}},
 }
+# mocap (retarget.py): `mo` names a library clip and `mof` its frame; the body takes that frame's pose
+MOCAP = json.load(open(os.path.join(HERE, 'mocap', 'ual2.json')))
+def _raw(name):
+    n = len(MOCAP['clips'][name]) - 1
+    step = max(1, n // 16)
+    return lambda: (n, [(t, P(mo=name, mof=float(t)), 'lin') for t in sorted(set(range(0, n, step)) | {n})])
+SETS['ual'] = {'body': 'sword2', 'prop': 'sword', 'clips': {n: _raw(n) for n in MOCAP['clips']}}
+SETS['ual']['clips'].update(guard=lambda: (60, [(0, P(mo='guard', mof=0.0), 'lin'), (60, P(mo='guard', mof=60.0), 'lin')]),
+                            stride=lambda: (48, [(t, P(mo='stride', mof=float(t)), 'lin') for t in range(0, 49, 3)]))
 BODY = args[1] if len(args) > 1 else SETS[SET]['body']
 CLIPS = SETS[SET]['clips']
 # what the right hand holds (client actor.ts arm()): a sword, a rod, or nothing; and its length
@@ -898,6 +939,77 @@ LEN = {n: (arm.data.bones[n].tail_local - arm.data.bones[n].head_local).length f
 print(f'MOVES {SET} on {BODY}: forward {tuple(round(v, 3) for v in F)}, hip {pbs['Hip'].head.z:.3f}, scale {arm.matrix_world.to_scale()[0]:.3f}, top {max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices):.3f}, arm {LEN["R_Upperarm"]:.3f}+{LEN["R_Forearm"]:.3f}, leg {LEN["R_Thigh"]:.3f}+{LEN["R_Calf"]:.3f}')
 
 
+# the mocap's frame: the body's axes at rest, and the turn from those to the base pose's
+_Lr = _bn['L_Thigh'].head_local - _bn['R_Thigh'].head_local
+_Lr.z = 0; _Lr.normalize()
+_Fr = _Lr.cross(U)
+MB = Matrix((_Fr, _Lr, U)).transposed()
+QT = _Fr.rotation_difference(F).to_matrix()
+MREST = {n: _bn[n].matrix_local.to_3x3().normalized() for n in ORDER}
+HIPH = _bn['Hip'].head_local.z
+# each bone first swung from the library's rest direction to this body's (the hips keep theirs)
+MW = {n: (Matrix.Identity(3) if n == 'Hip' else
+          (MB @ Vector(d)).rotation_difference((_bn[n].tail_local - _bn[n].head_local).normalized()).to_matrix().inverted())
+      for n, d in MOCAP['dirs'].items()}
+print(f'MOVES mocap turn {math.degrees(_Fr.angle(F)):.1f} deg, rest forward {tuple(round(v, 3) for v in _Fr)}')
+
+
+ARM_L = {'L_Clavicle', 'L_Upperarm', 'L_Forearm', 'L_Hand'}
+ARM_R = {'R_Clavicle', 'R_Upperarm', 'R_Forearm', 'R_Hand'}
+# a mix: the pose of each bone from one library clip, at its own rate (frames a tick; 0 holds the
+# first frame), looped; the first layer gives every bone, later layers only theirs. yaw turns the
+# whole body (+ left), as the hand-keyed clips stand a little turned to the camera (GUARD turn).
+# The library runs at 24 fps and its walk covers 0.012 model heights a frame; the hero walks
+# 0.032 a tick, so the walk's legs run 48 frames in 18 ticks.
+MIXES = {
+    # the shield guard's low sword and set feet, the free arm hanging loose (the head-shake idle's)
+    'guard': (-10, [(None, 'Idle_Shield_Loop', 0.8), (ARM_L, 'Idle_No_Loop', 0.8)]),
+    # the carrying walk's legs and trunk under the guard's arms
+    'stride': (-10, [(None, 'Walk_Carry_Loop', 1.0), (ARM_R, 'Idle_Shield_Loop', 1.0), (ARM_L, 'Idle_No_Loop', 1.0)]),
+    'walk': (-10, [(None, 'Walk_Carry_Loop', 48 / 18), (ARM_R, 'Idle_Shield_Loop', 0.0), (ARM_L, 'Idle_No_Loop', 0.0)]),
+    # one-shots (held at the ends, not looped)
+    'dash': (-10, [(None, 'Sword_Dash', 1.0)]),
+    'rise': (-10, [(None, 'LayToIdle', 1.0)]),
+}
+ONCE = {'dash', 'rise'}
+
+
+def mo_frame(clip, f, loop):
+    fr = MOCAP['clips'][clip]
+    n = len(fr) - 1
+    f = f % n if loop else max(0.0, min(float(n), f))
+    i = int(f); k = f - i; j = min(i + 1, n)
+    return fr[i], fr[j], k
+
+
+def mo_pose(clip, f):
+    yaw, layers = MIXES.get(clip, (0, [(None, clip, 1.0)]))
+    loop = clip in MIXES and clip not in ONCE
+    Y = Matrix.Rotation(math.radians(yaw), 3, U) @ QT
+    src = {}
+    for bones_, c, rate in layers:
+        got = mo_frame(c, f * rate, loop)
+        for n in (bones_ or MOCAP['dirs']): src[n] = got
+    for n in ORDER:
+        pbs[n].rotation_quaternion = (1, 0, 0, 0)
+        pbs[n].location = (0, 0, 0)
+        pbs[n].scale = (1, 1, 1)
+    update()
+    for n in ORDER:
+        if n not in src: continue
+        a, b, k = src[n]
+        D = Quaternion(a['rot'][n]).slerp(Quaternion(b['rot'][n]), k).to_matrix()
+        O = Y @ MB @ D @ MB.transposed() @ MW[n] @ MREST[n]
+        pb = pbs[n]
+        if n == 'Hip':
+            h = Vector(a['hip']).lerp(Vector(b['hip']), k)
+            pos = _bn['Hip'].head_local + Y @ MB @ h * HIPH
+        else:
+            pos = pb.matrix.translation.copy()
+        pb.matrix = Matrix.Translation(pos) @ O.to_4x4()
+        update()
+
+
 def axes(R):
     """Body axes turned by R (a 3x3)."""
     return R @ F, R @ Lax, R @ U
@@ -941,6 +1053,9 @@ def rot(axis, deg): return Matrix.Rotation(math.radians(deg), 3, axis)
 
 
 def apply(p, t):
+    if p['mo']:
+        mo_pose(p['mo'], p['mof'])
+        return
     for n in ORDER:
         pbs[n].rotation_quaternion = BASEQ[n]
         pbs[n].location = (0, 0, 0)
@@ -1020,6 +1135,9 @@ def sample(keys, t, snap={}):
             out = {}
             for key in p0:
                 a, b = p0[key], p1[key]
+                if isinstance(a, str) or isinstance(b, str):
+                    out[key] = b if k > 0.5 else a
+                    continue
                 if key == 'roll' and i in snap:
                     out[key] = b if t > snap[i] else a
                     continue
@@ -1194,6 +1312,15 @@ for name, fn in CLIPS.items():
     if snap: print(f'MOVES {name} turned over in one go: ' + ' '.join(f'{j}..{j + 1}' for j in snap.values()))
     print(f'MOVES {name} sword seen: ' + ' '.join(f'{v:.2f}' for _, v, _ in sw))
     print(f'MOVES {name} sword flat: ' + ' '.join(f'{v:.2f}' for _, _, v in sw))
+    if os.environ.get('MOVES_FEET'):
+        # how fast the planted foot slides back: the ground speed the clip walks at
+        v = []
+        for t in range(total):
+            sc.frame_set(t); a = {x: pbs[f'{x}_Calf'].tail.copy() for x in 'LR'}
+            sc.frame_set(t + 1); b = {x: pbs[f'{x}_Calf'].tail.copy() for x in 'LR'}
+            low = min('LR', key=lambda x: a[x].z)
+            v.append(-(b[low] - a[low]).dot(F))
+        print(f'MOVES {name} ground speed {sum(v) / len(v):.4f} a tick')
     if ONLY and name not in ONLY: continue
     n = 8
     strip(name, sorted({round(i * total / (n - 1)) for i in range(n)} | {k[0] for k in keys}), any(k[1]['fall'] > 45 for k in keys))
