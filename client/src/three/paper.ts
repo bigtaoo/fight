@@ -1,7 +1,7 @@
 import { MOVES, fromFp, type Entity } from '@dnf/engine';
 import { DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
 
-// Trial (?hero2d): the hero drawn as painted frames on a card instead of the 3D body. The frames
+// The web game's hero (?hero3d for the 3D body): drawn as painted frames on a card instead of the 3D body. The frames
 // are AI paintings cut out of their paper (art/heroes/sprite2d, tools/sprite2d_cut.py), all on one
 // canvas so they line up: the feet stand on the same row in each.
 
@@ -143,11 +143,18 @@ function tex(name: string): Texture {
 function preload(s: Seq): void {
   for (let i = 0; i < s.n; i++) tex(at(s, i));
 }
-// all of them up front for the trial (about 150 paintings); per-move loading or atlases can come later
-for (const s of Object.values(SEQS)) preload(s);
-for (const n of ['base', ...STILLS]) tex(n);
+/**
+ * The painted hero is the web game's hero (?hero3d brings back the 3D body). The WeChat build
+ * keeps the body: the paintings would not fit its package.
+ */
+export const hero2d =
+  typeof location !== 'undefined' && typeof (globalThis as { wx?: unknown }).wx === 'undefined' && !new URLSearchParams(location.search).has('hero3d');
 
-export const hero2d = typeof location !== 'undefined' && new URLSearchParams(location.search).has('hero2d');
+// all of them up front (about 150 paintings); per-move loading or atlases can come later
+if (hero2d) {
+  for (const s of Object.values(SEQS)) preload(s);
+  for (const n of ['base', ...STILLS]) tex(n);
+}
 
 export class Paper {
   readonly mesh: Mesh;

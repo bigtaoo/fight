@@ -307,7 +307,7 @@ export class Actor {
   private rod: Group | null = null;
   /** The robe's flying strips and the sash's cords, if the body has any. */
   private flow: Flow | null = null;
-  /** The trial's painted hero (?hero2d), drawn in place of the body. */
+  /** The painted hero (web; ?hero3d for the body), drawn in place of the body. */
   private paper: Paper | null = null;
   /** Whether 'hit' is the body's own (moves.py), scrubbed to the state's ticks, or the archer's. */
   private readonly ownHit: boolean;
