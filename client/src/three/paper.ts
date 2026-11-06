@@ -75,6 +75,35 @@ const MOVE_STILL: Record<string, string> = { backstep: 'backstep_1' };
 /** How far the body goes on each walk and run painting (figure heights), so the feet keep to the floor. */
 const WALK_STEP = 0.06;
 const RUN_STEP = 0.1;
+/**
+ * Each clip is painted on its own, so where one ends and the next begins the poses do not meet:
+ * the card cross-fades from the last painting over these seconds (longer into the stance, where
+ * the eye rests), instead of cutting.
+ */
+const FADE = 0.12;
+const FADE_TO_STANCE = 0.22;
+/** Into a move, barely: the strike has to read at once. */
+const FADE_TO_MOVE = 0.06;
+/** Paintings further apart than this within one sequence are a cut too (a move restarting it). */
+const NEAR = 2;
+/** The cycles: their last painting runs on into their first. */
+const CYCLES: readonly string[] = [SEQS.walk.name, SEQS.run.name];
+
+/** A painting's sequence and index: `combo_7` -> ['combo', 7]; a lone painting is index 0. */
+function split(n: string): [string, number] {
+  const m = /^(.*)_(\d+)$/.exec(n);
+  return m && m[1] !== 'base' ? [m[1], Number(m[2])] : [n, 0];
+}
+/** Whether showing `b` right after `a` reads as one motion (no fade needed). */
+function follows(a: string, b: string): boolean {
+  const [sa, ia] = split(a);
+  const [sb, ib] = split(b);
+  if (sa !== sb) return false;
+  let d = Math.abs(ib - ia);
+  const cycle = Object.values(SEQS).find((q) => q.name === sa);
+  if (cycle && CYCLES.includes(sa)) d = Math.min(d, cycle.n - d);
+  return d <= NEAR;
+}
 
 /** The painting index (0-based, into the take's span) for tick `st` of a move. */
 function tickToIndex(t: Take, st: number, total: number, a0: number, a1: number): number {
@@ -109,6 +138,22 @@ const SWAY_HEAD = `
 uniform float uTime;
 uniform float uWind;
 uniform vec2 uSize;
+`;
+/** The cross-fade, in the fragment shader: the last painting under the new one, mixed by coverage
+ * (premultiplied, so the clear paper round each figure does not darken the other). */
+const FADE_HEAD = `
+uniform sampler2D uPrev;
+uniform float uMix;
+`;
+const FADE_BODY = `
+#ifdef USE_MAP
+{
+  vec4 a = texture2D(uPrev, vMapUv);
+  vec4 b = texture2D(map, vMapUv);
+  vec4 m = mix(vec4(a.rgb * a.a, a.a), vec4(b.rgb * b.a, b.a), uMix);
+  diffuseColor *= m.a > 0.0 ? vec4(m.rgb / m.a, m.a) : vec4(0.0);
+}
+#endif
 `;
 const SWAY_BODY = `
 {
@@ -166,6 +211,11 @@ export class Paper {
   private readonly uTime = { value: 0 };
   /** How hard the wind moves the painting now (1 standing, less while moving or striking). */
   private readonly uWind = { value: 1 };
+  /** The painting shown, and the one it is fading from (`uMix` 0 -> 1 over `fade` seconds). */
+  private shown = 'base';
+  private readonly uPrev = { value: tex('base') };
+  private readonly uMix = { value: 1 };
+  private fade = FADE;
 
   /** `height`: the figure's height in the room. */
   constructor(private readonly height: number) {
@@ -181,6 +231,12 @@ export class Paper {
       sh.uniforms.uTime = this.uTime;
       sh.uniforms.uWind = this.uWind;
       sh.uniforms.uSize = { value: [w, h] };
+      sh.uniforms.uPrev = this.uPrev;
+      sh.uniforms.uMix = this.uMix;
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+${FADE_HEAD}`)
+        .replace('#include <map_fragment>', FADE_BODY);
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `#include <common>
 ${SWAY_HEAD}`)
@@ -196,7 +252,18 @@ ${SWAY_BODY}`);
     const x = fromFp(e.x);
     const dx = this.lastX === null ? 0 : Math.abs(x - this.lastX);
     this.lastX = x;
-    this.mat.map = tex(this.frame(e, dx));
+    const name = this.frame(e, dx);
+    if (name !== this.shown) {
+      if (!follows(this.shown, name)) {
+        // fade from whichever painting shows most now (a cut during a fade restarts it from there)
+        this.uPrev.value = this.uMix.value < 0.5 ? this.uPrev.value : tex(this.shown);
+        this.uMix.value = 0;
+        this.fade = name === 'base' ? FADE_TO_STANCE : e.state === 'act' ? FADE_TO_MOVE : FADE;
+      }
+      this.shown = name;
+    }
+    this.uMix.value = Math.min(1, this.uMix.value + dt / this.fade);
+    this.mat.map = tex(name);
     this.uTime.value = this.t;
     const still = e.state === 'idle' || e.state === 'walk';
     this.uWind.value += ((still ? 1 : 0.35) - this.uWind.value) * Math.min(1, dt * 6);
