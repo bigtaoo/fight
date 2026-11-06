@@ -33,7 +33,7 @@ const copyAssets = {
     const models = at('./wechat/models');
     rmSync(models, { recursive: true, force: true });
     mkdirSync(models, { recursive: true });
-    slimGlb(at('../art/model3d/sword/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg', MAP);
+    slimGlb(at('../art/model3d/sword2/rig_v1.glb'), `${models}/hero.glb`, 'hero.jpg', MAP);
     slimGlb(at('../art/archer3d/model/anim_idle.glb'), `${models}/archer.glb`, 'archer.jpg', MAP);
     slimGlb(at('../art/model3d/moves/swordsman.glb'), `${models}/swordsman.glb`);
     slimGlb(at('../art/model3d/moves/woodcutter.glb'), `${models}/woodcutter.glb`);

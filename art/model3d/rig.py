@@ -92,10 +92,15 @@ for mat in mesh.data.materials:
 mode(mesh, 'EDIT')
 bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=0.0005)
 mode(mesh, 'OBJECT')
-tris = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
-if tris > J['tris']:
-    d = mesh.modifiers.new('dec', 'DECIMATE'); d.ratio = J['tris'] / tris
-    bpy.ops.object.modifier_apply(modifier='dec')
+def decimate():
+    tris = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
+    if tris > J['tris']:
+        d = mesh.modifiers.new('dec', 'DECIMATE'); d.ratio = J['tris'] / tris
+        bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
+        bpy.ops.object.modifier_apply(modifier='dec')
+# weightFull: bone heat fails on some decimated meshes (thin cloth turned non-manifold), so those
+# are weighted at full detail and decimated after (the decimation carries the weights over)
+if not J.get('weightFull'): decimate()
 
 # bones along the model's joints, each turned from its template direction the shortest way (keeps the roll)
 mode(arm, 'EDIT')
@@ -126,6 +131,24 @@ for v in loose:
     b = min(arm.data.bones, key=lambda b: seg_dist(v.co, b))
     mesh.vertex_groups[b.name].add([v.index], 1.0, 'REPLACE')
 print(f'RIG {NAME}: {len(mesh.data.vertices)} verts, {len(loose)} unweighted fixed')
+# wide sleeves (J['sleeve']: [y0, y1, z0]): bone heat gives a sleeve's root to the chest, so the
+# cloth stays out level when the arm comes down to the rest pose and squares the shoulders; above
+# z0, from |y| = y0 out to y1, it is handed over smoothly to the upper arm
+if 'sleeve' in J:
+    y0, y1, z0 = J['sleeve']; n = 0
+    names = {g.name for g in mesh.vertex_groups}
+    for v in mesh.data.vertices:
+        ay = abs(v.co.y)
+        if v.co.z < z0 or ay <= y0: continue
+        k = min(1.0, (ay - y0) / (y1 - y0)); k = k * k * (3 - 2 * k)
+        side = 'L' if v.co.y > 0 else 'R'
+        up = f'{side}_UpperarmTwist01' if f'{side}_UpperarmTwist01' in names else f'{side}_Upperarm'
+        arm_bones = {f'{side}_{b}' for b in ('Upperarm', 'UpperarmTwist01', 'UpperarmTwist02', 'Forearm', 'ForearmTwist01', 'ForearmTwist02', 'Hand')}
+        if any(mesh.vertex_groups[g.group].name in arm_bones and g.weight > 0.5 for g in v.groups): continue   # the arm itself
+        for g in v.groups: g.weight *= 1 - k
+        mesh.vertex_groups[up].add([v.index], k, 'ADD'); n += 1
+    print(f'RIG {NAME}: {n} sleeve verts handed to the upper arms')
+
 # a hat (J['headAbove']: the height its brim starts at) rides on the head alone; bone heat lets the
 # brim follow the shoulders, and the head then pokes through it
 if 'headAbove' in J:
@@ -133,6 +156,8 @@ if 'headAbove' in J:
     for g in mesh.vertex_groups: g.remove(hat)
     mesh.vertex_groups['Head'].add(hat, 1.0, 'REPLACE')
     print(f'RIG {NAME}: {len(hat)} hat verts on the head')
+if J.get('weightFull'):
+    mode(mesh, 'OBJECT'); decimate()
 
 # pose every bone back to the template's rest orientation, parents first, then make that the rest
 mode(arm, 'POSE')

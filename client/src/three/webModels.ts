@@ -7,6 +7,7 @@ import type { ModelFiles } from './actor';
  * another. */
 const RIGS: Record<string, string> = {
   sword: new URL('../../../art/model3d/sword/rig_v1.glb', import.meta.url).href,
+  sword2: new URL('../../../art/model3d/sword2/rig_v1.glb', import.meta.url).href,
   lion: new URL('../../../art/model3d/lion/rig_v1.glb', import.meta.url).href,
   modou: new URL('../../../art/model3d/modou/rig_v1.glb', import.meta.url).href,
   fisher: new URL('../../../art/model3d/fisher/rig_v1.glb', import.meta.url).href,
@@ -50,7 +51,7 @@ export const COLOUR_OF: Record<string, string> = {
 };
 
 export const WEB_FILES: ModelFiles = {
-  hero: (pick && RIGS[pick]) || RIGS.sword,
+  hero: (pick && RIGS[pick]) || RIGS.sword2,
   clips: {
     idle: new URL('../../../art/archer3d/model/anim_idle.glb', import.meta.url).href,
     walk: new URL('../../../art/archer3d/model/anim_walk.glb', import.meta.url).href,
