@@ -35,7 +35,7 @@ SET = args[0] if args else 'woodcutter'
 # down onto the ground (1: its lowest joint, padded for flesh, rests on the floor).
 STANCE = dict(
     drop=0.025, shift=0.0, turn=0.0, lean=12.0, twist=0.0, tilt=0.0, nod=-6.0, shake=0.0, blade=None, roll=0.0,
-    fall=0.0, floor=0.0, mo=None, mof=0.0,
+    fall=0.0, floor=0.0, mo=None, mof=0.0, mor=0.0,
     lh=(0.08, 0.25, -0.28), rh=(0.08, -0.25, -0.28),
     le=(-0.6, 0.6, -0.4), re=(-0.6, -0.6, -0.4),
     lf=(0.03, 0.03, 0.0), rf=(-0.03, -0.03, 0.0),
@@ -808,36 +808,64 @@ def washer_lob():
     ]
 
 
+def sw_ready():
+    """The concept's opening stance, breathing (60 ticks, loops): low and wide, side-on with the left
+    foot out in front, the sword hanging from a long right arm with its point trailing down at the
+    floor ahead, the free hand open by the hip."""
+    def at(k):
+        return P(drop=0.10 + 0.012 * k, turn=-22.0, twist=6.0, lean=14.0 + 3 * k, nod=2.0,
+                 lf=(0.22, 0.09, 0.0), rf=(-0.2, -0.08, 0.0),
+                 rh=(0.12, -0.18, -0.30 - 0.01 * k), re=(-0.3, -1.0, 0.0),
+                 lh=(-0.02 + 0.015 * k, 0.25, -0.27), le=(-0.6, 1.0, 0.0),
+                 blade=(0.8, -0.3, -0.55 - 0.05 * k))
+    return 60, [(0, at(0), 'lin'), (30, at(1), 'io'), (60, at(0), 'io')]
+
+
 def mo_idle():
     """The library's shield guard (75 ticks, loops)."""
-    return 75, [(0, P(mo='guard', mof=0.0), 'lin'), (75, P(mo='guard', mof=75.0), 'lin')]
+    return 75, [(0, P(mo='guard', mof=0.0, lb=1.0, **HOLD), 'lin'), (75, P(mo='guard', mof=75.0, lb=1.0, **HOLD), 'lin')]
 
 
-def warp(clip, pts):
-    """A one-shot played with its time bent: pts are (tick, library frame) pairs, straight between."""
+# the library's fighters hold their swords low and back, half hidden behind the body and loose in
+# the fist; over a mocap pose the right arm is put back into the guard's: the sword out at the
+# belly, point up at the enemy, the elbow out in front so the arm stands clear of the body (mor: the hold on)
+HOLD = dict(mor=1.0, rh=(0.18, -0.07, -0.23), re=(-0.1, -0.5, -1.0), blade=(0.85, 0.0, 0.52))
+
+
+def bend(pts, t):
+    """The value at t of (tick, value) pairs, straight between."""
+    i = next(i for i in range(1, len(pts)) if t <= pts[i][0])
+    (t0, f0), (t1, f1) = pts[i - 1], pts[i]
+    return f0 + (f1 - f0) * (t - t0) / (t1 - t0)
+
+
+def warp(clip, pts, mor=((0, 0.0), (1, 0.0))):
+    """A one-shot played with its time bent: pts are (tick, library frame) pairs, straight between;
+    mor the same for how far the right arm is in the guard's hold (so the clip leaves and comes back to it)."""
     n = pts[-1][0]
-    keys = []
-    for t in range(n + 1):
-        i = next(i for i in range(1, len(pts)) if t <= pts[i][0])
-        (t0, f0), (t1, f1) = pts[i - 1], pts[i]
-        keys.append((t, P(mo=clip, mof=f0 + (f1 - f0) * (t - t0) / (t1 - t0)), 'lin'))
-    return n, keys
+    return n, [(t, P(mo=clip, mof=bend(pts, t), **{**HOLD, 'mor': bend(mor, min(t, mor[-1][0]))}), 'lin')
+               for t in range(n + 1)]
 
 
 def mo_dashAtk():
     """The library's dash cut (engine dashAtk: 18 ticks, active 3..7): wind up, cut through low,
     crouch with the blade behind, stand."""
-    return warp('dash', [(0, 0), (3, 4), (7, 12), (14, 28), (18, 38)])
+    return warp('dash', [(0, 0), (3, 4), (7, 12), (14, 28), (18, 38)], mor=((0, 1.0), (3, 0.0), (13, 0.0), (18, 1.0)))
 
 
 def mo_getup():
     """The library's rise off the floor in the engine's 10 ticks, its still start skipped."""
-    return warp('rise', [(0, 6), (10, 37)])
+    return warp('rise', [(0, 6), (10, 37)], mor=((0, 0.0), (5, 0.0), (10, 1.0)))
 
 
 def mo_walk():
     """The library's walk at the hero's pace (18 ticks a cycle, loops)."""
-    return 18, [(t, P(mo='walk', mof=float(t)), 'lin') for t in range(0, 19)]
+    return 18, [(t, P(mo='walk', mof=float(t), **DRAG), 'lin') for t in range(0, 19)]
+
+
+# on the move the sword is dragged: the arm hangs back past the hip and the blade trails behind,
+# its point low over the floor
+DRAG = dict(mor=1.0, rh=(-0.08, -0.17, -0.30), re=(0.3, -1.0, 0.0), blade=(-0.8, -0.25, -0.45))
 
 
 SETS = {
@@ -848,7 +876,7 @@ SETS = {
                                                          'hop': lambda: hop_of(FISHER, {}), **knocked(FISHER, prop=True)}},
     'washer': {'body': 'washer', 'prop': None, 'clips': {'idle': washer_idle, 'walk': washer_walk, 'lob': washer_lob,
                                                         'hop': lambda: hop_of(WASHER, {'rh': (-0.10, -0.30, -0.12), 're': (-0.4, -0.6, -0.6)}), **knocked(WASHER)}},
-    'swordsman': {'body': 'sword2', 'prop': 'sword', 'clips': {'idle': mo_idle, 'walk': mo_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
+    'swordsman': {'body': 'sword2', 'prop': 'sword', 'clips': {'idle': sw_ready, 'walk': mo_walk, 'atk1': sw_atk1, 'atk2': sw_atk2, 'atk3': sw_atk3,
                                                  'jumpAtk': sw_jumpAtk, 'dashAtk': mo_dashAtk, 'tri1': sw_tri1, 'tri2': sw_tri2, 'tri3': sw_tri3,
                                                  'dragon': sw_dragon, 'dragon4': sw_dragon4, 'upper': sw_upper,
                                                  'crush1': sw_crush1, 'crush2': sw_crush2, 'iai': sw_iai,
@@ -924,17 +952,22 @@ Lax = pbs['L_Thigh'].head - pbs['R_Thigh'].head
 Lax.z = 0; Lax.normalize()
 F = Lax.cross(U)
 ANK = {s: pbs[f'{s}_Calf'].tail.copy() for s in 'LR'}
-# where the game puts a sword in the right hand (actor.ts arm()): from the rest pose, pointing
-# forward (the model's -z, Blender's +y) and a little down the forearm's line, its flat to +x
+# where the game puts a sword in the right hand (actor.ts arm()): from the rest pose (arms hanging,
+# palms in), out of the fist's thumb side, i.e. the way the body faces, and a little down the
+# forearm's line, its flat to the side (taking a fixed axis for forward put the blade out through
+# the palm on bodies facing another way, and bent the wrist right back to point it at the enemy)
 _bn = arm.data.bones
 _along = (_bn['R_Hand'].head_local - _bn['R_Forearm'].head_local).normalized()
-_dir = (_along * 0.4 + Vector((0, 1, 0))).normalized()
-_flat = Vector((1, 0, 0))
+_left = _bn['L_Thigh'].head_local - _bn['R_Thigh'].head_local
+_left.z = 0; _left.normalize()
+_dir = (_along * 0.4 + _left.cross(Vector((0, 0, 1)))).normalized()
+_flat = _left.copy()
 _flat = (_flat - _dir * _flat.dot(_dir)).normalized()
 SWORD_REST = Matrix((_flat, _dir, _flat.cross(_dir))).transposed()
 # the sword's frame in the hand's
 SWORD = _bn['R_Hand'].matrix_local.to_3x3().normalized().transposed() @ SWORD_REST
-HILT = _along * 0.05
+# the grip in the fist: the hand bone runs down the back of the hand, the palm faces in (as actor.ts)
+HILT = _along * 0.04 + _left * 0.035
 LEN = {n: (arm.data.bones[n].tail_local - arm.data.bones[n].head_local).length for n in ORDER}
 print(f'MOVES {SET} on {BODY}: forward {tuple(round(v, 3) for v in F)}, hip {pbs['Hip'].head.z:.3f}, scale {arm.matrix_world.to_scale()[0]:.3f}, top {max((mesh.matrix_world @ v.co).z for v in mesh.data.vertices):.3f}, arm {LEN["R_Upperarm"]:.3f}+{LEN["R_Forearm"]:.3f}, leg {LEN["R_Thigh"]:.3f}+{LEN["R_Calf"]:.3f}')
 
@@ -972,6 +1005,10 @@ MIXES = {
     'rise': (-10, [(None, 'LayToIdle', 1.0)]),
 }
 ONCE = {'dash', 'rise'}
+# the library's fighters look down at the floor; under the 斗笠 that buries the face and sets the brim
+# on the shoulders, so the upper back, neck and head are tipped back up, the waist a little forward for a lean
+# (world tilt per bone, degrees); the trunk ends some 6 degrees forward, the head back up to look ahead
+LIFT = {'Waist': -10.0, 'Spine01': 0.0, 'Spine02': 4.0, 'NeckTwist01': 10.0, 'Head': 16.0}
 
 
 def mo_frame(clip, f, loop):
@@ -1000,6 +1037,7 @@ def mo_pose(clip, f):
         a, b, k = src[n]
         D = Quaternion(a['rot'][n]).slerp(Quaternion(b['rot'][n]), k).to_matrix()
         O = Y @ MB @ D @ MB.transposed() @ MW[n] @ MREST[n]
+        if n in LIFT: O = Matrix.Rotation(math.radians(-LIFT[n]), 3, Y @ MB @ Vector((0, 1, 0))) @ O
         pb = pbs[n]
         if n == 'Hip':
             h = Vector(a['hip']).lerp(Vector(b['hip']), k)
@@ -1052,9 +1090,48 @@ def reach(upper, lower, target, pole):
 def rot(axis, deg): return Matrix.Rotation(math.radians(deg), 3, axis)
 
 
+def blade_to(p, Rh):
+    """The right hand turned so the blade points along p['blade'] (hips' axes), its flat to the side."""
+    d = vec(Rh, p['blade']).normalized()
+    side = vec(Rh, (0, 1, 0))
+    flat = side - d * side.dot(d)
+    flat = flat.normalized() if flat.length > 1e-4 else vec(Rh, (0, 0, 1))
+    flat = Matrix.Rotation(math.radians(p['roll']), 3, d) @ flat
+    S = Matrix((flat, d, flat.cross(d))).transposed()
+    hand = pbs['R_Hand']
+    hand.matrix = Matrix.Translation(hand.matrix.translation) @ (S @ SWORD.transposed()).to_4x4()
+    update()
+
+
+def hold(p):
+    """Over a mocap pose: the right arm reaches for p['rh'] off the neck and the blade is set, in
+    the axes of the mix's yaw."""
+    Rh = rot(U, MIXES[p['mo']][0])
+    neck = pbs['Spine02'].tail.copy()
+    # the library's guard has the shoulder rolled back out of reach of the belly: squared again
+    aim('R_Clavicle', vec(Rh, (0.02, -1.0, -0.15)))
+    reach('R_Upperarm', 'R_Forearm', neck + vec(Rh, p['rh']), vec(Rh, p['re']))
+    blade_to(p, Rh)
+
+
 def apply(p, t):
     if p['mo']:
         mo_pose(p['mo'], p['mof'])
+        if p['mor'] > 0.01:
+            # the hold eased in over the mocap arm, bone by bone
+            arm = ('R_Clavicle', 'R_Upperarm', 'R_Forearm', 'R_Hand')
+            was = {n: pbs[n].rotation_quaternion.copy() for n in arm}
+            hold(p)
+            if p['mor'] < 0.99:
+                for n in arm:
+                    pbs[n].rotation_quaternion = was[n].slerp(pbs[n].rotation_quaternion.copy(), p['mor'])
+                update()
+        if p.get('lb', 0) > 0.01:
+            # the free hand behind the small of the back (the library's hangs loose at the side, its
+            # open flat hand dead in the guard)
+            Rh = rot(U, MIXES[p['mo']][0])
+            neck = pbs['Spine02'].tail.copy()
+            reach('L_Upperarm', 'L_Forearm', neck + vec(Rh, (-0.13, 0.03, -0.2)), vec(Rh, (-1.0, 0.8, 0.0)))
         return
     for n in ORDER:
         pbs[n].rotation_quaternion = BASEQ[n]
@@ -1092,16 +1169,7 @@ def apply(p, t):
         foot.matrix = Matrix.Translation(foot.matrix.translation) @ (Rh @ BASE[f'{s}_Foot']).to_4x4()
         update()
     # the sword: the right hand turned so the blade points where it should, its flat to the side
-    if p['blade'] is not None:
-        d = vec(Rh, p['blade']).normalized()
-        side = vec(Rh, (0, 1, 0))
-        flat = side - d * side.dot(d)
-        flat = flat.normalized() if flat.length > 1e-4 else vec(Rh, (0, 0, 1))
-        flat = Matrix.Rotation(math.radians(p['roll']), 3, d) @ flat
-        S = Matrix((flat, d, flat.cross(d))).transposed()
-        hand = pbs['R_Hand']
-        hand.matrix = Matrix.Translation(hand.matrix.translation) @ (S @ SWORD.transposed()).to_4x4()
-        update()
+    if p['blade'] is not None: blade_to(p, Rh)
     # the whole body tipped back about the hips (the bones below follow), then let down to the floor
     if p['fall'] or p['floor']:
         hip = pbs['Hip']

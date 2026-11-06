@@ -1,0 +1,4 @@
+Image-to-video from walk_1.png on the Hugging Face Space zerogpu-aoti/wan2-2-fp8da-aoti-faster (Wan 2.2 I2V, 6 steps, 3.5 s, guidance 1/1, seed 2048661575).
+Prompt: The swordsman walks calmly and steadily to the left with a natural walking gait, seen exactly from the side. The camera tracks him so he stays in the center of the frame; the plain off-white paper background stays empty and still. His legs alternate and pass each other with every step, his robe and the torn red hem strips sway and trail behind him, the sword held low in his right hand. Ink-wash painting style, consistent character.
+Negative: 色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 静止, 最差质量, 低质量, 畸形的, 三条腿, 倒着走, 原地踏步不动, 镜头转动, 背景变化
+Cycle: video frames 4..36 (period 32), cut with tools/sprite2d_video.py into stride_1..16.

@@ -4,6 +4,9 @@ import {
   AnimationMixer,
   Box3,
   BoxGeometry,
+  type BufferGeometry,
+  ExtrudeGeometry,
+  Shape,
   Color,
   Group,
   LoopOnce,
@@ -31,6 +34,8 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { FLOWS, Flow } from './flow';
+import { Paper, hero2d } from './paper';
 import { INK, bakeTone, bodyMaterial, inkMesh, outlineMaterial, ownOutline } from './ink';
 import { cutPose, cutting, moveClip } from './pose';
 import { Trail } from './trail';
@@ -214,18 +219,36 @@ const _side = new Vector3();
 const _base = new Vector3();
 const _tip = new Vector3();
 
+/** A dao's blade in profile (z across it: the spine at +z, the edge at -z; y along it from the
+ * guard), `grow` wider all round, `depth` thick in x: a straight spine that dips at the end to
+ * meet the edge, which sweeps up into the point. */
+function bladeGeo(grow: number, depth: number): ExtrudeGeometry {
+  const sh = new Shape();
+  const g = grow;
+  // drawn in (-z, y): the extrusion is turned a quarter about y below, which takes x to -z
+  sh.moveTo(-(0.02 + g), 0.07 - g);
+  sh.lineTo(-(0.02 + g), 0.47);
+  sh.quadraticCurveTo(-(0.02 + g), 0.51 + g * 0.5, -(0.006 + g * 0.2), 0.535 + g * 1.5);
+  sh.quadraticCurveTo(0.012 + g, 0.49, 0.02 + g, 0.4);
+  sh.lineTo(0.02 + g, 0.07 - g);
+  sh.closePath();
+  const geo = new ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 6 });
+  geo.translate(0, 0, -depth / 2);
+  geo.rotateY(Math.PI / 2);
+  return geo;
+}
+
 /** A plain dao: grip, guard and a slightly curved blade, along +y from the hand. Its parts are
  * shared by every sword, so a body coming and going leaves nothing behind on the GPU. The steel is
- * pale, so a fine ink line runs down the cutting edge too: held low across the paper floor, the
- * blade otherwise vanished into it and only the black grip showed. */
+ * pale, so an ink rim runs round it (a thinner blade a little larger behind the steel): held low
+ * across the paper floor, the blade otherwise vanished into it and only the black grip showed. */
 const SWORD = (() => {
   const ink = new MeshBasicMaterial({ color: INK });
   const steel = new MeshToonMaterial({ color: 0xc8ccd2, gradientMap: null });
   steel.onBeforeCompile = bakeTone;
   return {
-    blade: [new BoxGeometry(0.01, 0.46, 0.04), steel, [0, 0.3, 0]],
-    edge: [new BoxGeometry(0.014, 0.47, 0.012), ink, [0, 0.3, -0.024]],
-    line: [new BoxGeometry(0.012, 0.46, 0.005), ink, [0, 0.3, 0.021]],
+    blade: [bladeGeo(0, 0.01), steel, [0, 0, 0]],
+    rim: [bladeGeo(0.005, 0.007), ink, [0, 0, 0]],
     guard: [new BoxGeometry(0.03, 0.016, 0.07), ink, [0, 0.065, 0]],
     grip: [new BoxGeometry(0.02, 0.12, 0.024), ink, [0, 0, 0]],
   } as const;
@@ -246,7 +269,7 @@ const ROD = (() => {
   } as const;
 })();
 
-function prop(parts: Record<string, readonly [BoxGeometry, Material, readonly [number, number, number]]>): Group {
+function prop(parts: Record<string, readonly [BufferGeometry, Material, readonly [number, number, number]]>): Group {
   const g = new Group();
   for (const [geo, mat, [x, y, z]] of Object.values(parts)) {
     const m = new Mesh(geo, mat);
@@ -259,7 +282,7 @@ function prop(parts: Record<string, readonly [BoxGeometry, Material, readonly [n
 /** The blob of shadow under every body, and the ink line round every body (one width for all). */
 const SHADOW_GEO = new CircleGeometry(1, 24);
 const SHADOW_MAT = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.28, depthWrite: false });
-const OUTLINE = outlineMaterial(0.016);
+const OUTLINE = outlineMaterial(0.01);
 /** Gongbi's line: finer and even, in a dark brown ink rather than black. */
 const GONGBI_WIDTH = 0.007;
 const LINE_INK = new Color(INK);
@@ -282,6 +305,10 @@ export class Actor {
   private blade: Group | null = null;
   /** The fisher's rod, where the line to his hook starts. */
   private rod: Group | null = null;
+  /** The robe's flying strips and the sash's cords, if the body has any. */
+  private flow: Flow | null = null;
+  /** The trial's painted hero (?hero2d), drawn in place of the body. */
+  private paper: Paper | null = null;
   /** Whether 'hit' is the body's own (moves.py), scrubbed to the state's ticks, or the archer's. */
   private readonly ownHit: boolean;
   /** The swish behind the blade, kept in the room like the shadow. */
@@ -328,6 +355,16 @@ export class Actor {
     this.scale = (height ?? fromFp(BODIES[kind].height)) / model.height;
     this.body.scale.setScalar(this.scale);
     this.root.add(this.body);
+    if (kind === 'hero' && hero2d && id >= 0) {
+      this.paper = new Paper(this.scale * model.height);
+      this.root.add(this.paper.mesh);
+      this.body.visible = false;
+    }
+    const strips = FLOWS[kind];
+    if (strips && !this.paper) {
+      this.flow = new Flow(strips, this.bones, this.body, model.height, this.scale * model.height);
+      this.root.add(this.flow.group);
+    }
     this.shadow = new Mesh(SHADOW_GEO, SHADOW_MAT);
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.renderOrder = -1;
@@ -357,21 +394,28 @@ export class Actor {
     this.body.updateMatrixWorld(true);
     const hq = hand.getWorldQuaternion(new Quaternion()).invert();
     const along = hand.getWorldPosition(new Vector3()).sub(fore.getWorldPosition(new Vector3())).normalize().applyQuaternion(hq);
-    // mostly forward, a little down the arm's line: a cut ends with the blade at the enemy, and a
-    // hanging arm (the swordsman's reaches low) keeps the tip above the floor
-    const dir = along
-      .clone()
-      .multiplyScalar(0.4)
-      .add(new Vector3(0, 0, -1).applyQuaternion(hq))
-      .normalize();
-    // the blade's flat turned to the camera, spine up: the clips turn the hips a quarter, which
-    // brings the rest pose's side axis round to face the screen (held the other way, the blade
-    // showed its narrow spine and the ink back covered half of it)
-    const flat = new Vector3(1, 0, 0).applyQuaternion(hq);
-    flat.addScaledVector(dir, -flat.dot(dir)).normalize();
+    // the body's own left and forward at rest (from the hips; the rigs face +x, not -z)
+    const lt = this.bones['L_Thigh'];
+    const rt = this.bones['R_Thigh'];
+    const left = lt && rt ? lt.getWorldPosition(new Vector3()).sub(rt.getWorldPosition(new Vector3())) : new Vector3(0, 0, -1);
+    left.y = 0;
+    left.normalize();
+    const fwd = new Vector3().crossVectors(left, new Vector3(0, 1, 0));
+    // out of the fist's thumb side, the way the body faces, a little down the arm's line (as
+    // moves.py holds it): a cut ends with the blade at the enemy, and a hanging arm keeps the tip
+    // above the floor. A fixed axis put the blade out through the palm and the clips then bent the
+    // wrist right back to point it forward
+    const dir = along.clone().multiplyScalar(0.4).add(fwd.applyQuaternion(hq)).normalize();
+    // the blade's flat to the body's side, which the clips turn to face the screen (held the other
+    // way, the blade showed its narrow spine and the ink back covered half of it)
+    const palm = left.applyQuaternion(hq);
+    const flat = palm.clone().addScaledVector(dir, -palm.dot(dir)).normalize();
     s.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(flat, dir, new Vector3().crossVectors(flat, dir)));
-    // the grip sits in the fist, a little past the wrist (the bones carry the model's own scale)
-    s.position.copy(along).multiplyScalar(0.05 / hand.getWorldScale(new Vector3()).x);
+    // the grip sits in the fist: the hand bone runs down the back of the hand and the palm faces in
+    // (the body's left, at rest), so the grip goes half way down the fingers and a palm's thickness
+    // in from the bone; on the bone line it showed on the back of the hand (the bones carry the
+    // model's own scale)
+    s.position.copy(along).multiplyScalar(0.04).addScaledVector(palm, 0.035).multiplyScalar(1 / hand.getWorldScale(new Vector3()).x);
     s.scale.setScalar(1 / hand.getWorldScale(new Vector3()).x);
     hand.add(s);
     return s;
@@ -465,13 +509,18 @@ export class Actor {
     this.mixer.update(dt);
     this.body.updateMatrixWorld(true);
     if (e.state === 'act' && !(own && this.actions[own.clip])) this.pose(e, alpha);
-    if (this.blade) {
+    if (this.paper) this.paper.update(dt, e, this.flash);
+    if (this.blade && !this.paper) {
       this.blade.localToWorld(_base.set(0, 0.14, 0));
       this.blade.localToWorld(_tip.set(0, 0.53, 0));
       this.trail.update(dt, e.state === 'act' && cutting(e.move, e.st + alpha), _base, _tip);
     }
+    if (this.flow) {
+      this.flow.update(dt, this.yaw, this.root.position, ground);
+      this.flow.group.visible = this.dissolve < 0.5;
+    }
     this.paint(dt);
-    if (this.blade) this.blade.visible = this.dissolve < 0.5;
+    if (this.blade) this.blade.visible = this.dissolve < 0.5 && !this.paper;
     if (this.rod) this.rod.visible = this.dissolve < 0.5;
     const dead = e.state === 'dead';
     // a lurker is not there to see until it springs
@@ -553,6 +602,7 @@ export class Actor {
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.body);
     this.trail.dispose();
+    this.flow?.dispose();
     for (const k of this.skeletons) k.dispose();
     // the materials are left alone: dropping the last user of a shader frees it, and the next
     // body would build it again in the middle of a frame

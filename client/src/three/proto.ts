@@ -1,5 +1,6 @@
 import { botButtons } from '@dnf/engine/bot';
-import { Engine, LocalInputSource, TICK_RATE, fromFp, runConfig, type DungeonId, type SimEvent } from '@dnf/engine';
+import { DEFAULT_LOADOUT, Engine, LocalInputSource, TICK_RATE, fromFp, runConfig, type DungeonId, type Loadout, type SimEvent } from '@dnf/engine';
+import { isSkill } from '../rpg/skills';
 import { Keyboard } from '../game/keyboard';
 import { Clock } from '../net/Session';
 import { View3D, type ViewHost } from './view';
@@ -22,7 +23,10 @@ export async function runProto(params: URLSearchParams, host?: ViewHost): Promis
   const zoom = Number(params.get('zoom') ?? 1);
   if (zoom > 0) view.dist /= zoom;
 
-  let engine = new Engine(runConfig({ seed: Number(params.get('seed') ?? 1), dungeon }), new LocalInputSource());
+  // ?loadout=dragon,crush,...: the skills in the slots (A S D F Q W), else the default ones
+  const want = params.get('loadout')?.split(',');
+  const loadout = (want ? DEFAULT_LOADOUT.map((_, i) => (want[i] && isSkill(want[i]) ? want[i] : null)) : DEFAULT_LOADOUT) as Loadout;
+  let engine = new Engine(runConfig({ seed: Number(params.get('seed') ?? 1), dungeon, loadout }), new LocalInputSource());
   const clock = new Clock(1000 / TICK_RATE);
   // on the web the keyboard plays; elsewhere (and with ?bot) the engine's own bot does
   const keys = host || params.has('bot') ? null : new Keyboard();
@@ -43,7 +47,7 @@ export async function runProto(params: URLSearchParams, host?: ViewHost): Promis
     return hero;
   };
   const restart = () => {
-    engine = new Engine(runConfig({ seed: engine.state.config.seed + 1, dungeon }), new LocalInputSource());
+    engine = new Engine(runConfig({ seed: engine.state.config.seed + 1, dungeon, loadout }), new LocalInputSource());
     view.clear();
   };
   (window as unknown as { proto: unknown }).proto = {

@@ -20,13 +20,36 @@ J = json.load(open(os.path.join(HERE, 'joints.json')))[NAME]
 OUT = args[1] if len(args) > 1 else os.path.join(HERE, os.path.dirname(J['glb']))
 
 
+def stretch(z):
+    """J['stretch'] [[z0, z1, s], ...] (bottom up): each band of the model drawn out s times, what
+    lies above it lifted with it. The game sizes a body by its height, so longer legs make it
+    slimmer too."""
+    out = z
+    for z0, z1, s in J.get('stretch', ()):
+        if z > z0: out += (min(z, z1) - z0) * (s - 1)
+    return out
+
+
+def reach_out(y, z):
+    """J['armStretch'] [y0, y1, s, z0, z1]: the arms (out along y in the T-pose, between heights
+    z0..z1 before any stretch) drawn out s times from y0 to y1, the hands carried out with them;
+    Tripo's bodies come with short arms that cannot bring a sword in to the belly."""
+    if 'armStretch' not in J: return y
+    y0, y1, s, z0, z1 = J['armStretch']
+    a = abs(y)
+    if not (z0 <= z <= z1) or a <= y0: return y
+    a += (min(a, y1) - y0) * (s - 1)
+    return math.copysign(a, y)
+
+
 def joint(key, side=''):
     """Landmark `key`; side 'R' mirrors the left one unless R_<key> is given."""
     if side == 'R':
-        if 'R_' + key in J: return Vector(J['R_' + key])
-        x, y, z = J[key]
-        return Vector((x, -y, z))
-    return Vector(J[key])
+        if 'R_' + key in J: x, y, z = J['R_' + key]
+        else:
+            x, y, z = J[key]; y = -y
+    else: x, y, z = J[key]
+    return Vector((x, reach_out(y, z), stretch(z)))
 
 
 def lerp(a, b, t): return a + (b - a) * t
@@ -76,6 +99,37 @@ mesh = next(o for o in bpy.data.objects if o.type == 'MESH')
 mesh.data.transform(mesh.matrix_world); mesh.matrix_world = Matrix()
 mesh.data.transform(Matrix.Rotation(math.pi / 2, 4, 'Z'))   # Tripo models face -Y; the rig faces +X
 mesh.name = NAME
+def clothe_arms():
+    """J['armCloth'] [y0, y1, z0, z1]: the bare skin of the upper arm (inside the wide sleeve and
+    the gap down to the bracer, out along y in the T-pose) is given the sleeve's cloth by moving its
+    UVs onto a texel of it; drawn out by armStretch, that skin read as a bare grey arm."""
+    if 'armCloth' not in J: return
+    y0, y1, z0, z1 = J['armCloth']
+    me = mesh.data
+    img = next(n.image for m in me.materials for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.outputs['Color'].links)
+    W, H = img.size; px = img.pixels[:]
+    uv = me.uv_layers.active.data
+    def col(li):
+        u, w = uv[li].uv
+        i = (int(w % 1 * H) % H * W + int(u % 1 * W) % W) * 4
+        return px[i], px[i + 1], px[i + 2]
+    red, skin = [], []
+    # whole faces only: a face moved in part smears the cloth texel across its other corners
+    for p in me.polygons:
+        if not all(y0 < abs(me.vertices[i].co.y) < y1 and z0 < me.vertices[i].co.z < z1 for i in p.vertices): continue
+        cs = [col(li) for li in p.loop_indices]
+        if all(r > 2 * g and r > 0.25 for r, g, b in cs): red.extend(p.loop_indices)
+        elif all(r > 0.3 and g > 0.2 and r < 1.8 * g for r, g, b in cs): skin.extend(p.loop_indices)
+    if not red: return
+    rgb = [col(li) for li in red]
+    mid = sorted(range(len(red)), key=lambda i: rgb[i][0])[len(red) // 2]   # a middling red, not a highlight
+    tex = uv[red[mid]].uv.copy()
+    for li in skin: uv[li].uv = tex
+    print(f'RIG {NAME}: {len(skin)} arm skin loops clothed')
+clothe_arms()
+for v in mesh.data.vertices:
+    v.co.y = reach_out(v.co.y, v.co.z)
+    v.co.z = stretch(v.co.z)
 # the game reads only the base colour; newer Tripo exports also carry 4096 normal and
 # roughness maps, so those go and the colour is brought down to the older models' 2048
 for mat in mesh.data.materials:
@@ -139,20 +193,58 @@ if 'sleeve' in J:
     names = {g.name for g in mesh.vertex_groups}
     for v in mesh.data.vertices:
         ay = abs(v.co.y)
-        if v.co.z < z0 or ay <= y0: continue
+        if v.co.z < stretch(z0) or ay <= y0: continue
         k = min(1.0, (ay - y0) / (y1 - y0)); k = k * k * (3 - 2 * k)
         side = 'L' if v.co.y > 0 else 'R'
         up = f'{side}_UpperarmTwist01' if f'{side}_UpperarmTwist01' in names else f'{side}_Upperarm'
         arm_bones = {f'{side}_{b}' for b in ('Upperarm', 'UpperarmTwist01', 'UpperarmTwist02', 'Forearm', 'ForearmTwist01', 'ForearmTwist02', 'Hand')}
-        if any(mesh.vertex_groups[g.group].name in arm_bones and g.weight > 0.5 for g in v.groups): continue   # the arm itself
-        for g in v.groups: g.weight *= 1 - k
-        mesh.vertex_groups[up].add([v.index], k, 'ADD'); n += 1
+        low = {f'{side}_{b}' for b in ('Forearm', 'ForearmTwist01', 'ForearmTwist02', 'Hand')}
+        # the forearm and hand keep theirs (bone heat shares them out among a bone and its twists,
+        # so it is their sum that counts); only the chest's share of the rest moves to the upper arm,
+        # what the upper arm already holds stays
+        if sum(g.weight for g in v.groups if mesh.vertex_groups[g.group].name in low) > 0.5: continue
+        moved = 0.0
+        for g in v.groups:
+            if mesh.vertex_groups[g.group].name in arm_bones: continue
+            moved += g.weight * k; g.weight *= 1 - k
+        if moved <= 0: continue
+        mesh.vertex_groups[up].add([v.index], moved, 'ADD'); n += 1
     print(f'RIG {NAME}: {n} sleeve verts handed to the upper arms')
 
 # a hat (J['headAbove']: the height its brim starts at) rides on the head alone; bone heat lets the
 # brim follow the shoulders, and the head then pokes through it
 if 'headAbove' in J:
-    hat = [v.index for v in mesh.data.vertices if v.co.z >= J['headAbove']]
+    hat = {v.index for v in mesh.data.vertices if v.co.z >= stretch(J['headAbove'])}
+    # hatBrim [z0, r0, r1]: a tilted brim dips below headAbove; it is grown from there along the
+    # mesh's edges through the ring r0..r1 off the head's axis above z0 (the sleeves meet the head
+    # only inside r0, so they stay out)
+    if 'hatBrim' in J:
+        z0, r0, r1 = J['hatBrim']
+        vs = mesh.data.vertices
+        ok = lambda v: v.co.z >= stretch(z0) and r0 <= math.hypot(v.co.x, v.co.y) <= r1
+        nb = {}
+        for e in mesh.data.edges:
+            a, b = e.vertices
+            nb.setdefault(a, []).append(b); nb.setdefault(b, []).append(a)
+        st = [i for i in hat if ok(vs[i])]; n0 = len(hat)
+        while st:
+            i = st.pop()
+            for j in nb.get(i, ()):
+                if j not in hat and ok(vs[j]): hat.add(j); st.append(j)
+        print(f'RIG {NAME}: {len(hat) - n0} brim verts below headAbove')
+    hat = sorted(hat)
+    # hatShrink [r0, k]: the brim drawn in toward the head's axis past r0 (the brim out past the
+    # shoulders reads as the hat sunk onto them)
+    if 'hatShrink' in J:
+        r0, k = J['hatShrink']
+        hx, hy = J['head'][0], J['head'][1]
+        for i in hat:
+            co = mesh.data.vertices[i].co
+            dx, dy = co.x - hx, co.y - hy
+            r = math.hypot(dx, dy)
+            if r > r0:
+                f = (r0 + (r - r0) * k) / r
+                co.x, co.y = hx + dx * f, hy + dy * f
     for g in mesh.vertex_groups: g.remove(hat)
     mesh.vertex_groups['Head'].add(hat, 1.0, 'REPLACE')
     print(f'RIG {NAME}: {len(hat)} hat verts on the head')
