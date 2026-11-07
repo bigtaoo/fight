@@ -25,6 +25,8 @@ type Take = {
   readonly hit: readonly [number, number];
   /** Through the active ticks, cycle these paintings instead (a flurry), `every` ticks each. */
   readonly loop?: readonly [number, number];
+  /** The ticks the paintings spread over, when not the whole move (the hop lands before it ends). */
+  readonly span?: number;
 };
 /** Ticks on each painting of a looped flurry. */
 const FLURRY = 2;
@@ -34,44 +36,61 @@ const SEQS = {
   walk: seq('stride', 16),
   // one cycle of the painted run (low long strides)
   run: seq('sprint', 12),
-  // the three-hit chain: cut, backhand, overhead chop, back to the stance
-  combo: seq('combo', 24),
+  // the three-hit chain from the side stance: overhead cut, backhand sweep, chop, back to the stance
+  combo: seq('scombo', 30),
   // a lunging thrust
   thrust: seq('thrust', 20),
-  // a rising slash from the ground to over the head
-  rising: seq('rising', 20),
-  // a windup then whirling cuts (the clip paints the blade's arcs)
-  spin: seq('spin', 17),
-  // both hands overhead, down into the ground
-  smash: seq('smash', 16),
+  // a rising slash from low in front to over the head, then a cut back down (the clip turns to the
+  // camera after its frame 26, which is left out)
+  rising: seq('srising', 19),
+  // a windup then whirling cuts (the clip paints the blade's arcs), out into a reaching thrust
+  spin: seq('sspin', 24),
+  // both hands overhead, down into the ground, held crouched
+  smash: seq('ssmash', 20),
   // crouched at the scabbard, the draw, the blade held out
   iai: seq('iaido', 18),
+  // the dodge's hop back: off the ground, tucked, down into a low stance (feet on the floor in each
+  // painting: the engine lifts the body itself)
+  hop: seq('shop', 12),
+  // a jump, tucked, from just off the ground to the top and down again
+  jump: seq('sjump', 6),
+  // an overhead windup and a chop down into a low crouch (the clip never leaves the ground; the
+  // engine lifts the body)
+  aerial: seq('saerial', 12),
 } as const;
 const S = SEQS;
 const TAKES: Record<string, Take> = {
-  atk1: { seq: S.combo, from: 0, to: 4, hit: [3, 4] },
-  atk2: { seq: S.combo, from: 5, to: 13, hit: [10, 12] },
-  atk3: { seq: S.combo, from: 13, to: 23, hit: [16, 18] },
+  atk1: { seq: S.combo, from: 2, to: 11, hit: [9, 11] },
+  atk2: { seq: S.combo, from: 11, to: 19, hit: [12, 14] },
+  atk3: { seq: S.combo, from: 19, to: 29, hit: [22, 25] },
   dashAtk: { seq: S.thrust, from: 2, to: 17, hit: [7, 11] },
-  jumpAtk: { seq: S.combo, from: 1, to: 4, hit: [3, 4] },
-  jumpSlam: { seq: S.smash, from: 10, to: 13, hit: [12, 12] },
+  jumpAtk: { seq: S.aerial, from: 2, to: 9, hit: [5, 8] },
+  // the chop, then the low crouch with the blade forward for the dive down
+  jumpSlam: { seq: S.aerial, from: 5, to: 11, hit: [9, 11] },
   tri1: { seq: S.thrust, from: 2, to: 17, hit: [7, 11] },
-  tri2: { seq: S.combo, from: 8, to: 14, hit: [10, 12] },
-  tri3: { seq: S.rising, from: 3, to: 19, hit: [5, 9] },
-  dragon1: { seq: S.spin, from: 4, to: 12, hit: [6, 11] },
-  dragon2: { seq: S.spin, from: 9, to: 14, hit: [10, 13] },
-  dragon3: { seq: S.spin, from: 9, to: 14, hit: [10, 13] },
-  dragon4: { seq: S.rising, from: 4, to: 19, hit: [5, 9] },
-  upper: { seq: S.rising, from: 2, to: 19, hit: [5, 8] },
-  crush1: { seq: S.smash, from: 2, to: 15, hit: [12, 14] },
-  crush2: { seq: S.rising, from: 3, to: 19, hit: [5, 8] },
+  tri2: { seq: S.combo, from: 6, to: 14, hit: [9, 12] },
+  tri3: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
+  dragon1: { seq: S.spin, from: 3, to: 21, hit: [7, 18] },
+  dragon2: { seq: S.spin, from: 7, to: 21, hit: [9, 18] },
+  dragon3: { seq: S.spin, from: 7, to: 21, hit: [9, 18] },
+  dragon4: { seq: S.rising, from: 3, to: 18, hit: [6, 9] },
+  upper: { seq: S.rising, from: 1, to: 18, hit: [6, 9] },
+  crush1: { seq: S.smash, from: 1, to: 19, hit: [12, 14] },
+  crush2: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
   iai: { seq: S.iai, from: 0, to: 17, hit: [8, 10] },
-  phantom: { seq: S.spin, from: 4, to: 16, hit: [9, 15], loop: [9, 14] },
-  phantomEnd: { seq: S.rising, from: 6, to: 19, hit: [6, 19] },
+  phantom: { seq: S.spin, from: 3, to: 23, hit: [8, 20], loop: [8, 17] },
+  phantomEnd: { seq: S.rising, from: 6, to: 18, hit: [6, 18] },
+  // no active ticks: the paintings spread over the whole move
+  backstep: { seq: S.hop, hit: [0, 0], span: 10 },
 };
 /** Moves and states that have no clip yet keep their one painting. */
-const STILLS = ['jump_1', 'hurt_1', 'down_1', 'backstep_1'];
-const MOVE_STILL: Record<string, string> = { backstep: 'backstep_1' };
+const STILLS = ['hurt_1', 'down_1'];
+/** The stance: the painting every side clip starts from, so the moves leave and return to it in
+ * profile (the old three-quarter stance, base, read as turning to the camera and back). */
+const STANCE = 'side';
+/** The hero's take-off speed (the engine's HERO.jumpVz, px/tick): the jump paintings follow the
+ * vertical speed, from this going up to minus this coming down. */
+const JUMP_VZ = 33;
 /** How far the body goes on each walk and run painting (figure heights), so the feet keep to the floor. */
 const WALK_STEP = 0.06;
 const RUN_STEP = 0.065;
@@ -198,7 +217,7 @@ export const hero2d =
 // all of them up front (about 150 paintings); per-move loading or atlases can come later
 if (hero2d) {
   for (const s of Object.values(SEQS)) preload(s);
-  for (const n of ['base', ...STILLS]) tex(n);
+  for (const n of [STANCE, ...STILLS]) tex(n);
 }
 
 export class Paper {
@@ -212,8 +231,8 @@ export class Paper {
   /** How hard the wind moves the painting now (1 standing, less while moving or striking). */
   private readonly uWind = { value: 1 };
   /** The painting shown, and the one it is fading from (`uMix` 0 -> 1 over `fade` seconds). */
-  private shown = 'base';
-  private readonly uPrev = { value: tex('base') };
+  private shown = STANCE;
+  private readonly uPrev = { value: tex(STANCE) };
   private readonly uMix = { value: 1 };
   private fade = FADE;
 
@@ -226,7 +245,7 @@ export class Paper {
     const geo = new PlaneGeometry(w, h, 32, 24);
     // the card's origin at the feet
     geo.translate(0, (FEET - CANVAS_H / 2) * k, 0);
-    this.mat = new MeshBasicMaterial({ map: tex('base'), transparent: true, alphaTest: 0.02, side: DoubleSide, depthWrite: false });
+    this.mat = new MeshBasicMaterial({ map: tex(STANCE), transparent: true, alphaTest: 0.02, side: DoubleSide, depthWrite: false });
     this.mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.uTime;
       sh.uniforms.uWind = this.uWind;
@@ -260,7 +279,7 @@ ${SWAY_BODY}`);
         // fade from whichever painting shows most now (a cut during a fade restarts it from there)
         this.uPrev.value = this.uMix.value < 0.5 ? this.uPrev.value : tex(this.shown);
         this.uMix.value = 0;
-        this.fade = name === 'base' ? FADE_TO_STANCE : e.state === 'act' ? FADE_TO_MOVE : FADE;
+        this.fade = name === STANCE ? FADE_TO_STANCE : e.state === 'act' ? FADE_TO_MOVE : FADE;
       }
       this.shown = name;
     }
@@ -279,12 +298,12 @@ ${SWAY_BODY}`);
       case 'act': {
         const m = MOVES[e.move];
         const t = TAKES[e.move];
-        if (!m || !t) return MOVE_STILL[e.move] ?? 'base';
+        if (!m || !t) return STANCE;
         if (t.loop && e.st >= m.active[0] && e.st <= m.active[1]) {
           const [l0, l1] = t.loop;
           return at(t.seq, l0 + (Math.floor((e.st - m.active[0]) / FLURRY) % (l1 - l0 + 1)));
         }
-        return at(t.seq, tickToIndex(t, e.st, m.total, m.active[0], m.active[1]));
+        return at(t.seq, tickToIndex(t, e.st, t.span ?? m.total, m.active[0], m.active[1]));
       }
       case 'walk':
       case 'run': {
@@ -294,8 +313,10 @@ ${SWAY_BODY}`);
         const i = Math.floor(this.gone / ((run ? RUN_STEP : WALK_STEP) * this.height));
         return at(cycle, i % cycle.n);
       }
-      case 'jump':
-        return 'jump_1';
+      case 'jump': {
+        const u = (JUMP_VZ - fromFp(e.vz)) / (2 * JUMP_VZ);
+        return at(SEQS.jump, Math.round(Math.min(1, Math.max(0, u)) * (SEQS.jump.n - 1)));
+      }
       case 'down':
       case 'dead':
         return 'down_1';
@@ -305,7 +326,7 @@ ${SWAY_BODY}`);
         return 'hurt_1';
       default:
         // one painting, brought to life by the wind (SWAY_BODY): two paintings swapped read as a jump
-        return 'base';
+        return STANCE;
     }
   }
 }

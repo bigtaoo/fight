@@ -85,6 +85,39 @@ JOBS: dict[str, tuple[str, float, str]] = {
     'side_spin': ('side', 2.5,
                   'The swordsman spins forward to the left with a flurry of fast whirling sword cuts, the '
                   'blade sweeping round him in circles, and ends in profile facing left.'),
+    # the moves still missing, from the side stance too; base's backstep barely moved and its hurt
+    # swung the sword instead, so these spell the body's change out (feet off the ground, no cut)
+    'side_flurry': ('side', 3.5,
+                    'The swordsman plants his feet and slashes extremely fast many times in a row in front of '
+                    'him to the left, short cuts up and down, the blade blurring, then ends with one huge wide '
+                    'horizontal slash to the left. He stays in profile facing left the whole time.'),
+    'side_backstep': ('side', 2.0,
+                      'The swordsman pushes off and hops backward to the right: both feet leave the ground, his '
+                      'knees bend, his body stays low and still faces left, the robe flares forward, then he '
+                      'lands on both feet and sinks back into his stance. He does not swing the sword.'),
+    'side_jump': ('side', 2.0,
+                  'The swordsman bends his knees deep and jumps straight up high: both feet leave the ground '
+                  'and his legs tuck up under him, the robe and red strips lifting, then he falls and lands '
+                  'in a crouch. He does not swing the sword and stays in profile facing left.'),
+    'side_aerial': ('side', 2.5,
+                    'The swordsman leaps up off the ground, both feet tucked, and in mid-air swings the sword '
+                    'down in a big arc in front of him to the left, then drops and lands in a crouch with the '
+                    'blade low. He stays in profile facing left.'),
+    'side_hurt': ('side', 2.0,
+                  'The swordsman is hit hard in the chest from the left: his head and shoulders snap back, '
+                  'his body bends backward, he staggers one step back to the right with the sword arm thrown '
+                  'out to the side, then he catches himself and stands in his stance again. He does not '
+                  'attack and stays in profile facing left.'),
+    'side_down': ('side', 3.5,
+                  'The swordsman is knocked off his feet by a blow from the left: he flies backward, falls '
+                  'flat on his back on the ground to the right, lies there a moment, then rolls up onto one '
+                  'knee and stands. He does not attack.'),
+    # the stance is side.png now, so the walk starts from it too: the old walk (from walk_1) turns
+    # the chest a little to the camera and blends into the stance on stopping
+    'side_walk': ('side', 3.5,
+                  'The swordsman walks calmly and steadily to the left with a natural walking gait, the sword '
+                  'held out in front of him in his guard; his legs alternate and pass each other with every '
+                  'step. He stays in profile facing left the whole time and never turns towards the viewer.'),
 }
 
 
