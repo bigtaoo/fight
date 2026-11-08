@@ -3,9 +3,11 @@ art/heroes/sprite2d/<out>_<n>_cut.png, on the same 592x448 canvas as tools/sprit
 only paints poses with both feet down, a video model paints the legs passing each other too.
 
 usage: PYTHONPATH=tools python tools/sprite2d_video.py <clip.mp4> <out> <first> <period> <frames>
-       PYTHONPATH=tools python tools/sprite2d_video.py <clip.mp4> <out> pick <i,j,k,...> [hat|still] [floor|soles]
+       PYTHONPATH=tools python tools/sprite2d_video.py <clip.mp4> <out> pick <i,j,k,...> [hat|still] [floor|soles] [scale] [width]
   first, period: the cycle's first video frame and its length in video frames (it loops there);
   frames: how many paintings to keep of it, evenly spaced.
+  scale: for a clip started from a shrunk stance (side_room.png at 0.75: pass 1.333); width: a
+  wider canvas (832) for a move whose blade reaches past the usual one, same height and feet.
 The clip's camera tracks the figure: each frame is moved so the hat (the steadiest part) keeps a
 straight line through the cycle, which brings the cycle's end back onto its start. The ground row
 stays the clip's own, put on FEET. Prints the planted boot's slide per painting (canvas px), for
@@ -67,21 +69,22 @@ def cut(src: np.ndarray, k: float) -> Image.Image:
     return lay.resize((round(w * k), round(h * k)), Image.LANCZOS)
 
 
-def pick(fr: list[np.ndarray], out: str, idx: list[int], xmode: str, ymode: str) -> None:
+def pick(fr: list[np.ndarray], out: str, idx: list[int], xmode: str, ymode: str, scale: float = 1.0,
+         cw: int = CW) -> None:
     """A move's paintings: the given video frames, in order. `hat` keeps each frame's hat over the
     canvas centre (the engine moves the body, the painting only poses it), `still` keeps the
     first frame's; `floor` keeps the clip's ground on FEET, `soles` each frame's lowest sole (airborne
     poses, which the engine lifts itself)."""
     h, w = fr[0].shape[:2]
-    k = CW / w
+    k = CW / w * scale
     floor = max(ground(fr[i]) for i in idx)
     x0 = body_x(fr[idx[0]])
     for n, i in enumerate(idx):
         src = fr[i]
         bx = body_x(src) if xmode == 'hat' else x0
         gy = ground(src) if ymode == 'soles' else floor
-        canvas = Image.new('RGBA', (CW, CH), (0, 0, 0, 0))
-        canvas.paste(cut(src, k), (round(CW / 2 - bx * k), round(FEET - gy * k)))
+        canvas = Image.new('RGBA', (cw, CH), (0, 0, 0, 0))
+        canvas.paste(cut(src, k), (round(cw / 2 - bx * k), round(FEET - gy * k)))
         canvas.save(DIR / f'{out}_{n + 1}_cut.png', optimize=True)
     print(out, len(idx), 'paintings from frames', idx)
 
@@ -90,7 +93,8 @@ def main() -> None:
     if sys.argv[3] == 'pick':
         fr = frames(sys.argv[1])
         idx = [int(v) for v in sys.argv[4].split(',')]
-        pick(fr, sys.argv[2], idx, sys.argv[5] if len(sys.argv) > 5 else 'hat', sys.argv[6] if len(sys.argv) > 6 else 'floor')
+        arg = lambda i, d: sys.argv[i] if len(sys.argv) > i else d
+        pick(fr, sys.argv[2], idx, arg(5, 'hat'), arg(6, 'floor'), float(arg(7, 1)), int(arg(8, CW)))
         return
     clip, out, first, period, count = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:6])
     fr = frames(clip)

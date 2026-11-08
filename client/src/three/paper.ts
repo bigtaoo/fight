@@ -10,7 +10,12 @@ const url = (n: string) => new URL(`../../../art/heroes/sprite2d/${n}_cut.png`, 
 /** A painted sequence: `<name>_1` .. `<name>_<n>`, frames of an image-to-video clip
  * (tools/sprite2d_clips.py, cut with tools/sprite2d_video.py). */
 type Seq = { readonly name: string; readonly n: number };
-const seq = (name: string, n: number): Seq => ({ name, n });
+/** Each sequence's canvas width, when wider than the usual one (see WIDE_W). */
+const widths = new Map<string, number>();
+const seq = (name: string, n: number, w?: number): Seq => {
+  if (w) widths.set(name, w);
+  return { name, n };
+};
 const at = (s: Seq, i: number) => `${s.name}_${Math.max(1, Math.min(s.n, i + 1))}`;
 
 /**
@@ -41,8 +46,9 @@ const SEQS = {
   run: seq('sprint', 12),
   // the three-hit chain from the side stance: overhead cut, backhand sweep, chop, back to the stance
   combo: seq('scombo', 30),
-  // a lunging thrust
-  thrust: seq('thrust', 20),
+  // a step in, the blade swung up and out into a lunging thrust, held, drawn back (side_thrust2;
+  // a wide canvas for the reach)
+  thrust: seq('sthrust', 14, 832),
   // a rising slash from low in front to over the head, then a cut back down (the clip turns to the
   // camera after its frame 26, which is left out)
   rising: seq('srising', 19),
@@ -51,7 +57,8 @@ const SEQS = {
   // both hands overhead, down into the ground, held crouched
   smash: seq('ssmash', 20),
   // crouched at the scabbard, the draw, the blade held out
-  iai: seq('iaido', 18),
+  // (side_iai2: the blade raised over the head, the draw sweeping down and out, held low; wide)
+  iai: seq('siai', 20, 832),
   // the dodge's hop back: off the ground, tucked, down into a low stance (feet on the floor in each
   // painting: the engine lifts the body itself)
   hop: seq('shop', 12),
@@ -76,11 +83,11 @@ const TAKES: Record<string, Take> = {
   atk1: { seq: S.combo, from: 2, to: 11, hit: [9, 11] },
   atk2: { seq: S.combo, from: 11, to: 19, hit: [12, 14] },
   atk3: { seq: S.combo, from: 19, to: 29, hit: [22, 25] },
-  dashAtk: { seq: S.thrust, from: 2, to: 17, hit: [7, 11] },
+  dashAtk: { seq: S.thrust, hit: [4, 6] },
   jumpAtk: { seq: S.aerial, from: 2, to: 9, hit: [5, 8] },
   // the chop, then the low crouch with the blade forward for the dive down
   jumpSlam: { seq: S.aerial, from: 5, to: 11, hit: [9, 11] },
-  tri1: { seq: S.thrust, from: 2, to: 17, hit: [7, 11] },
+  tri1: { seq: S.thrust, hit: [4, 6] },
   tri2: { seq: S.combo, from: 6, to: 14, hit: [9, 12] },
   tri3: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
   dragon1: { seq: S.spin, from: 3, to: 21, hit: [7, 18] },
@@ -90,7 +97,7 @@ const TAKES: Record<string, Take> = {
   upper: { seq: S.rising, from: 1, to: 18, hit: [6, 9] },
   crush1: { seq: S.smash, from: 1, to: 19, hit: [12, 14] },
   crush2: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
-  iai: { seq: S.iai, from: 0, to: 17, hit: [8, 10] },
+  iai: { seq: S.iai, hit: [10, 12] },
   phantom: { seq: S.flurry, from: 0, to: 11, hit: [2, 11], loop: [3, 11], every: 1 },
   phantomEnd: { seq: S.rising, from: 6, to: 18, hit: [6, 18] },
   // no active ticks: the paintings spread over the whole move
@@ -165,6 +172,11 @@ const CANVAS_W = 592;
 const CANVAS_H = 448;
 const FEET = 420;
 const FIGURE = 400;
+/** The card's width: a move whose blade reaches past the usual canvas is painted on one this wide
+ * (same height and feet, the figure in the middle); the narrower paintings sit in its middle. */
+const WIDE_W = 832;
+/** How much of a painting's width the card spans (1 for a wide painting). */
+const spanOf = (name: string) => WIDE_W / (widths.get(name.slice(0, name.lastIndexOf('_'))) ?? CANVAS_W);
 
 /**
  * The wind on the painting, in the card's vertex shader (uv: 0..1 across the canvas, y up; the
@@ -181,12 +193,18 @@ uniform vec2 uSize;
 const FADE_HEAD = `
 uniform sampler2D uPrev;
 uniform float uMix;
+uniform float uPrevSpan;
+uniform float uMapSpan;
+vec4 painting(sampler2D t, float span, vec2 uv) {
+  uv.x = 0.5 + (uv.x - 0.5) * span;
+  return uv.x < 0.0 || uv.x > 1.0 ? vec4(0.0) : texture2D(t, uv);
+}
 `;
 const FADE_BODY = `
 #ifdef USE_MAP
 {
-  vec4 a = texture2D(uPrev, vMapUv);
-  vec4 b = texture2D(map, vMapUv);
+  vec4 a = painting(uPrev, uPrevSpan, vMapUv);
+  vec4 b = painting(map, uMapSpan, vMapUv);
   vec4 m = mix(vec4(a.rgb * a.a, a.a), vec4(b.rgb * b.a, b.a), uMix);
   diffuseColor *= m.a > 0.0 ? vec4(m.rgb / m.a, m.a) : vec4(0.0);
 }
@@ -194,7 +212,7 @@ const FADE_BODY = `
 `;
 const SWAY_BODY = `
 {
-  vec2 q = uv;
+  vec2 q = vec2(0.5 + (uv.x - 0.5) * ${WIDE_W / CANVAS_W}, uv.y);
   float t = uTime;
   // the hem: right of the body, off the floor, more towards its loose end
   float hem = smoothstep(0.48, 0.85, q.x) * smoothstep(0.12, 0.3, q.y) * (1.0 - smoothstep(0.62, 0.8, q.y));
@@ -251,6 +269,8 @@ export class Paper {
   /** The painting shown, and the one it is fading from (`uMix` 0 -> 1 over `fade` seconds). */
   private shown = STANCE;
   private readonly uPrev = { value: tex(STANCE) };
+  private readonly uPrevSpan = { value: spanOf(STANCE) };
+  private readonly uMapSpan = { value: spanOf(STANCE) };
   private readonly uMix = { value: 1 };
   private fade = FADE;
 
@@ -260,7 +280,7 @@ export class Paper {
     const w = CANVAS_W * k;
     const h = CANVAS_H * k;
     // fine enough for the wind to bend the painting smoothly
-    const geo = new PlaneGeometry(w, h, 32, 24);
+    const geo = new PlaneGeometry(WIDE_W * k, h, 45, 24);
     // the card's origin at the feet
     geo.translate(0, (FEET - CANVAS_H / 2) * k, 0);
     this.mat = new MeshBasicMaterial({ map: tex(STANCE), transparent: true, alphaTest: 0.02, side: DoubleSide, depthWrite: false });
@@ -270,6 +290,8 @@ export class Paper {
       sh.uniforms.uSize = { value: [w, h] };
       sh.uniforms.uPrev = this.uPrev;
       sh.uniforms.uMix = this.uMix;
+      sh.uniforms.uPrevSpan = this.uPrevSpan;
+      sh.uniforms.uMapSpan = this.uMapSpan;
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 ${FADE_HEAD}`)
@@ -295,7 +317,10 @@ ${SWAY_BODY}`);
     if (name !== this.shown) {
       if (!follows(this.shown, name)) {
         // fade from whichever painting shows most now (a cut during a fade restarts it from there)
-        this.uPrev.value = this.uMix.value < 0.5 ? this.uPrev.value : tex(this.shown);
+        if (this.uMix.value >= 0.5) {
+          this.uPrev.value = tex(this.shown);
+          this.uPrevSpan.value = spanOf(this.shown);
+        }
         this.uMix.value = 0;
         this.fade = name === STANCE ? FADE_TO_STANCE : e.state === 'act' ? FADE_TO_MOVE : FADE;
       }
@@ -303,6 +328,7 @@ ${SWAY_BODY}`);
     }
     this.uMix.value = Math.min(1, this.uMix.value + dt / this.fade);
     this.mat.map = tex(name);
+    this.uMapSpan.value = spanOf(name);
     this.uTime.value = this.t;
     const still = e.state === 'idle' || e.state === 'walk';
     this.uWind.value += ((still ? 1 : 0.35) - this.uWind.value) * Math.min(1, dt * 6);

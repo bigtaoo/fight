@@ -1,0 +1,1 @@
+side.png scaled to 0.75 and moved to the right edge (feet kept on row 852), on the same paper colour: the start image for the clips whose blade reaches far to the left (side_thrust2, side_iai2), so it stays in the frame. Cut its frames with scale 1/0.75.

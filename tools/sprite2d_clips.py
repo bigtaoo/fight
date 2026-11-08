@@ -22,6 +22,12 @@ TAIL = (' Seen exactly from the side, facing left. The camera holds still and ke
         'of the frame at the same size; the plain off-white paper background stays empty and still. '
         'His robe and the torn red hem strips flow with the motion. Ink-wash painting style, '
         'consistent character, one sword.')
+# for a start image with the figure against the right edge: the empty paper on the left is for the
+# blade, so the camera must not re-centre him
+ROOM_TAIL = (' Seen exactly from the side, facing left. The camera is locked and does not move or follow him: '
+             'he stays on the right side of the frame at the same size, the empty paper on the left leaves room '
+             'for the sword, and the plain off-white paper background stays empty and still. His robe and the '
+             'torn red hem strips flow with the motion. Ink-wash painting style, consistent character, one sword.')
 
 # name: (start painting, seconds, prompt[, tail, extra negative]) -- a job may swap the shared tail
 # and add negatives (side_hurt2 keeps the sword out of the words so the model does not read a cut)
@@ -129,6 +135,34 @@ JOBS: dict[str, tuple] = {
                    TAIL.replace(' Ink-wash painting style, consistent character, one sword.',
                                 ' Ink-wash painting style, consistent character.'),
                    ', 挥剑, 挥砍, 出招, 攻击, 刀光, 转身'),
+    # the thrust and the iai draw were made from base (three-quarter) and face the camera; these
+    # redo them from the side stance
+    'side_thrust': ('side', 2.5,
+                    'The swordsman lunges forward to the left in one swift dash, his front knee bending deep, '
+                    'and thrusts the sword straight out in front of him to the left at chest height, the arm '
+                    'and blade fully extended in one line, then draws back into his stance. He stays in '
+                    'profile facing left the whole time and never turns towards the viewer.',
+                    TAIL, ', 转身, 正面, 面向镜头'),
+    'side_iai': ('side', 2.5,
+                 'The swordsman sheathes his sword at his left hip and crouches very low and still, his right '
+                 'hand on the hilt; then in a single flash he draws and cuts horizontally far out in front of '
+                 'him to the left, ending low with the blade extended to the left, perfectly still. He stays '
+                 'in profile facing left the whole time and never turns towards the viewer.',
+                 TAIL, ', 转身, 正面, 面向镜头'),
+    # both came out in profile but the blade ran off the frame's left edge; again from side_room.png
+    # (the stance at 0.75 against the right edge, cut back up by 1/0.75), the camera not centring him
+    'side_thrust2': ('side_room', 2.5,
+                     'The swordsman lunges forward to the left in one swift dash, his front knee bending deep, '
+                     'and thrusts the sword straight out in front of him to the left at chest height, the arm '
+                     'and the whole long blade fully extended in one line, then draws back into his stance. He '
+                     'stays in profile facing left the whole time and never turns towards the viewer.',
+                     ROOM_TAIL, ', 转身, 正面, 面向镜头, 剑出画面'),
+    'side_iai2': ('side_room', 2.5,
+                  'The swordsman crouches very low and still with his right hand on the hilt at his left hip; '
+                  'then in a single flash he draws and cuts horizontally far out in front of him to the left, '
+                  'ending low with the whole long blade extended to the left, perfectly still. He stays in '
+                  'profile facing left the whole time, his chest turned away from the viewer.',
+                  ROOM_TAIL, ', 转身, 正面, 面向镜头, 剑出画面'),
 }
 
 
