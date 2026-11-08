@@ -34,6 +34,13 @@ type Take = {
   readonly span?: number;
   /** Ticks on each looped painting (default FLURRY). */
   readonly every?: number;
+  /**
+   * Key poses instead of the even spread: [tick, painting] pairs, each painting held until the
+   * next. A clip moves at an even, real-time pace, which reads as no force; the keys give the
+   * strike its timing back: a held windup, a hard cut to the full reach on the first active tick,
+   * an overshoot, then a slower settle. The cuts inside the move do not cross-fade.
+   */
+  readonly keys?: readonly (readonly [number, number])[];
 };
 /** Ticks on each painting of a looped flurry. */
 const FLURRY = 2;
@@ -80,26 +87,59 @@ const SEQS = {
 } as const;
 const S = SEQS;
 const TAKES: Record<string, Take> = {
-  atk1: { seq: S.combo, from: 2, to: 11, hit: [9, 11] },
-  atk2: { seq: S.combo, from: 11, to: 19, hit: [12, 14] },
-  atk3: { seq: S.combo, from: 19, to: 29, hit: [22, 25] },
-  dashAtk: { seq: S.thrust, hit: [4, 6] },
-  jumpAtk: { seq: S.aerial, from: 2, to: 9, hit: [5, 8] },
-  // the chop, then the low crouch with the blade forward for the dive down
-  jumpSlam: { seq: S.aerial, from: 5, to: 11, hit: [9, 11] },
-  tri1: { seq: S.thrust, hit: [4, 6] },
-  tri2: { seq: S.combo, from: 6, to: 14, hit: [9, 12] },
-  tri3: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
-  dragon1: { seq: S.spin, from: 3, to: 21, hit: [7, 18] },
-  dragon2: { seq: S.spin, from: 7, to: 21, hit: [9, 18] },
-  dragon3: { seq: S.spin, from: 7, to: 21, hit: [9, 18] },
-  dragon4: { seq: S.rising, from: 3, to: 18, hit: [6, 9] },
-  upper: { seq: S.rising, from: 1, to: 18, hit: [6, 9] },
-  crush1: { seq: S.smash, from: 1, to: 19, hit: [12, 14] },
-  crush2: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
-  iai: { seq: S.iai, hit: [10, 12] },
+  // the chain (11/12/18 ticks, active from 3/3/4): overhead, snap to the sweep; backhand; the chop
+  // from high and coiled, through to low, then a slow rise
+  atk1: { seq: S.combo, hit: [9, 11], keys: [[0, 3], [1, 5], [3, 10], [5, 11]] },
+  atk2: { seq: S.combo, hit: [12, 14], keys: [[0, 11], [2, 12], [3, 13], [4, 14], [9, 15]] },
+  atk3: {
+    seq: S.combo, hit: [22, 25],
+    keys: [[0, 17], [1, 19], [2, 21], [4, 24], [5, 25], [7, 26], [11, 27], [14, 28], [16, 29]],
+  },
+  // the thrust (18 ticks, active 3-7): the blade drawn low and up, then at full reach at once
+  dashAtk: {
+    seq: S.thrust, hit: [4, 6],
+    keys: [[0, 1], [2, 2], [3, 6], [5, 7], [7, 8], [10, 9], [13, 11], [15, 12], [17, 13]],
+  },
+  // in the air (14 ticks, active 2-8): coiled overhead, then the blade down at once
+  jumpAtk: { seq: S.aerial, hit: [5, 8], keys: [[0, 2], [1, 4], [2, 7], [4, 8], [8, 9]] },
+  // the chop, then the low crouch with the blade forward, held for the dive down (up to 90 ticks)
+  jumpSlam: { seq: S.aerial, hit: [9, 11], keys: [[0, 4], [1, 6], [2, 9], [4, 10], [6, 11]] },
+  // the triple slash (14/14/20 ticks, active from 3): thrust, the cut from high, the rising launcher
+  tri1: { seq: S.thrust, hit: [4, 6], keys: [[0, 1], [2, 2], [3, 6], [5, 7], [8, 8], [10, 11], [12, 12], [13, 13]] },
+  tri2: { seq: S.combo, hit: [9, 12], keys: [[0, 5], [2, 8], [3, 10], [4, 11], [7, 12], [10, 13], [12, 14]] },
+  tri3: {
+    seq: S.rising, hit: [6, 9],
+    keys: [[0, 4], [2, 5], [3, 8], [4, 9], [6, 11], [9, 12], [12, 14], [15, 16], [17, 17], [19, 18]],
+  },
+  // the whirl (9 ticks each, active 2-7, chained): the windup once, then the arcs, then the rising
+  // finisher (20 ticks, active 2-8)
+  dragon1: { seq: S.spin, hit: [7, 18], keys: [[0, 4], [1, 7], [2, 10], [4, 12], [6, 14], [8, 16]] },
+  dragon2: { seq: S.spin, hit: [9, 18], keys: [[0, 9], [2, 11], [4, 13], [6, 15], [8, 17]] },
+  dragon3: { seq: S.spin, hit: [9, 18], keys: [[0, 10], [2, 12], [4, 14], [6, 16], [8, 17]] },
+  dragon4: {
+    seq: S.rising, hit: [6, 9],
+    keys: [[0, 5], [2, 8], [3, 9], [5, 11], [9, 12], [13, 14], [16, 16], [19, 17]],
+  },
+  // the launcher (20 ticks, active 4-7): crouched low, the blade straight up at once
+  upper: {
+    seq: S.rising, hit: [6, 9],
+    keys: [[0, 3], [2, 5], [4, 8], [5, 9], [7, 11], [11, 12], [15, 14], [18, 16]],
+  },
+  // the smash (12 ticks, active 4-8): overhead and back, into the ground at once; then the rising
+  // cut (20 ticks, active 3-6)
+  crush1: { seq: S.smash, hit: [12, 14], keys: [[0, 5], [1, 7], [2, 9], [4, 13], [5, 14], [7, 15], [10, 17]] },
+  crush2: {
+    seq: S.rising, hit: [6, 9],
+    keys: [[0, 4], [2, 5], [3, 8], [4, 9], [6, 11], [10, 12], [14, 14], [17, 16]],
+  },
+  // the draw (34 ticks, active 14-16): a long coiled wait overhead, then the full reach at once
+  iai: {
+    seq: S.iai, hit: [10, 12],
+    keys: [[0, 1], [2, 3], [5, 5], [8, 7], [12, 9], [14, 12], [16, 13], [20, 15], [25, 17], [30, 19]],
+  },
   phantom: { seq: S.flurry, from: 0, to: 11, hit: [2, 11], loop: [3, 11], every: 1 },
-  phantomEnd: { seq: S.rising, from: 6, to: 18, hit: [6, 18] },
+  // the closing sweep (14 ticks, no hit box of its own)
+  phantomEnd: { seq: S.rising, hit: [6, 18], keys: [[0, 6], [1, 8], [2, 9], [4, 11], [7, 13], [10, 15], [12, 17]] },
   // no active ticks: the paintings spread over the whole move
   backstep: { seq: S.hop, hit: [0, 0], span: 10 },
 };
@@ -148,6 +188,19 @@ function follows(a: string, b: string): boolean {
   if (cycle && CYCLES.includes(sa)) d = Math.min(d, cycle.n - d);
   return d <= NEAR;
 }
+
+/** The key pose held at tick `st`. */
+function keyAt(keys: readonly (readonly [number, number])[], st: number): number {
+  let i = keys[0][1];
+  for (const [t, k] of keys) if (st >= t) i = k;
+  return i;
+}
+
+/** Ticks the strike's stretch takes to ease off, from the first active tick of a keyed move. */
+const PUNCH = 3;
+/** The stretch at the strike: wider along the reach, a little squat. */
+const PUNCH_X = 0.12;
+const PUNCH_Y = 0.05;
 
 /** The painting index (0-based, into the take's span) for tick `st` of a move. */
 function tickToIndex(t: Take, st: number, total: number, a0: number, a1: number): number {
@@ -314,8 +367,11 @@ ${SWAY_BODY}`);
     const dx = this.last === null ? 0 : Math.hypot(x - this.last[0], y - this.last[1]);
     this.last = [x, y];
     const name = this.frame(e, dx);
+    const take = e.state === 'act' ? TAKES[e.move] : undefined;
     if (name !== this.shown) {
-      if (!follows(this.shown, name)) {
+      // a keyed move cuts between its own paintings: a fade there would blur the strike
+      const keyedCut = !!take?.keys && split(this.shown)[0] === split(name)[0];
+      if (!keyedCut && !follows(this.shown, name)) {
         // fade from whichever painting shows most now (a cut during a fade restarts it from there)
         if (this.uMix.value >= 0.5) {
           this.uPrev.value = tex(this.shown);
@@ -333,8 +389,13 @@ ${SWAY_BODY}`);
     const still = e.state === 'idle' || e.state === 'walk';
     this.uWind.value += ((still ? 1 : 0.35) - this.uWind.value) * Math.min(1, dt * 6);
     this.mat.color.setScalar(flash > 0 ? 1.6 : 1);
+    // the strike of a keyed move stretches the card for a moment (held through the hitstop, which
+    // stops the move's ticks)
+    const act = take?.keys ? MOVES[e.move]?.active : undefined;
+    const a0 = act && act[1] >= act[0] ? act[0] : undefined;
+    const p = a0 !== undefined && e.st >= a0 ? Math.max(0, 1 - (e.st - a0) / PUNCH) : 0;
     // the paintings face left
-    this.mesh.scale.set(e.facing > 0 ? -1 : 1, 1, 1);
+    this.mesh.scale.set((e.facing > 0 ? -1 : 1) * (1 + PUNCH_X * p), 1 - PUNCH_Y * p, 1);
   }
 
   private frame(e: Entity, dx: number): string {
@@ -343,6 +404,7 @@ ${SWAY_BODY}`);
         const m = MOVES[e.move];
         const t = TAKES[e.move];
         if (!m || !t) return STANCE;
+        if (t.keys) return at(t.seq, keyAt(t.keys, e.st));
         if (t.loop && e.st >= m.active[0] && e.st <= m.active[1]) {
           const [l0, l1] = t.loop;
           return at(t.seq, l0 + (Math.floor((e.st - m.active[0]) / (t.every ?? FLURRY)) % (l1 - l0 + 1)));
