@@ -1,4 +1,4 @@
-import { MOVES, fromFp, type Entity } from '@dnf/engine';
+import { MOVES, WORLD, fromFp, type Entity } from '@dnf/engine';
 import { DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
 
 // The web game's hero (?hero3d for the 3D body): drawn as painted frames on a card instead of the 3D body. The frames
@@ -27,13 +27,16 @@ type Take = {
   readonly loop?: readonly [number, number];
   /** The ticks the paintings spread over, when not the whole move (the hop lands before it ends). */
   readonly span?: number;
+  /** Ticks on each looped painting (default FLURRY). */
+  readonly every?: number;
 };
 /** Ticks on each painting of a looped flurry. */
 const FLURRY = 2;
 
 const SEQS = {
-  // one cycle (two steps) of the painted walk: the legs pass each other
-  walk: seq('stride', 16),
+  // one cycle (two steps) of the painted walk from the side stance: the legs pass each other
+  // (side_walk frames 14-39)
+  walk: seq('swalk', 16),
   // one cycle of the painted run (low long strides)
   run: seq('sprint', 12),
   // the three-hit chain from the side stance: overhead cut, backhand sweep, chop, back to the stance
@@ -60,6 +63,13 @@ const SEQS = {
   // struck: the blade drops and the body straightens up, held (side_hurt2 frames 4-7; the clip turns
   // to the camera after them)
   hurt: seq('shurt', 4),
+  // knocked off the feet: lifted, flipping back, coming down on the shoulders (side_down frames
+  // 10-18; feet or lowest point on the floor in each, the engine lifts the body)
+  air: seq('sair', 9),
+  // landed: flat on the back (1-8, side_down 19-30), then sitting up into a crouch (9-18, 31-46)
+  down: seq('sdown', 18),
+  // overhead and down again, fast (side_flurry frames 2-15; the clip turns to the camera after)
+  flurry: seq('sflurry', 12),
 } as const;
 const S = SEQS;
 const TAKES: Record<string, Take> = {
@@ -81,15 +91,18 @@ const TAKES: Record<string, Take> = {
   crush1: { seq: S.smash, from: 1, to: 19, hit: [12, 14] },
   crush2: { seq: S.rising, from: 2, to: 18, hit: [6, 9] },
   iai: { seq: S.iai, from: 0, to: 17, hit: [8, 10] },
-  phantom: { seq: S.spin, from: 3, to: 23, hit: [8, 20], loop: [8, 17] },
+  phantom: { seq: S.flurry, from: 0, to: 11, hit: [2, 11], loop: [3, 11], every: 1 },
   phantomEnd: { seq: S.rising, from: 6, to: 18, hit: [6, 18] },
   // no active ticks: the paintings spread over the whole move
   backstep: { seq: S.hop, hit: [0, 0], span: 10 },
 };
-/** Moves and states that have no clip yet keep their one painting. */
-const STILLS = ['hurt_1', 'down_1'];
 /** Ticks on each hurt painting before the last is held: the flinch has to land at once. */
 const HURT_EVERY = 1;
+/** The paintings on the floor: lying (the first LIE of SEQS.down, one a tick, the last held), then
+ * getting up over the engine's getup ticks (the rest). */
+const LIE = 8;
+/** A typical launch speed (px/tick): the air paintings follow the vertical speed like the jump's. */
+const LAUNCH_VZ = 16;
 /** The stance: the painting every side clip starts from, so the moves leave and return to it in
  * profile (the old three-quarter stance, base, read as turning to the camera and back). */
 const STANCE = 'side';
@@ -222,7 +235,7 @@ export const hero2d =
 // all of them up front (about 150 paintings); per-move loading or atlases can come later
 if (hero2d) {
   for (const s of Object.values(SEQS)) preload(s);
-  for (const n of [STANCE, ...STILLS]) tex(n);
+  tex(STANCE);
 }
 
 export class Paper {
@@ -306,7 +319,7 @@ ${SWAY_BODY}`);
         if (!m || !t) return STANCE;
         if (t.loop && e.st >= m.active[0] && e.st <= m.active[1]) {
           const [l0, l1] = t.loop;
-          return at(t.seq, l0 + (Math.floor((e.st - m.active[0]) / FLURRY) % (l1 - l0 + 1)));
+          return at(t.seq, l0 + (Math.floor((e.st - m.active[0]) / (t.every ?? FLURRY)) % (l1 - l0 + 1)));
         }
         return at(t.seq, tickToIndex(t, e.st, t.span ?? m.total, m.active[0], m.active[1]));
       }
@@ -324,12 +337,17 @@ ${SWAY_BODY}`);
       }
       case 'down':
       case 'dead':
-        return 'down_1';
+        return at(SEQS.down, Math.min(LIE - 1, e.st));
+      case 'getup': {
+        const n = SEQS.down.n - LIE;
+        return at(SEQS.down, LIE + Math.min(n - 1, Math.floor((e.st * n) / WORLD.getupTicks)));
+      }
       case 'hurt':
         return at(SEQS.hurt, Math.floor(e.st / HURT_EVERY));
-      case 'air':
-      case 'getup':
-        return 'hurt_1';
+      case 'air': {
+        const u = (LAUNCH_VZ - fromFp(e.vz)) / (2 * LAUNCH_VZ);
+        return at(SEQS.air, Math.round(Math.min(1, Math.max(0, u)) * (SEQS.air.n - 1)));
+      }
       default:
         // one painting, brought to life by the wind (SWAY_BODY): two paintings swapped read as a jump
         return STANCE;
