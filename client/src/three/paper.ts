@@ -57,6 +57,9 @@ const SEQS = {
   // an overhead windup and a chop down into a low crouch (the clip never leaves the ground; the
   // engine lifts the body)
   aerial: seq('saerial', 12),
+  // struck: the blade drops and the body straightens up, held (side_hurt2 frames 4-7; the clip turns
+  // to the camera after them)
+  hurt: seq('shurt', 4),
 } as const;
 const S = SEQS;
 const TAKES: Record<string, Take> = {
@@ -85,6 +88,8 @@ const TAKES: Record<string, Take> = {
 };
 /** Moves and states that have no clip yet keep their one painting. */
 const STILLS = ['hurt_1', 'down_1'];
+/** Ticks on each hurt painting before the last is held: the flinch has to land at once. */
+const HURT_EVERY = 1;
 /** The stance: the painting every side clip starts from, so the moves leave and return to it in
  * profile (the old three-quarter stance, base, read as turning to the camera and back). */
 const STANCE = 'side';
@@ -321,6 +326,7 @@ ${SWAY_BODY}`);
       case 'dead':
         return 'down_1';
       case 'hurt':
+        return at(SEQS.hurt, Math.floor(e.st / HURT_EVERY));
       case 'air':
       case 'getup':
         return 'hurt_1';

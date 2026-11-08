@@ -23,8 +23,9 @@ TAIL = (' Seen exactly from the side, facing left. The camera holds still and ke
         'His robe and the torn red hem strips flow with the motion. Ink-wash painting style, '
         'consistent character, one sword.')
 
-# name: (start painting, seconds, prompt)
-JOBS: dict[str, tuple[str, float, str]] = {
+# name: (start painting, seconds, prompt[, tail, extra negative]) -- a job may swap the shared tail
+# and add negatives (side_hurt2 keeps the sword out of the words so the model does not read a cut)
+JOBS: dict[str, tuple] = {
     'run': ('run_1', 3.0,
             'The swordsman runs fast to the left in long low strides, leaning forward, the sword held '
             'back low in his right hand; his legs alternate and pass each other with every stride.'),
@@ -118,6 +119,16 @@ JOBS: dict[str, tuple[str, float, str]] = {
                   'The swordsman walks calmly and steadily to the left with a natural walking gait, the sword '
                   'held out in front of him in his guard; his legs alternate and pass each other with every '
                   'step. He stays in profile facing left the whole time and never turns towards the viewer.'),
+    # side_hurt came out as a sword swing twice (from base and from side): "a swordsman is hit" reads
+    # as an attack, so this one names only the body, drops "one sword" from the tail and bans cuts
+    'side_hurt2': ('side', 2.0,
+                   'The man is hit by an invisible blow from the left: his head and chest jerk backward, his '
+                   'back arches, his arms stay where they are, he is pushed half a step back to the right and '
+                   'sways, then slowly settles back into the same crouched pose as at the start. He stays in '
+                   'profile facing left the whole time.',
+                   TAIL.replace(' Ink-wash painting style, consistent character, one sword.',
+                                ' Ink-wash painting style, consistent character.'),
+                   ', 挥剑, 挥砍, 出招, 攻击, 刀光, 转身'),
 }
 
 
@@ -126,20 +137,22 @@ def main() -> None:
     # a Hugging Face account's token (HF_TOKEN) gets its daily GPU quota instead of the anonymous one
     client = Client(SPACE, token=os.environ.get('HF_TOKEN') or None, verbose=False)
     for name in want:
-        src, secs, prompt = JOBS[name]
+        src, secs, prompt, *extra = JOBS[name]
+        tail = extra[0] if extra else TAIL
+        neg = NEG + (extra[1] if len(extra) > 1 else '')
         out = DIR / f'{name}_video.mp4'
         if out.exists():
             print(name, 'exists')
             continue
-        full = prompt + TAIL
+        full = prompt + tail
         print(name, 'from', src, '...', flush=True)
-        video, seed = client.predict(handle_file(str(DIR / f'{src}.png')), full, 6, NEG, secs, 1, 1, 42, True,
+        video, seed = client.predict(handle_file(str(DIR / f'{src}.png')), full, 6, neg, secs, 1, 1, 42, True,
                                      api_name='/generate_video')
         path = video['video'] if isinstance(video, dict) else video
         shutil.copy(path, out)
         (DIR / f'{name}_video.txt').write_text(
             f'Image-to-video from {src}.png on the Hugging Face Space {SPACE} (Wan 2.2 I2V, 6 steps, '
-            f'{secs} s, guidance 1/1, seed {int(seed)}).\nPrompt: {full}\nNegative: {NEG}\n', encoding='utf-8')
+            f'{secs} s, guidance 1/1, seed {int(seed)}).\nPrompt: {full}\nNegative: {neg}\n', encoding='utf-8')
         print(name, 'saved, seed', int(seed), flush=True)
 
 
